@@ -1,102 +1,18 @@
-function parseBody(req) {
-  if (!req.body) return {};
-  if (typeof req.body === 'string') {
-    try { return JSON.parse(req.body); } catch (_) { return {}; }
-  }
-  return typeof req.body === 'object' ? req.body : {};
-}
+/**
+ * Appraisify – PDF Report Generator (Vercel Serverless Function)
+ *
+ * Fetches deal data from Bitrix24 using per-tenant OAuth tokens,
+ * loads the associated template from Vercel Blob, and generates a PDF report.
+ *
+ * Env vars required:
+ *   BLOB_READ_WRITE_TOKEN  — Vercel Blob token
+ *   BX24_CLIENT_ID         — for token refresh
+ *   BX24_CLIENT_SECRET     — for token refresh
+ */
 
-function normalizeDomain(raw) {
-  if (!raw) return '';
-  let value = String(raw).trim().toLowerCase();
-  if (!value) return '';
-  if (value.includes('://')) {
-    try { value = new URL(value).hostname.toLowerCase(); } catch (_) {}
-  }
-  value = value.split('/')[0].split('?')[0];
-  return value;
-}
-
-function resolveDomain(req, body) {
-  return normalizeDomain(
-    req.query?.DOMAIN || req.query?.domain || body.DOMAIN || body.domain || req.headers['x-appraisify-domain']
-  );
-}
-
-function flattenParams(obj, prefix = '') {
-  const pairs = [];
-  for (const [key, val] of Object.entries(obj || {})) {
-    const k = prefix ? `${prefix}[${key}]` : key;
-    if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val)) {
-      pairs.push(...flattenParams(val, k));
-    } else if (Array.isArray(val)) {
-      val.forEach((item, i) => pairs.push([`${k}[${i}]`, String(item)]));
-    } else if (val !== null && val !== undefined) {
-      pairs.push([k, String(val)]);
-    }
-  }
-  return pairs;
-}
-
-async function redisCommand(command, ...args) {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (!url || !token) {
-    const err = new Error('Upstash Redis not configured');
-    err.code = 'storage_not_configured';
-    throw err;
-  }
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify([command, ...args]),
-  });
-
-  if (!resp.ok) {
-    const err = new Error(`Redis command failed with HTTP ${resp.status}`);
-    err.code = 'storage_unavailable';
-    throw err;
-  }
-
-  const json = await resp.json();
-  if (json.error) {
-    const err = new Error(json.error);
-    err.code = 'storage_error';
-    throw err;
-  }
-
-  return json.result;
-}
-
-async function callBitrix(method, params = {}) {
-  const webhookUrl = (process.env.BX24_WEBHOOK_URL || '').trim();
-  if (!webhookUrl) {
-    const err = new Error('BX24_WEBHOOK_URL is not set');
-    err.code = 'webhook_not_configured';
-    throw err;
-  }
-
-  const url = `${webhookUrl}${method}`;
-  const formBody = new URLSearchParams(flattenParams(params)).toString();
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: formBody,
-  });
-
-  const data = await resp.json();
-  if (data.error) {
-    const err = new Error(data.error_description || data.error);
-    err.code = 'bitrix_error';
-    throw err;
-  }
-  return data.result;
-}
+import { blobGet, blobFind } from './lib/blob.js';
+import { callBitrix } from './lib/bitrix.js';
+import { parseBody, resolveDomain } from './lib/utils.js';
 
 function extractTemplateIdFromDeal(deal) {
   const comments = String(deal?.COMMENTS || '');
@@ -138,9 +54,7 @@ function textOrDash(value) {
 }
 
 function avgOrDash(values) {
-  const nums = values
-    .map(v => Number(v))
-    .filter(v => Number.isFinite(v));
+  const nums = values.map(v => Number(v)).filter(v => Number.isFinite(v));
   if (!nums.length) return '-';
   return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(2);
 }
@@ -260,31 +174,39 @@ async function loadTemplateForDeal(domain, deal) {
     throw err;
   }
 
-  let templateId = await redisCommand('GET', `appraisal_template:${domain}:${dealId}`);
+  // Try the blob-stored deal-to-template mapping first
+  let templateId = null;
+  const mappingBlob = await blobFind(`portals/${domain}/appraisal-templates/${dealId}.json`);
+  if (mappingBlob) {
+    const mapping = await blobGet(mappingBlob.url);
+    if (mapping && mapping.templateId) templateId = mapping.templateId;
+  }
+
+  // Fall back to template ID embedded in the deal's COMMENTS field
   if (!templateId) {
     templateId = extractTemplateIdFromDeal(deal);
   }
+
   if (!templateId) {
     const err = new Error('template_mapping_not_found');
     err.code = 'template_mapping_not_found';
     throw err;
   }
 
-  const raw = await redisCommand('GET', `templates:${domain}:${templateId}`);
-  if (!raw) {
+  const tplBlob = await blobFind(`portals/${domain}/templates/${templateId}.json`);
+  if (!tplBlob) {
     const err = new Error('template_not_found');
     err.code = 'template_not_found';
     throw err;
   }
 
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (_) {
-    const err = new Error('corrupt_template');
-    err.code = 'corrupt_template';
+  const parsed = await blobGet(tplBlob.url);
+  if (!parsed) {
+    const err = new Error('template_not_found');
+    err.code = 'template_not_found';
     throw err;
   }
+
   return parsed;
 }
 
@@ -357,11 +279,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'missing_deal_id' });
   }
   if (!domain) {
-    return res.status(400).json({ error: 'tenant_context_missing', error_description: 'Could not resolve portal domain from request context.' });
+    return res.status(400).json({
+      error: 'tenant_context_missing',
+      error_description: 'Could not resolve portal domain from request context.',
+    });
   }
 
   try {
-    const deal = await callBitrix('crm.deal.get', { id: Number(dealId) });
+    const deal = await callBitrix(domain, 'crm.deal.get', { id: Number(dealId) });
     if (!deal) {
       return res.status(404).json({ error: 'deal_not_found' });
     }
@@ -373,6 +298,7 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="appraisal-${dealId}.pdf"`);
     return res.status(200).send(pdf);
+
   } catch (e) {
     const code = e.code || 'pdf_generation_failed';
     const status = code === 'template_mapping_not_found' || code === 'template_not_found' || code === 'deal_not_found'

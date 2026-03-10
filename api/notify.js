@@ -1,67 +1,17 @@
-function parseBody(req) {
-  if (!req.body) return {};
-  if (typeof req.body === 'string') {
-    try { return JSON.parse(req.body); } catch (_) { return {}; }
-  }
-  return typeof req.body === 'object' ? req.body : {};
-}
+/**
+ * Appraisify – Notification Dispatcher (Vercel Serverless Function)
+ *
+ * Sends Bitrix24 in-app notifications to appraisal participants using
+ * per-tenant OAuth tokens instead of a shared webhook.
+ *
+ * Env vars required:
+ *   BLOB_READ_WRITE_TOKEN  — Vercel Blob token
+ *   BX24_CLIENT_ID         — for token refresh
+ *   BX24_CLIENT_SECRET     — for token refresh
+ */
 
-function normalizeDomain(raw) {
-  if (!raw) return '';
-  let value = String(raw).trim().toLowerCase();
-  if (!value) return '';
-  if (value.includes('://')) {
-    try { value = new URL(value).hostname.toLowerCase(); } catch (_) {}
-  }
-  return value.split('/')[0].split('?')[0];
-}
-
-function resolveDomain(req, body) {
-  return normalizeDomain(
-    req.query?.DOMAIN || req.query?.domain || body.DOMAIN || body.domain || req.headers['x-appraisify-domain']
-  );
-}
-
-function flattenParams(obj, prefix = '') {
-  const pairs = [];
-  for (const [key, val] of Object.entries(obj || {})) {
-    const k = prefix ? `${prefix}[${key}]` : key;
-    if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val)) {
-      pairs.push(...flattenParams(val, k));
-    } else if (Array.isArray(val)) {
-      val.forEach((item, i) => pairs.push([`${k}[${i}]`, String(item)]));
-    } else if (val !== null && val !== undefined) {
-      pairs.push([k, String(val)]);
-    }
-  }
-  return pairs;
-}
-
-async function callBitrix(method, params = {}) {
-  const webhookUrl = (process.env.BX24_WEBHOOK_URL || '').trim();
-  if (!webhookUrl) {
-    const err = new Error('BX24_WEBHOOK_URL is not set');
-    err.code = 'webhook_not_configured';
-    throw err;
-  }
-
-  const url = `${webhookUrl}${method}`;
-  const formBody = new URLSearchParams(flattenParams(params)).toString();
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: formBody,
-  });
-
-  const data = await resp.json();
-  if (data.error) {
-    const err = new Error(data.error_description || data.error);
-    err.code = data.error;
-    throw err;
-  }
-  return data.result;
-}
+import { callBitrix } from './lib/bitrix.js';
+import { parseBody, resolveDomain } from './lib/utils.js';
 
 function parseEmployeeName(title) {
   const t = String(title || '').trim();
@@ -124,7 +74,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const deal = await callBitrix('crm.deal.get', { id: Number(dealId) });
+    const deal = await callBitrix(domain, 'crm.deal.get', { id: Number(dealId) });
     if (!deal) {
       return res.status(404).json({ error: 'deal_not_found' });
     }
@@ -139,7 +89,7 @@ export default async function handler(req, res) {
 
     for (const uid of recipients) {
       try {
-        await callBitrix('im.notify.system.add', {
+        await callBitrix(domain, 'im.notify.system.add', {
           USER_ID: uid,
           MESSAGE: message,
           TAG: `appraisify|${type}|${dealId}|${uid}`,
@@ -152,6 +102,7 @@ export default async function handler(req, res) {
 
     const notified = results.filter(r => r.ok).length;
     return res.status(200).json({ ok: true, type, dealId, notified, results });
+
   } catch (e) {
     return res.status(503).json({
       error: e.code || 'notification_failed',

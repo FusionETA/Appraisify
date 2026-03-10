@@ -199,7 +199,7 @@ const BX24App = (() => {
       const result = await callAsSystem('crm.category.list', { entityTypeId: 2 });
       const categories = (result && result.categories) ? result.categories : [];
       // Webhook returns lowercase keys (id, name); BX24 SDK returns uppercase (ID, NAME)
-      const found = categories.find(c => (c.NAME || c.name) === 'Appraisify Performance Appraisals');
+      const found = categories.find(c => (c.NAME || c.name) === 'Appraisify Appraisals');
       if (found) {
         const id = String(found.ID || found.id);
         localStorage.setItem('appraisify_category_id', id);
@@ -227,12 +227,25 @@ const BX24App = (() => {
       console.log('[BX24App DEV] callAsSystem:', method, params);
       return {};
     }
-    // Proxy uses a Bitrix24 incoming webhook (BX24_WEBHOOK_URL env var) — never expires.
-    // No tokens or member_id needed here; the webhook handles auth server-side.
+
+    // Resolve domain and member_id for multi-tenant routing.
+    // Bitrix24 passes DOMAIN in the iframe URL query string.
+    const urlParams = new URLSearchParams(window.location.search);
+    let domain = (urlParams.get('DOMAIN') || urlParams.get('domain') || '').split('/')[0].toLowerCase().trim();
+    let member_id = '';
+
+    if (typeof BX24 !== 'undefined' && BX24.getAuth) {
+      try {
+        const auth = BX24.getAuth();
+        if (!domain && auth && auth.domain) domain = String(auth.domain).split('/')[0].toLowerCase().trim();
+        if (auth && auth.member_id) member_id = String(auth.member_id);
+      } catch (_) {}
+    }
+
     const resp = await fetch('/api/bx-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method, params }),
+      body: JSON.stringify({ method, params, domain, member_id }),
     });
     const json = await resp.json();
     if (json.error) {

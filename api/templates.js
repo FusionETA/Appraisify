@@ -1,39 +1,21 @@
+/**
+ * Appraisify – Appraisal Templates CRUD (Vercel Serverless Function)
+ *
+ * Multi-tenant: all data is scoped per portal under portals/{domain}/templates/
+ *
+ * Blob paths:
+ *   portals/{domain}/templates/{id}.json  — individual template
+ *
+ * Env vars required:
+ *   BLOB_READ_WRITE_TOKEN — Vercel Blob token
+ */
+
+import { blobPut, blobGet, blobFind, blobList } from './lib/blob.js';
+import { normalizeDomain, parseBody, resolveDomain } from './lib/utils.js';
+
 const MAX_QUESTIONS_PER_WORKSPACE = 20;
 
-function normalizeDomain(raw) {
-  if (!raw) return '';
-  let value = String(raw).trim().toLowerCase();
-  if (!value) return '';
-
-  if (value.includes('://')) {
-    try {
-      value = new URL(value).hostname.toLowerCase();
-    } catch (_) {}
-  }
-
-  value = value.split('/')[0];
-  value = value.split('?')[0];
-  return value;
-}
-
-function parseBody(req) {
-  if (!req.body) return {};
-  if (typeof req.body === 'string') {
-    try { return JSON.parse(req.body); } catch (_) { return {}; }
-  }
-  if (typeof req.body === 'object') return req.body;
-  return {};
-}
-
-function resolveDomain(req, body) {
-  return normalizeDomain(
-    req.query?.DOMAIN ||
-    req.query?.domain ||
-    body.DOMAIN ||
-    body.domain ||
-    req.headers['x-appraisify-domain']
-  );
-}
+function parseBody_(req) { return parseBody(req); }
 
 function slugify(input) {
   return String(input || '')
@@ -48,6 +30,14 @@ function makeId() {
     return `tpl_${crypto.randomUUID().replace(/-/g, '').slice(0, 20)}`;
   }
   return `tpl_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function templatePath(domain, id) {
+  return `portals/${domain}/templates/${id}.json`;
+}
+
+function templatePrefix(domain) {
+  return `portals/${domain}/templates/`;
 }
 
 function validateQuestion(q, idx, workspace, errors) {
@@ -159,55 +149,8 @@ function fromStoredTemplate(raw, domain) {
   };
 }
 
-async function redisCommand(command, ...args) {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (!url || !token) {
-    const err = new Error('Upstash Redis not configured');
-    err.code = 'storage_not_configured';
-    throw err;
-  }
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify([command, ...args]),
-  });
-
-  if (!resp.ok) {
-    const err = new Error(`Redis command failed with HTTP ${resp.status}`);
-    err.code = 'storage_unavailable';
-    throw err;
-  }
-
-  const json = await resp.json();
-  if (json.error) {
-    const err = new Error(json.error);
-    err.code = 'storage_error';
-    throw err;
-  }
-
-  return json.result;
-}
-
-function makeKeys(domain, id) {
-  return {
-    listKey: `templates:${domain}:list`,
-    itemKey: `templates:${domain}:${id}`,
-    slugKey: (slug) => `templates:${domain}:slug:${slug}`,
-  };
-}
-
 function scopeQuestions(section, questions) {
-  return questions.map((text) => ({
-    section,
-    text,
-    desc: '',
-  }));
+  return questions.map((text) => ({ section, text, desc: '' }));
 }
 
 function getDefaultTemplateSeeds() {
@@ -392,11 +335,10 @@ async function createTemplateForDomain(domain, payload) {
     throw err;
   }
 
-  const idNew = makeId();
+  const id = makeId();
   const now = new Date().toISOString();
-  const slug = slugify(parsed.value.name) || idNew;
   const doc = {
-    id: idNew,
+    id,
     ...parsed.value,
     createdAt: now,
     updatedAt: now,
@@ -404,25 +346,38 @@ async function createTemplateForDomain(domain, payload) {
     version: 1,
   };
 
-  const keys = makeKeys(domain, idNew);
-  await redisCommand('SET', keys.itemKey, JSON.stringify(doc));
-  await redisCommand('SADD', keys.listKey, idNew);
-  await redisCommand('SET', keys.slugKey(slug), idNew);
-
+  await blobPut(templatePath(domain, id), doc);
   return fromStoredTemplate(doc, domain);
 }
 
+async function listTemplatesForDomain(domain, { includeArchived = false } = {}) {
+  const blobs = await blobList(templatePrefix(domain));
+  if (!blobs.length) return [];
+
+  const docs = await Promise.all(
+    blobs.map(async (blob) => {
+      try {
+        const raw = await blobGet(blob.url);
+        return raw ? fromStoredTemplate(raw, domain) : null;
+      } catch (e) {
+        console.warn('[templates] Skipping unreadable blob', blob.pathname, e.message);
+        return null;
+      }
+    })
+  );
+
+  return docs
+    .filter(Boolean)
+    .filter(tpl => includeArchived || !tpl.archived)
+    .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+}
+
 async function seedDefaultTemplatesIfEmpty(domain) {
-  const listKey = `templates:${domain}:list`;
-  const ids = await redisCommand('SMEMBERS', listKey) || [];
-  if (Array.isArray(ids) && ids.length > 0) {
-    // Only skip seeding if at least one ACTIVE template exists.
-    // If a portal has only archived templates, seed defaults again.
-    const docs = await Promise.all(ids.map(async (id) => {
-      const raw = await redisCommand('GET', `templates:${domain}:${id}`);
-      if (!raw) return null;
-      try { return JSON.parse(raw); } catch (_) { return null; }
-    }));
+  const blobs = await blobList(templatePrefix(domain));
+
+  if (blobs.length > 0) {
+    // Check if any active (non-archived) templates exist
+    const docs = await Promise.all(blobs.map(b => blobGet(b.url).catch(() => null)));
     const hasActive = docs.some(doc => doc && doc.archived !== true);
     if (hasActive) return;
   }
@@ -433,34 +388,11 @@ async function seedDefaultTemplatesIfEmpty(domain) {
   }
 }
 
-async function listTemplatesForDomain(domain, { includeArchived = false } = {}) {
-  const listKey = `templates:${domain}:list`;
-  const ids = await redisCommand('SMEMBERS', listKey) || [];
-  if (!Array.isArray(ids) || ids.length === 0) return [];
-
-  const docs = await Promise.all(ids.map(async (id) => {
-    const raw = await redisCommand('GET', `templates:${domain}:${id}`);
-    if (!raw) return null;
-    try {
-      const parsed = JSON.parse(raw);
-      return fromStoredTemplate(parsed, domain);
-    } catch (e) {
-      console.warn('[templates] Skipping corrupt template JSON', id, e.message);
-      return null;
-    }
-  }));
-
-  return docs
-    .filter(Boolean)
-    .filter(tpl => includeArchived || !tpl.archived)
-    .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
-}
-
 export default async function handler(req, res) {
   res.setHeader('X-Frame-Options', 'ALLOWALL');
   res.setHeader('Content-Security-Policy', 'frame-ancestors *');
 
-  const body = parseBody(req);
+  const body = parseBody_(req);
   const domain = resolveDomain(req, body);
   if (!domain) {
     return res.status(400).json({
@@ -476,15 +408,11 @@ export default async function handler(req, res) {
   try {
     if (method === 'GET') {
       if (id) {
-        const item = await redisCommand('GET', `templates:${domain}:${id}`);
-        if (!item) return res.status(404).json({ error: 'template_not_found' });
-        let parsed = null;
-        try {
-          parsed = JSON.parse(item);
-        } catch (e) {
-          return res.status(500).json({ error: 'corrupt_template', error_description: e.message });
-        }
-        return res.status(200).json({ template: fromStoredTemplate(parsed, domain) });
+        const blob = await blobFind(templatePath(domain, id));
+        if (!blob) return res.status(404).json({ error: 'template_not_found' });
+        const raw = await blobGet(blob.url);
+        if (!raw) return res.status(404).json({ error: 'template_not_found' });
+        return res.status(200).json({ template: fromStoredTemplate(raw, domain) });
       }
 
       await seedDefaultTemplatesIfEmpty(domain);
@@ -502,17 +430,10 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'missing_id', error_description: 'id is required' });
       }
 
-      const existingRaw = await redisCommand('GET', `templates:${domain}:${id}`);
-      if (!existingRaw) {
-        return res.status(404).json({ error: 'template_not_found' });
-      }
-
-      let existing;
-      try {
-        existing = JSON.parse(existingRaw);
-      } catch (e) {
-        return res.status(500).json({ error: 'corrupt_template', error_description: e.message });
-      }
+      const blob = await blobFind(templatePath(domain, id));
+      if (!blob) return res.status(404).json({ error: 'template_not_found' });
+      const existing = await blobGet(blob.url);
+      if (!existing) return res.status(404).json({ error: 'template_not_found' });
 
       const parsed = validateTemplatePayload(body, { partial: true });
       if (!parsed.ok) {
@@ -527,8 +448,7 @@ export default async function handler(req, res) {
         version: Number(existing.version || 1) + 1,
       };
 
-      await redisCommand('SET', `templates:${domain}:${id}`, JSON.stringify(updated));
-      await redisCommand('SADD', `templates:${domain}:list`, id);
+      await blobPut(templatePath(domain, id), updated);
       return res.status(200).json({ template: fromStoredTemplate(updated, domain) });
     }
 
@@ -537,17 +457,10 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'missing_id', error_description: 'id is required' });
       }
 
-      const existingRaw = await redisCommand('GET', `templates:${domain}:${id}`);
-      if (!existingRaw) {
-        return res.status(404).json({ error: 'template_not_found' });
-      }
-
-      let existing;
-      try {
-        existing = JSON.parse(existingRaw);
-      } catch (e) {
-        return res.status(500).json({ error: 'corrupt_template', error_description: e.message });
-      }
+      const blob = await blobFind(templatePath(domain, id));
+      if (!blob) return res.status(404).json({ error: 'template_not_found' });
+      const existing = await blobGet(blob.url);
+      if (!existing) return res.status(404).json({ error: 'template_not_found' });
 
       const archived = {
         ...existing,
@@ -556,8 +469,7 @@ export default async function handler(req, res) {
         version: Number(existing.version || 1) + 1,
       };
 
-      await redisCommand('SET', `templates:${domain}:${id}`, JSON.stringify(archived));
-      await redisCommand('SADD', `templates:${domain}:list`, id);
+      await blobPut(templatePath(domain, id), archived);
       return res.status(200).json({ ok: true });
     }
 

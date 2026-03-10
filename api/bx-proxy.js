@@ -1,16 +1,18 @@
 /**
  * Appraisify – Server-side Bitrix24 API Proxy (Vercel Serverless Function)
  *
- * Uses a Bitrix24 incoming webhook (never expires, no token refresh needed)
- * to make privileged CRM calls on behalf of the app.
- *
- * Sends requests as application/x-www-form-urlencoded with PHP-style bracket
- * notation (fields[CATEGORY_ID]=96) — the most reliable format for Bitrix24's
- * PHP backend when called from Node.js server-to-server.
+ * Multi-tenant: uses each portal's stored OAuth tokens instead of a single webhook.
+ * The frontend must include the portal `domain` (and optionally `member_id`) in
+ * the POST body so this handler can load the correct credentials.
  *
  * Env vars required:
- *   BX24_WEBHOOK_URL — e.g. https://your-portal.bitrix24.com/rest/1/secretcode/
+ *   BLOB_READ_WRITE_TOKEN  — Vercel Blob token
+ *   BX24_CLIENT_ID         — for token refresh
+ *   BX24_CLIENT_SECRET     — for token refresh
  */
+
+import { loadTokens, refreshTokens } from './lib/auth.js';
+import { flattenParams } from './lib/utils.js';
 
 // Methods permitted via the system proxy.
 const ALLOWED_METHODS = new Set([
@@ -26,23 +28,21 @@ const ALLOWED_METHODS = new Set([
   'crm.timeline.comment.add',
 ]);
 
-/**
- * Flattens a nested object to PHP-style bracket-notation key/value pairs.
- * e.g. { fields: { CATEGORY_ID: 96 } } → [["fields[CATEGORY_ID]", "96"]]
- */
-function flattenParams(obj, prefix = '') {
-  const pairs = [];
-  for (const [key, val] of Object.entries(obj)) {
-    const k = prefix ? `${prefix}[${key}]` : key;
-    if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val)) {
-      pairs.push(...flattenParams(val, k));
-    } else if (Array.isArray(val)) {
-      val.forEach((item, i) => pairs.push([`${k}[${i}]`, String(item)]));
-    } else if (val !== null && val !== undefined) {
-      pairs.push([k, String(val)]);
-    }
-  }
-  return pairs;
+async function callBitrixWithToken(domain, tokens, method, params) {
+  const url = `https://${domain}/rest/${method}`;
+  const body = new URLSearchParams([
+    ...flattenParams(params),
+    ['auth', tokens.access_token],
+  ]).toString();
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+
+  // Bitrix24 always returns HTTP 200; errors are in the JSON body
+  return resp.json();
 }
 
 export default async function handler(req, res) {
@@ -53,7 +53,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
-  const { method, params } = req.body || {};
+  const { method, params, domain, member_id } = req.body || {};
 
   if (!method || !ALLOWED_METHODS.has(method)) {
     return res.status(400).json({
@@ -62,27 +62,40 @@ export default async function handler(req, res) {
     });
   }
 
-  const webhookUrl = (process.env.BX24_WEBHOOK_URL || '').trim();
-  if (!webhookUrl) {
-    console.error('[bx-proxy] BX24_WEBHOOK_URL env var not set');
-    return res.status(500).json({
-      error: 'webhook_not_configured',
-      error_description: 'BX24_WEBHOOK_URL is not set in Vercel environment variables.',
+  if (!domain) {
+    return res.status(400).json({
+      error: 'tenant_context_missing',
+      error_description: 'domain must be included in the request body',
     });
   }
 
-  const url = `${webhookUrl}${method}`;
-  const formBody = new URLSearchParams(flattenParams(params || {})).toString();
-  console.log('[bx-proxy] →', method, formBody);
-
   try {
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formBody,
-    });
+    let tokens = await loadTokens(domain);
+    if (!tokens) {
+      return res.status(401).json({
+        error: 'portal_not_installed',
+        error_description: `No stored tokens for ${domain}. The app may need to be reinstalled.`,
+      });
+    }
 
-    const data = await resp.json();
+    // Security: if the caller provides a member_id, verify it matches the stored portal identity
+    if (member_id && tokens.member_id && tokens.member_id !== member_id) {
+      console.warn(`[bx-proxy] member_id mismatch for domain ${domain}: expected ${tokens.member_id}, got ${member_id}`);
+      return res.status(403).json({
+        error: 'tenant_mismatch',
+        error_description: 'Request member_id does not match stored portal identity',
+      });
+    }
+
+    console.log('[bx-proxy] →', method, 'for', domain);
+    let data = await callBitrixWithToken(domain, tokens, method, params || {});
+
+    // Bitrix24 returns { error: 'expired_token' } (HTTP 200) when access_token expires
+    if (data.error === 'expired_token' || data.error === 'invalid_token') {
+      console.log(`[bx-proxy] Token expired for ${domain}, refreshing...`);
+      tokens = await refreshTokens(domain, tokens);
+      data = await callBitrixWithToken(domain, tokens, method, params || {});
+    }
 
     if (data.error) {
       console.error('[bx-proxy] Bitrix24 error:', method, data.error, data.error_description);
@@ -92,11 +105,18 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log('[bx-proxy] OK:', method);
+    console.log('[bx-proxy] OK:', method, 'for', domain);
     return res.status(200).json({ result: data.result });
 
   } catch (e) {
-    console.error('[bx-proxy] Fetch failed:', e.message);
-    return res.status(500).json({ error: 'proxy_error', error_description: e.message });
+    console.error('[bx-proxy] Error:', e.message);
+    const status = e.code === 'storage_not_configured' ? 500
+      : e.code === 'oauth_not_configured' ? 500
+      : e.code === 'token_refresh_failed' ? 401
+      : 503;
+    return res.status(status).json({
+      error: e.code || 'proxy_error',
+      error_description: e.message,
+    });
   }
 }
