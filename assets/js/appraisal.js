@@ -82,7 +82,9 @@ function onScoreChange(input) {
     inp.style.borderWidth     = '2px';
     inp.style.backgroundColor = '#fef2f2';
     inp.style.boxShadow       = '0 0 0 3px rgba(239,68,68,0.25)';
-    inp.title = 'Score must be between 1 and 5';
+    inp.title = 'Only 1–5 is accepted';
+    const hint = inp.parentElement?.querySelector('[data-score-hint]');
+    if (hint) hint.style.display = '';
   };
   const clearErrorStyle = (inp) => {
     inp.style.borderColor     = '';
@@ -90,6 +92,8 @@ function onScoreChange(input) {
     inp.style.backgroundColor = '';
     inp.style.boxShadow       = '';
     inp.title = '';
+    const hint = inp.parentElement?.querySelector('[data-score-hint]');
+    if (hint) hint.style.display = 'none';
   };
 
   if (outOfRange) applyErrorStyle(input); else clearErrorStyle(input);
@@ -125,6 +129,8 @@ function onScoreBlur(input) {
     inp.style.backgroundColor = '';
     inp.style.boxShadow       = '';
     inp.title = '';
+    const hint = inp.parentElement?.querySelector('[data-score-hint]');
+    if (hint) hint.style.display = 'none';
   };
   clearError(input);
 

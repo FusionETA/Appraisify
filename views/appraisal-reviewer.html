@@ -450,7 +450,7 @@
                       data-field="reviewer-score" data-qid="${q.id}"
                       class="rating-input border-emerald-200 focus:ring-emerald-500"
                       oninput="onScoreChange(this)" onblur="onScoreBlur(this)"/>
-                    <p class="text-xs text-slate-400 mt-1">Enter 1–5</p>
+                    <p class="text-xs text-red-500 mt-1" data-score-hint style="display:none">Only 1–5 is accepted</p>
                   </td>
                   <td class="px-4 py-4 text-center align-top col-locked">
                     <div class="rating-readonly text-slate-400 italic text-xs">Awaiting partner</div>
@@ -489,7 +489,7 @@
                     data-field="reviewer-score" data-qid="${q.id}"
                     class="rating-input-mobile" style="border-color:#a7f3d0"
                     oninput="onScoreChange(this)" onblur="onScoreBlur(this)"/>
-                  <p class="text-xs text-slate-400 mt-1">Enter 1–5</p>
+                  <p class="text-xs text-red-500 mt-1" data-score-hint style="display:none">Only 1–5 is accepted</p>
                 </div>
                 <div class="mobile-q-score-cell col-locked">
                   <span class="mobile-q-score-label">Partner</span>

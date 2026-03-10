@@ -456,7 +456,7 @@
                       data-field="partner-score" data-qid="${q.id}"
                       class="rating-input border-purple-200 focus:ring-purple-500"
                       oninput="onScoreChange(this)" onblur="onScoreBlur(this)"/>
-                    <p class="text-xs text-slate-400 mt-1">Enter 1–5</p>
+                    <p class="text-xs text-red-500 mt-1" data-score-hint style="display:none">Only 1–5 is accepted</p>
                   </td>
                   <td class="px-6 py-4 align-top space-y-2">
                     <div>
@@ -501,7 +501,7 @@
                     data-field="partner-score" data-qid="${q.id}"
                     class="rating-input-mobile" style="border-color:#d8b4fe"
                     oninput="onScoreChange(this)" onblur="onScoreBlur(this)"/>
-                  <p class="text-xs text-slate-400 mt-1">Enter 1–5</p>
+                  <p class="text-xs text-red-500 mt-1" data-score-hint style="display:none">Only 1–5 is accepted</p>
                 </div>
               </div>
               <div class="mobile-q-comment">
