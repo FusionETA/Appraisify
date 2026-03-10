@@ -71,21 +71,35 @@ function onScoreChange(input) {
     }
   }
 
-  // Visual feedback: red border while the typed value is out of range.
-  // The border clears on blur (onScoreBlur clamps/resets and removes it).
+  // Visual feedback: red background + thick border + glow while out of range.
+  // The styling clears on blur (onScoreBlur clamps/resets and removes it).
   const numericForDisplay = Number(normalizedRaw);
   const outOfRange = normalizedRaw !== '' && Number.isFinite(numericForDisplay)
     && (numericForDisplay < 1 || numericForDisplay > 5);
-  input.style.borderColor = outOfRange ? '#ef4444' : '';
-  input.title = outOfRange ? 'Score must be between 1 and 5' : '';
+
+  const applyErrorStyle = (inp) => {
+    inp.style.borderColor     = '#ef4444';
+    inp.style.borderWidth     = '2px';
+    inp.style.backgroundColor = '#fef2f2';
+    inp.style.boxShadow       = '0 0 0 3px rgba(239,68,68,0.25)';
+    inp.title = 'Score must be between 1 and 5';
+  };
+  const clearErrorStyle = (inp) => {
+    inp.style.borderColor     = '';
+    inp.style.borderWidth     = '';
+    inp.style.backgroundColor = '';
+    inp.style.boxShadow       = '';
+    inp.title = '';
+  };
+
+  if (outOfRange) applyErrorStyle(input); else clearErrorStyle(input);
 
   // Sync value to all sibling inputs with the same qid (desktop ↔ mobile)
   const syncVal = normalizedRaw;
   document.querySelectorAll(`[data-field$="-score"][data-qid="${qid}"]`).forEach(inp => {
     if (inp !== input) {
       inp.value = syncVal;
-      inp.style.borderColor = outOfRange ? '#ef4444' : '';
-      inp.title = outOfRange ? 'Score must be between 1 and 5' : '';
+      if (outOfRange) applyErrorStyle(inp); else clearErrorStyle(inp);
     }
   });
 
@@ -104,8 +118,14 @@ function onScoreChange(input) {
 function onScoreBlur(input) {
   const raw = String(input.value || '').trim();
 
-  // Clear error styling regardless of what we do next
-  const clearError = (inp) => { inp.style.borderColor = ''; inp.title = ''; };
+  // Clear all error styling regardless of what we do next
+  const clearError = (inp) => {
+    inp.style.borderColor     = '';
+    inp.style.borderWidth     = '';
+    inp.style.backgroundColor = '';
+    inp.style.boxShadow       = '';
+    inp.title = '';
+  };
   clearError(input);
 
   if (raw === '') return; // Empty field is fine — nothing to clamp
