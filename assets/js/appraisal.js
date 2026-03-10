@@ -71,10 +71,22 @@ function onScoreChange(input) {
     }
   }
 
+  // Visual feedback: red border while the typed value is out of range.
+  // The border clears on blur (onScoreBlur clamps/resets and removes it).
+  const numericForDisplay = Number(normalizedRaw);
+  const outOfRange = normalizedRaw !== '' && Number.isFinite(numericForDisplay)
+    && (numericForDisplay < 1 || numericForDisplay > 5);
+  input.style.borderColor = outOfRange ? '#ef4444' : '';
+  input.title = outOfRange ? 'Score must be between 1 and 5' : '';
+
   // Sync value to all sibling inputs with the same qid (desktop ↔ mobile)
   const syncVal = normalizedRaw;
   document.querySelectorAll(`[data-field$="-score"][data-qid="${qid}"]`).forEach(inp => {
-    if (inp !== input) inp.value = syncVal;
+    if (inp !== input) {
+      inp.value = syncVal;
+      inp.style.borderColor = outOfRange ? '#ef4444' : '';
+      inp.title = outOfRange ? 'Score must be between 1 and 5' : '';
+    }
   });
 
   updateProgress();
@@ -82,6 +94,37 @@ function onScoreChange(input) {
   if (typeof _appraisalConfig.onScoreUpdate === 'function') {
     _appraisalConfig.onScoreUpdate(calcAverage());
   }
+}
+
+/**
+ * Called onblur on every score input.
+ * Clamps the value into the valid 1–5 range: caps at 5 if too high,
+ * clears the field if below 1. Also removes the red error border.
+ */
+function onScoreBlur(input) {
+  const raw = String(input.value || '').trim();
+
+  // Clear error styling regardless of what we do next
+  const clearError = (inp) => { inp.style.borderColor = ''; inp.title = ''; };
+  clearError(input);
+
+  if (raw === '') return; // Empty field is fine — nothing to clamp
+
+  const numeric = Number(raw);
+  if (numeric > 5) {
+    input.value = '5';
+    onScoreChange(input); // re-validate and sync with clamped value
+  } else if (Number.isFinite(numeric) && numeric < 1) {
+    input.value = '';
+    onScoreChange(input); // re-validate and sync with cleared value
+  }
+
+  // Clear error on sibling inputs too (onScoreChange may have already done it,
+  // but ensure it's clean regardless)
+  const qid = input.dataset.qid;
+  document.querySelectorAll(`[data-field$="-score"][data-qid="${qid}"]`).forEach(inp => {
+    if (inp !== input) clearError(inp);
+  });
 }
 
 function onCommentChange(input) {

@@ -455,7 +455,7 @@
                     <input type="number" min="1" max="5" step="0.01" placeholder="1–5"
                       data-field="partner-score" data-qid="${q.id}"
                       class="rating-input border-purple-200 focus:ring-purple-500"
-                      oninput="onScoreChange(this)"/>
+                      oninput="onScoreChange(this)" onblur="onScoreBlur(this)"/>
                   </td>
                   <td class="px-6 py-4 align-top space-y-2">
                     <div>
@@ -499,7 +499,7 @@
                   <input type="number" min="1" max="5" step="0.01" placeholder="—"
                     data-field="partner-score" data-qid="${q.id}"
                     class="rating-input-mobile" style="border-color:#d8b4fe"
-                    oninput="onScoreChange(this)"/>
+                    oninput="onScoreChange(this)" onblur="onScoreBlur(this)"/>
                 </div>
               </div>
               <div class="mobile-q-comment">
