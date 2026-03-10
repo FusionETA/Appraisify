@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Appraisal Report Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    body { font-family: Manrope, sans-serif; }
+    .report-shell { max-width: 1152px; margin: 0 auto; }
+    .meta-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .avg-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
+    .phase-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    @media (max-width: 1024px) {
+      .meta-grid { grid-template-columns: 1fr; }
+      .avg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .phase-grid { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      @page { size: A4 landscape; margin: 10mm; }
+      .no-print { display: none !important; }
+      body { background: #fff !important; }
+      .report-shell { max-width: none !important; width: 100% !important; padding: 0 !important; }
+      #report { border: 0 !important; border-radius: 0 !important; }
+      article { break-inside: avoid; page-break-inside: avoid; }
+      .meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      .avg-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+      .phase-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+  <header class="no-print sticky top-0 z-20 bg-white border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+      <h1 class="text-sm font-bold text-slate-700">Appraisal Report Preview</h1>
+      <div class="flex items-center gap-2">
+        <button onclick="window.print()" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold">Print / Save PDF</button>
+        <button onclick="window.close()" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700">Close</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="report-shell p-6">
+    <div id="loading" class="bg-white rounded-xl border border-slate-200 p-8 text-sm text-slate-500">Loading report preview…</div>
+
+    <section id="report" class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-8 py-6 border-b border-slate-200 bg-slate-50">
+        <img src="../assets/branding/logos/appraisify-header-7.svg" alt="Appraisify" class="h-10 w-auto mb-4"/>
+        <h2 class="text-2xl font-extrabold text-slate-900">Performance Appraisal Report</h2>
+        <p class="text-sm text-slate-500 mt-1" id="generated-at">Generated: —</p>
+      </div>
+
+      <div class="px-8 py-6 meta-grid text-sm">
+        <div><span class="text-slate-500">Employee</span><p id="meta-employee" class="font-semibold text-slate-900">—</p></div>
+        <div><span class="text-slate-500">Deal ID</span><p id="meta-deal" class="font-semibold text-slate-900">—</p></div>
+        <div><span class="text-slate-500">Cycle</span><p id="meta-cycle" class="font-semibold text-slate-900">—</p></div>
+        <div><span class="text-slate-500">Status</span><p id="meta-status" class="font-semibold text-slate-900">—</p></div>
+        <div><span class="text-slate-500">Template</span><p id="meta-template" class="font-semibold text-slate-900">—</p></div>
+        <div><span class="text-slate-500">Domain</span><p id="meta-domain" class="font-semibold text-slate-900">—</p></div>
+      </div>
+
+      <div class="px-8 pb-6">
+        <div class="avg-grid">
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Self Avg</p>
+            <p id="avg-self" class="text-xl font-extrabold text-slate-900 mt-1">—</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Reviewer Avg</p>
+            <p id="avg-reviewer" class="text-xl font-extrabold text-slate-900 mt-1">—</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Partner Avg</p>
+            <p id="avg-partner" class="text-xl font-extrabold text-slate-900 mt-1">—</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-blue-50 p-3">
+            <p class="text-xs font-semibold uppercase tracking-wider text-blue-600">Total Avg</p>
+            <p id="avg-total" class="text-xl font-extrabold text-blue-700 mt-1">—</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-8 pb-8">
+        <div id="rows" class="space-y-4"></div>
+      </div>
+    </section>
+
+    <div id="error" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl p-5 text-sm"></div>
+  </main>
+
+  <script src="../assets/js/templates-api.js"></script>
+  <script>
+    function pad2(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    function stageLabel(stageId) {
+      const short = String(stageId || '').includes(':') ? String(stageId).split(':')[1] : String(stageId || '');
+      const map = {
+        APPRAISIFY_INIT: 'Initialized',
+        APPRAISIFY_RVWEE: 'Self-Assessment Due',
+        APPRAISIFY_RVWR: 'Awaiting Reviewer',
+        APPRAISIFY_PART: 'Awaiting Partner',
+        APPRAISIFY_DONE: 'Complete',
+      };
+      return map[short] || short || '—';
+    }
+
+    function extractTemplateIdFromDeal(deal) {
+      const comments = String(deal && deal.COMMENTS || '');
+      const m = comments.match(/\[APPRAISIFY_TEMPLATE_ID:([A-Za-z0-9_-]+)\]/);
+      return m ? m[1] : '';
+    }
+
+    function normalizeQuestions(template) {
+      const all = []
+        .concat(Array.isArray(template && template.sections && template.sections.scope) ? template.sections.scope : [])
+        .concat(Array.isArray(template && template.sections && template.sections.engagement) ? template.sections.engagement : []);
+
+      return all.map(function(q, i) {
+        return {
+          index: i + 1,
+          section: String(q && q.section || 'General'),
+          text: String(q && q.text || ''),
+        };
+      });
+    }
+
+    function textOrDash(value) {
+      const out = String(value === null || value === undefined ? '' : value).trim();
+      return out || '—';
+    }
+
+    function scoreOrDash(value) {
+      if (value === null || value === undefined || value === '') return '—';
+      return String(value);
+    }
+
+    function avgOrDash(values) {
+      const nums = values
+        .map(function(v) { return Number(v); })
+        .filter(function(v) { return Number.isFinite(v); });
+      if (!nums.length) return '—';
+      const avg = nums.reduce(function(a, b) { return a + b; }, 0) / nums.length;
+      return avg.toFixed(2);
+    }
+
+    function getField(deal, type, phase, idx) {
+      const key = `UF_CRM_APR_${type}_${phase}${pad2(idx)}`;
+      return deal ? deal[key] : null;
+    }
+
+    async function resolveTemplateId(dealId, deal) {
+      try {
+        const mapping = await TemplatesAPI.getTemplateForDeal(dealId);
+        if (mapping && mapping.templateId) return mapping.templateId;
+      } catch (e) {
+        if (e.code !== 'template_mapping_not_found') throw e;
+      }
+
+      const fromDeal = extractTemplateIdFromDeal(deal);
+      if (fromDeal) return fromDeal;
+
+      throw new Error('template_mapping_not_found');
+    }
+
+    function parseEmployeeName(title) {
+      const t = String(title || '').trim();
+      if (!t) return '—';
+      return t.split(/\s*[–\-]\s*/)[0].trim() || '—';
+    }
+
+    function showError(message) {
+      document.getElementById('loading').classList.add('hidden');
+      const el = document.getElementById('error');
+      el.textContent = message;
+      el.classList.remove('hidden');
+    }
+
+    async function getDealViaProxy(dealId, domain) {
+      const resp = await fetch('/api/bx-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          method: 'crm.deal.get',
+          params: { id: Number(dealId) },
+          domain: domain,
+        }),
+      });
+      const json = await resp.json();
+      if (!resp.ok || json.error) {
+        throw new Error(json.error_description || json.error || `deal_fetch_failed (${resp.status})`);
+      }
+      return json.result || null;
+    }
+
+    (async function initPreview() {
+      const params = new URLSearchParams(window.location.search);
+      const dealId = String(params.get('appraisal') || '').trim();
+      const domain = TemplatesAPI.getDomainFromContext();
+      if (!dealId) {
+        showError('Missing appraisal ID in URL.');
+        return;
+      }
+      if (!domain) {
+        showError('Missing tenant domain context. Open this report from inside Bitrix24.');
+        return;
+      }
+
+      try {
+        const deal = await getDealViaProxy(dealId, domain);
+        if (!deal) throw new Error('deal_not_found');
+
+        const templateId = await resolveTemplateId(dealId, deal);
+        const template = await TemplatesAPI.getTemplate(templateId);
+        if (!template) throw new Error('template_not_found');
+
+        const questions = normalizeQuestions(template);
+        const selfScores = [];
+        const reviewerScores = [];
+        const partnerScores = [];
+        const tbody = document.getElementById('rows');
+        tbody.innerHTML = questions.map(function(q) {
+          const selfRaw = getField(deal, 'S', 'S', q.index);
+          const reviewerRaw = getField(deal, 'S', 'R', q.index);
+          const partnerRaw = getField(deal, 'S', 'P', q.index);
+          if (selfRaw !== null && selfRaw !== undefined && selfRaw !== '') selfScores.push(selfRaw);
+          if (reviewerRaw !== null && reviewerRaw !== undefined && reviewerRaw !== '') reviewerScores.push(reviewerRaw);
+          if (partnerRaw !== null && partnerRaw !== undefined && partnerRaw !== '') partnerScores.push(partnerRaw);
+          const selfScore = scoreOrDash(selfRaw);
+          const selfComment = textOrDash(getField(deal, 'C', 'S', q.index));
+          const reviewerScore = scoreOrDash(reviewerRaw);
+          const reviewerComment = textOrDash(getField(deal, 'C', 'R', q.index));
+          const partnerScore = scoreOrDash(partnerRaw);
+          const partnerComment = textOrDash(getField(deal, 'C', 'P', q.index));
+          return `
+            <article class="border border-slate-200 rounded-xl overflow-hidden">
+              <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Question ${q.index} · ${q.section}</p>
+                <p class="text-sm font-semibold text-slate-900 mt-1">${textOrDash(q.text)}</p>
+              </div>
+              <div class="phase-grid divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
+                <section class="p-4">
+                  <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Self</p>
+                  <p class="text-sm font-semibold text-slate-900 mt-1">Score: ${selfScore}</p>
+                  <p class="mt-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Comment</p>
+                  <div class="mt-1 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-3 whitespace-pre-wrap break-words">${selfComment}</div>
+                </section>
+                <section class="p-4">
+                  <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Reviewer</p>
+                  <p class="text-sm font-semibold text-slate-900 mt-1">Score: ${reviewerScore}</p>
+                  <p class="mt-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Comment</p>
+                  <div class="mt-1 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-3 whitespace-pre-wrap break-words">${reviewerComment}</div>
+                </section>
+                <section class="p-4">
+                  <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Partner</p>
+                  <p class="text-sm font-semibold text-slate-900 mt-1">Score: ${partnerScore}</p>
+                  <p class="mt-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Comment</p>
+                  <div class="mt-1 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-3 whitespace-pre-wrap break-words">${partnerComment}</div>
+                </section>
+              </div>
+            </article>`;
+        }).join('');
+
+        document.getElementById('meta-employee').textContent = parseEmployeeName(deal.TITLE);
+        document.getElementById('meta-deal').textContent = String(deal.ID || dealId);
+        document.getElementById('meta-cycle').textContent = String(deal.TITLE || '—');
+        document.getElementById('meta-status').textContent = stageLabel(deal.STAGE_ID);
+        document.getElementById('meta-template').textContent = String(template.name || template.id || '—');
+        document.getElementById('meta-domain').textContent = domain || '—';
+        document.getElementById('generated-at').textContent = `Generated: ${new Date().toLocaleString()}`;
+        const selfAvg = avgOrDash(selfScores);
+        const reviewerAvg = avgOrDash(reviewerScores);
+        const partnerAvg = avgOrDash(partnerScores);
+        const phaseAverages = [selfAvg, reviewerAvg, partnerAvg].filter(function(v) { return v !== '—'; });
+        const totalAvg = phaseAverages.length ? avgOrDash(phaseAverages) : '—';
+        document.getElementById('avg-self').textContent = selfAvg;
+        document.getElementById('avg-reviewer').textContent = reviewerAvg;
+        document.getElementById('avg-partner').textContent = partnerAvg;
+        document.getElementById('avg-total').textContent = totalAvg;
+
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('report').classList.remove('hidden');
+      } catch (e) {
+        console.error('[Appraisify] report preview failed:', e);
+        showError(`Unable to load report preview: ${e.message || e}`);
+      }
+    })();
+  </script>
+</body>
+</html>

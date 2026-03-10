@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Custom Options Settings – Appraisify</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="../assets/css/main.css" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#136dec',
+            'bitrix-blue': '#2fc6f6',
+            'background-light': '#f0f3f5',
+            'background-dark': '#101822',
+          },
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' },
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-background-light text-slate-800 font-sans min-h-screen">
+
+<header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+  <div class="max-w-5xl mx-auto px-6 h-14 flex items-center gap-4">
+    <a href="dashboard.html" class="flex items-center gap-1.5 text-slate-500 hover:text-primary transition-colors text-sm font-medium">
+      <span class="material-symbols-outlined text-lg">arrow_back</span>
+      Dashboard
+    </a>
+    <div class="w-px h-4 bg-slate-200"></div>
+    <div class="flex items-center gap-2">
+      <img src="../assets/branding/logos/appraisify-mark-7.svg" alt="Appraisify" class="w-9 h-9 rounded-xl object-cover"/>
+      <span class="font-bold text-slate-900">Custom Options Settings</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-6 py-8 pb-24 space-y-6">
+  <div>
+    <h1 class="text-2xl font-extrabold text-slate-900">Custom Metadata Settings</h1>
+    <p class="text-slate-500 text-sm mt-1">Add or delete custom appraisal types, teams, and roles from your local app options.</p>
+  </div>
+
+  <div id="settings-feedback" class="hidden rounded-xl border px-4 py-3 text-sm font-semibold"></div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+        <h2 class="font-bold text-slate-900 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-lg">calendar_month</span>
+          Appraisal Types
+        </h2>
+        <button type="button"
+          onclick="addCustomSettingValue('type', 'appraisal type')"
+          class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-primary/25 text-primary text-xs font-bold hover:bg-primary/5 transition-colors shrink-0">
+          <span class="material-symbols-outlined text-sm">add</span>
+          Add custom
+        </button>
+      </div>
+      <div class="p-5">
+        <div id="list-type" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+        <h2 class="font-bold text-slate-900 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-lg">groups</span>
+          Teams
+        </h2>
+        <button type="button"
+          onclick="addCustomSettingValue('team', 'team')"
+          class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-primary/25 text-primary text-xs font-bold hover:bg-primary/5 transition-colors shrink-0">
+          <span class="material-symbols-outlined text-sm">add</span>
+          Add custom
+        </button>
+      </div>
+      <div class="p-5">
+        <div id="list-team" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+        <h2 class="font-bold text-slate-900 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-lg">badge</span>
+          Roles
+        </h2>
+        <button type="button"
+          onclick="addCustomSettingValue('role', 'role level')"
+          class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-primary/25 text-primary text-xs font-bold hover:bg-primary/5 transition-colors shrink-0">
+          <span class="material-symbols-outlined text-sm">add</span>
+          Add custom
+        </button>
+      </div>
+      <div class="p-5">
+        <div id="list-role" class="space-y-2"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="//api.bitrix24.com/api/v1/"></script>
+<script src="../assets/js/bx24.js"></script>
+<script src="../assets/js/meta-options.js"></script>
+<script>
+  BX24App.init(async () => {
+    const user = await BX24App.getUser();
+    if (user.APP_ROLE !== 'admin') { window.location.replace('dashboard.html'); return; }
+    renderLists();
+  });
+
+  function showFeedback(message, type) {
+    const el = document.getElementById('settings-feedback');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.remove('hidden', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-700', 'border-red-200', 'bg-red-50', 'text-red-700');
+    if (type === 'error') {
+      el.classList.add('border-red-200', 'bg-red-50', 'text-red-700');
+    } else {
+      el.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-700');
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function escapeJsSingleQuoted(value) {
+    return String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  }
+
+  function renderList(kind, title) {
+    const host = document.getElementById(`list-${kind}`);
+    if (!host) return;
+    const items = AppraisifyMetaOptions.listCustom(kind);
+    if (!items.length) {
+      host.innerHTML = `<p class="text-sm text-slate-400 italic">No custom ${title.toLowerCase()} found.</p>`;
+      return;
+    }
+
+    host.innerHTML = items.map((item) => `
+      <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-slate-800 truncate">${escapeHtml(item.label)}</p>
+          <p class="text-xs text-slate-400 truncate">${escapeHtml(item.value)}</p>
+        </div>
+        <button type="button"
+          onclick="deleteCustomValue('${kind}','${escapeJsSingleQuoted(item.value)}','${escapeJsSingleQuoted(item.label)}')"
+          class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs font-bold hover:bg-red-50 transition-colors shrink-0">
+          <span class="material-symbols-outlined text-sm">delete</span>
+          Delete
+        </button>
+      </div>`).join('');
+  }
+
+  function renderLists() {
+    renderList('type', 'Types');
+    renderList('team', 'Teams');
+    renderList('role', 'Roles');
+  }
+
+  function addCustomSettingValue(kind, promptLabel) {
+    const label = window.prompt(`Enter custom ${promptLabel}:`);
+    if (!label) return;
+    const result = AppraisifyMetaOptions.addCustomValue(kind, label);
+    if (!result.ok) {
+      if (result.reason === 'duplicate') {
+        showFeedback(`"${label.trim()}" already exists in custom ${kind} options.`, 'error');
+      } else if (result.reason === 'invalid_label' || result.reason === 'empty_label') {
+        showFeedback(`Invalid ${promptLabel}. Please use letters and numbers.`, 'error');
+      } else {
+        showFeedback(`Unable to add custom ${promptLabel}.`, 'error');
+      }
+      renderLists();
+      return;
+    }
+    showFeedback(`Added "${result.label}" to custom ${kind} options.`, 'ok');
+    renderLists();
+  }
+
+  function deleteCustomValue(kind, value, label) {
+    if (!window.confirm(`Delete "${label}" from custom ${kind} options?`)) return;
+    const result = AppraisifyMetaOptions.removeCustomValue(kind, value);
+    if (!result.ok) {
+      showFeedback('Delete failed. The selected custom option was not found.', 'error');
+      renderLists();
+      return;
+    }
+    showFeedback(`Deleted "${label}" from custom ${kind} options.`, 'ok');
+    renderLists();
+  }
+</script>
+</body>
+</html>

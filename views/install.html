@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Installing Appraisify…</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { primary: '#136dec' },
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-slate-50 font-sans flex items-center justify-center min-h-screen">
+
+  <div class="text-center px-8">
+    <!-- Animated logo -->
+    <div class="relative w-16 h-16 mx-auto mb-5">
+      <img src="../assets/branding/logos/appraisify-mark-7.svg" alt="Appraisify" class="w-16 h-16 rounded-2xl object-cover shadow-lg shadow-slate-400/30"/>
+      <div class="absolute inset-0 rounded-2xl border-2 border-primary/30 border-t-primary animate-spin"></div>
+    </div>
+    <h1 class="text-lg font-bold text-slate-800 mb-1">Installing Appraisify</h1>
+    <p class="text-sm text-slate-500">Setting up your performance appraisal workspace…</p>
+  </div>
+
+  <!--
+    Installation Handler
+    ─────────────────────────────────────────────────────────────────────
+    This page is the "Initial installation path" registered in Bitrix24.
+    Bitrix24 opens it inside an iframe on the first install.
+
+    BX24.init()       — waits for Bitrix24 auth to be ready
+    BX24.install()    — fires only on the very first launch for each user
+    BX24.installFinish() — signals installation complete; Bitrix24 reloads
+                          the frame and opens the main app (handler path)
+    ─────────────────────────────────────────────────────────────────────
+  -->
+  <script src="//api.bitrix24.com/api/v1/"></script>
+  <script src="../assets/js/bx24.js"></script>
+  <script>
+    /*
+     * BX24.installFinish() is called directly in BX24.init() — NOT inside BX24.install().
+     * Reason: BX24.install() only fires on the absolute first-ever launch per user.
+     * On subsequent opens the handler never fires and the page hangs on the spinner.
+     * BX24.installFinish() is safe to call unconditionally: it reloads the frame
+     * into the main app in an installer context, and is a no-op otherwise.
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+      if (typeof BX24 !== 'undefined') {
+        BX24.init(function() {
+          BX24.installFinish();
+        });
+      }
+      // DEV_MODE (local dev, no BX24 object): spinner stays.
+      // Navigate manually to views/index.html for local testing.
+    });
+  </script>
+
+</body>
+</html>

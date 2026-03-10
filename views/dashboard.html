@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Appraisify – Dashboard</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="../assets/css/main.css" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: { primary: '#136dec', 'bitrix-blue': '#2fc6f6', 'background-light': '#f0f3f5', 'background-dark': '#101822' },
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' },
+        },
+      },
+    }
+  </script>
+  <script src="//api.bitrix24.com/api/v1/"></script>
+  <script src="../assets/js/bx24.js"></script>
+</head>
+<body class="bg-background-light text-slate-800 font-sans min-h-screen">
+
+<!-- ── Header ──────────────────────────────────────────────────────── -->
+<header class="sticky top-0 z-50 bg-white border-b border-slate-200">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-6 h-full">
+      <a href="dashboard.html" class="flex items-center">
+        <img src="../assets/branding/logos/appraisify-wordmark-7.svg" alt="Appraisify" class="h-12 w-auto"/>
+      </a>
+      <nav class="hidden md:flex items-center h-full gap-1">
+        <a href="dashboard.html" class="h-full flex items-center px-3 text-sm font-semibold text-primary border-b-2 border-primary">Dashboard</a>
+        <a href="app-guide.html" class="h-full flex items-center px-3 nav-link border-b-2 border-transparent">App Guide</a>
+        <a href="subscription.html" class="h-full flex items-center px-3 nav-link border-b-2 border-transparent">Subscription</a>
+        <!-- Admin only -->
+        <a href="question-builder.html" id="nav-questions" class="h-full flex items-center px-3 nav-link border-b-2 border-transparent hidden">Questions</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btn-notifications" onclick="openNotificationsPopup()" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors relative">
+        <span class="material-symbols-outlined">notifications</span>
+        <span id="notif-badge" class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white hidden"></span>
+      </button>
+      <div class="flex items-center gap-2 cursor-pointer">
+        <div id="user-avatar" class="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm overflow-hidden shrink-0">
+          <span class="material-symbols-outlined text-lg">person</span>
+        </div>
+        <span id="user-name" class="text-sm font-semibold text-slate-700 hidden sm:block">Loading…</span>
+      </div>
+      <!-- Hamburger (mobile only) -->
+      <button id="mobile-menu-btn" onclick="toggleMobileMenu()"
+        class="md:hidden p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors ml-1">
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- Mobile nav drawer -->
+<div id="mobile-nav-overlay" onclick="toggleMobileMenu()"
+  class="hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"></div>
+<div id="mobile-nav-drawer"
+  class="hidden fixed top-0 right-0 h-full w-72 bg-white z-50 shadow-2xl flex-col md:hidden"
+  style="transform: translateX(100%); transition: transform 0.25s ease;">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+    <div class="flex items-center gap-2">
+      <img src="../assets/branding/logos/appraisify-mark-7.svg" alt="Appraisify" class="w-10 h-10 rounded-xl object-cover"/>
+      <span class="font-extrabold text-slate-900">Appraisify</span>
+    </div>
+    <button onclick="toggleMobileMenu()" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+  <nav class="flex flex-col p-4 gap-1">
+    <a href="dashboard.html" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/5 text-primary font-bold text-sm">
+      <span class="material-symbols-outlined text-lg">dashboard</span> Dashboard
+    </a>
+    <a href="app-guide.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
+      <span class="material-symbols-outlined text-lg">menu_book</span> App Guide
+    </a>
+    <a href="subscription.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
+      <span class="material-symbols-outlined text-lg">workspace_premium</span> Subscription
+    </a>
+    <a href="question-builder.html" id="mobile-nav-questions" class="hidden flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors">
+      <span class="material-symbols-outlined text-lg">construction</span> Questions
+    </a>
+  </nav>
+  <div class="mt-auto p-4 border-t border-slate-100">
+    <div class="flex items-center gap-3 px-2 py-2">
+      <div id="mobile-user-avatar" class="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+        <span class="material-symbols-outlined">person</span>
+      </div>
+      <div>
+        <p id="mobile-user-name" class="text-sm font-bold text-slate-900">Loading…</p>
+        <p id="mobile-user-role" class="text-xs text-slate-400 capitalize">—</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+  <!-- ── Toast ──────────────────────────────────────────────────────── -->
+  <div id="toast" class="hidden fixed top-20 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-xl text-sm font-semibold flex items-center gap-2">
+    <span class="material-symbols-outlined text-lg">check_circle</span>
+    <span id="toast-msg">Done!</span>
+  </div>
+
+  <!-- ── EMPLOYEE section ──────────────────────────────────────────── -->
+  <section id="section-employee" class="hidden space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900">My Appraisal</h1>
+        <p class="text-slate-500 text-sm mt-0.5">Your current performance review cycle</p>
+      </div>
+    </div>
+
+    <!-- Status card -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div class="flex items-center gap-5">
+        <div id="emp-avatar" class="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-2xl font-black overflow-hidden">A</div>
+        <div>
+          <h2 class="text-xl font-bold text-slate-900" id="emp-name">—</h2>
+          <p class="text-slate-500 text-sm" id="emp-role-team">—</p>
+          <div class="flex items-center gap-2 mt-2">
+            <span id="cycle-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">Annual Cycle 2024</span>
+            <span id="phase-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">Self-Assessment Due</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <button onclick="window.location.href='appraisal-reviewee.html'" id="btn-submit-appraisal"
+          class="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg font-bold text-sm shadow-sm shadow-primary/20 hover:bg-primary/90 transition-colors">
+          <span class="material-symbols-outlined text-lg">edit_note</span> Submit My Appraisal
+        </button>
+        <button id="btn-download-report" class="flex items-center gap-2 px-5 py-2.5 border border-slate-200 text-slate-600 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors">
+          <span class="material-symbols-outlined text-lg">download</span> Download PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- Score cards (shown after appraisal complete) -->
+    <div id="score-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <div class="flex justify-between items-start mb-3">
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">My Score</p>
+          <span class="material-symbols-outlined text-primary bg-primary/10 p-1.5 rounded-lg text-lg">person</span>
+        </div>
+        <div class="text-3xl font-black text-slate-900 mb-3" id="score-self">—</div>
+        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+          <div class="bg-primary h-full rounded-full" id="bar-self" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <div class="flex justify-between items-start mb-3">
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Reviewer Score</p>
+          <span class="material-symbols-outlined text-indigo-500 bg-indigo-500/10 p-1.5 rounded-lg text-lg">visibility</span>
+        </div>
+        <div class="text-3xl font-black text-slate-900 mb-3" id="score-reviewer">—</div>
+        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+          <div class="bg-indigo-500 h-full rounded-full" id="bar-reviewer" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <div class="flex justify-between items-start mb-3">
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Partner Score</p>
+          <span class="material-symbols-outlined text-emerald-500 bg-emerald-500/10 p-1.5 rounded-lg text-lg">handshake</span>
+        </div>
+        <div class="text-3xl font-black text-slate-900 mb-3" id="score-partner">—</div>
+        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+          <div class="bg-emerald-500 h-full rounded-full" id="bar-partner" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PENDING TASKS section ─────────────────────────────────────── -->
+  <section id="section-pending" class="hidden space-y-6">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-2xl font-extrabold text-slate-900">Pending Appraisals</h2>
+        <p class="text-slate-500 text-sm mt-0.5">Tasks awaiting your submission</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-2 text-center shrink-0">
+        <div id="pending-count" class="text-xl font-black text-primary">0</div>
+        <div class="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Pending</div>
+      </div>
+    </div>
+    <div id="pending-load-warning" class="hidden px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-sm font-medium"></div>
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+        <span class="text-sm font-bold text-slate-700">Submission Queue</span>
+      </div>
+      <div id="pending-list" class="divide-y divide-slate-100">
+        <div class="p-6 text-slate-400 text-sm italic">Checking pending submissions…</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ADMIN section ──────────────────────────────────────────── -->
+  <section id="section-admin" class="hidden space-y-8">
+
+    <!-- Admin greeting + stats -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900">Admin Dashboard</h1>
+        <p class="text-slate-500 text-sm mt-0.5">Manage appraisal cycles and question sets</p>
+      </div>
+      <div class="flex gap-4">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-3 text-center">
+          <div class="text-2xl font-black text-primary">0</div>
+          <div class="text-xs text-slate-500 font-medium mt-0.5">Active</div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-3 text-center">
+          <div class="text-2xl font-black text-amber-500">0</div>
+          <div class="text-xs text-slate-500 font-medium mt-0.5">Pending</div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-3 text-center">
+          <div class="text-2xl font-black text-emerald-500">0</div>
+          <div class="text-xs text-slate-500 font-medium mt-0.5">Complete</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Employee table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+        <div>
+          <h3 class="font-bold text-slate-800">Employees</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Select employees to start an appraisal cycle</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1 sm:flex-none">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+            <input id="emp-search" type="text" placeholder="Search…" onkeyup="filterEmployees()"
+              class="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm w-full sm:w-44 focus:ring-2 focus:ring-primary focus:border-primary"/>
+          </div>
+          <button onclick="applyDealCardConfig()" title="Configure deal card fields"
+            class="flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-500 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors shrink-0">
+            <span class="material-symbols-outlined text-lg">tune</span>
+          </button>
+          <button onclick="startAppraisal()" id="btn-start"
+            class="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-sm shadow-primary/20 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+            disabled>
+            <span class="material-symbols-outlined text-lg">play_arrow</span>
+            <span class="hidden sm:inline">Start Appraisal</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/30 border-b border-slate-100">
+              <th class="px-4 py-3 text-left w-10">
+                <input type="checkbox" id="select-all" onchange="toggleAll(this)" class="rounded border-slate-300 text-primary focus:ring-primary"/>
+              </th>
+              <th class="px-4 py-3 text-left">Employee</th>
+              <th class="px-4 py-3 text-left hidden sm:table-cell">Position</th>
+              <th class="px-4 py-3 text-left hidden lg:table-cell">Department</th>
+              <th class="px-4 py-3 text-left">Status</th>
+            </tr>
+          </thead>
+          <tbody id="employee-table" class="divide-y divide-slate-100">
+            <!-- populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="selection-bar" class="hidden px-6 py-3 bg-primary/5 border-t border-primary/20 flex items-center justify-between">
+        <span class="text-sm font-semibold text-primary"><span id="sel-count">0</span> employee(s) selected</span>
+        <button onclick="startAppraisal()" class="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors">
+          <span class="material-symbols-outlined text-lg">play_arrow</span> Start Appraisal for Selected
+        </button>
+      </div>
+    </div>
+
+    <!-- Question management card -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="group bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:border-primary transition-colors cursor-pointer" onclick="window.location.href='question-builder.html'">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors shrink-0">
+            <span class="material-symbols-outlined text-2xl">add_circle</span>
+          </div>
+          <div>
+            <h4 class="font-bold text-slate-900 text-lg mb-1">Question Builder</h4>
+            <p class="text-slate-500 text-sm leading-relaxed">Create new question sets for specific teams, roles, and appraisal types.</p>
+            <span class="inline-flex items-center gap-1 text-primary font-bold text-sm mt-3 group-hover:translate-x-1 transition-transform">
+              Open Builder <span class="material-symbols-outlined text-sm">arrow_forward</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="group bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:border-primary transition-colors cursor-pointer" onclick="window.location.href='question-editor.html'">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-primary group-hover:text-white transition-colors shrink-0">
+            <span class="material-symbols-outlined text-2xl">edit_note</span>
+          </div>
+          <div>
+            <h4 class="font-bold text-slate-900 text-lg mb-1">Question Editor</h4>
+            <p class="text-slate-500 text-sm leading-relaxed">Modify, reorder, or delete existing questions in your organisation's library.</p>
+            <span class="inline-flex items-center gap-1 text-primary font-bold text-sm mt-3 group-hover:translate-x-1 transition-transform">
+              Open Editor <span class="material-symbols-outlined text-sm">arrow_forward</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="group bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:border-primary transition-colors cursor-pointer" onclick="window.location.href='meta-options-settings.html'">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-primary group-hover:text-white transition-colors shrink-0">
+            <span class="material-symbols-outlined text-2xl">settings</span>
+          </div>
+          <div>
+            <h4 class="font-bold text-slate-900 text-lg mb-1">Custom Options Settings</h4>
+            <p class="text-slate-500 text-sm leading-relaxed">Delete custom appraisal types, teams, and role levels from your metadata options.</p>
+            <span class="inline-flex items-center gap-1 text-primary font-bold text-sm mt-3 group-hover:translate-x-1 transition-transform">
+              Open Settings <span class="material-symbols-outlined text-sm">arrow_forward</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Notifications Popup -->
+<div id="notifications-modal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm p-4 sm:p-6">
+  <div class="max-w-2xl mx-auto mt-10 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="text-base font-bold text-slate-900">Notifications</h3>
+      <button onclick="closeNotificationsPopup()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div id="notifications-popup-body" class="px-6 py-4 space-y-2 text-sm text-slate-700 max-h-[60vh] overflow-y-auto">
+      <p class="text-slate-500">Loading...</p>
+    </div>
+    <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+      <button onclick="closeNotificationsPopup()"
+        class="px-5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Footer quick-links ──────────────────────────────────────────── -->
+<footer class="mt-12 border-t border-slate-200 bg-white">
+  <div class="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+    <p class="text-xs text-slate-400">© 2024 Appraisify. All rights reserved.</p>
+    <div class="flex gap-5 text-xs font-semibold">
+      <a href="app-guide.html" class="text-slate-500 hover:text-primary transition-colors flex items-center gap-1">
+        <span class="material-symbols-outlined text-sm">menu_book</span> App Guide
+      </a>
+      <a href="subscription.html" class="text-slate-500 hover:text-primary transition-colors flex items-center gap-1">
+        <span class="material-symbols-outlined text-sm">credit_card</span> Subscription
+      </a>
+    </div>
+  </div>
+</footer>
+
+<script src="../assets/js/dashboard.js"></script>
+
+<!-- ── Dev Role Switcher (dev mode only) ──────────────────────────── -->
+<script>
+  if (BX24App.DEV_MODE) {
+    const ROLES = [
+      { id: 'admin',    label: 'Admin',    color: 'bg-[#136dec] text-white' },
+      { id: 'employee', label: 'Employee', color: 'bg-amber-500 text-white' },
+      { id: 'reviewer', label: 'Reviewer', color: 'bg-emerald-600 text-white' },
+      { id: 'partner',  label: 'Partner',  color: 'bg-purple-600 text-white' },
+    ];
+    const currentRole = localStorage.getItem('__appraisify_dev_role__') || window.__DEV_ROLE__ || 'admin';
+    const current = ROLES.find(r => r.id === currentRole) || ROLES[0];
+
+    const el = document.createElement('div');
+    el.innerHTML = `
+      <div style="position:fixed;bottom:20px;left:20px;z-index:9999;display:flex;flex-direction:column;align-items:flex-start;gap:8px;">
+        <!-- Pill trigger -->
+        <button id="dev-pill" onclick="document.getElementById('dev-panel').classList.toggle('hidden')"
+          style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.12);border-radius:12px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+          <span style="width:8px;height:8px;border-radius:50%;background:#34d399;display:inline-block;animation:pulse 2s infinite;"></span>
+          Dev Mode
+          <span id="dev-role-badge" style="padding:2px 8px;border-radius:99px;font-size:11px;font-weight:900;background:${currentRole==='admin'?'#136dec':currentRole==='employee'?'#f59e0b':currentRole==='reviewer'?'#059669':'#7c3aed'};color:#fff;">${current.label}</span>
+          <span class="material-symbols-outlined" style="font-size:16px;color:#94a3b8;">unfold_more</span>
+        </button>
+        <!-- Expanded panel -->
+        <div id="dev-panel" class="hidden"
+          style="background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:16px;width:200px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+          <p style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Switch Role</p>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            ${ROLES.map(r => `
+              <button onclick="switchDevRole('${r.id}')"
+                style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:none;text-align:left;width:100%;background:${r.id===currentRole?'rgba(255,255,255,0.15)':'transparent'};color:${r.id===currentRole?'#fff':'#94a3b8'};"
+                onmouseover="if('${r.id}'!=='${currentRole}')this.style.background='rgba(255,255,255,0.08)'"
+                onmouseout="if('${r.id}'!=='${currentRole}')this.style.background='transparent'">
+                <span class="material-symbols-outlined" style="font-size:14px;">${r.id===currentRole?'check':'chevron_right'}</span>
+                ${r.label}
+              </button>`).join('')}
+          </div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1);text-align:center;">
+            <p style="font-size:11px;color:#475569;">Reloads page on switch</p>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+  }
+
+  function switchDevRole(role) {
+    localStorage.setItem('__appraisify_dev_role__', role);
+    window.location.reload();
+  }
+</script>
+
+<script>
+  function toggleMobileMenu() {
+    const drawer  = document.getElementById('mobile-nav-drawer');
+    const overlay = document.getElementById('mobile-nav-overlay');
+    const isOpen  = !drawer.classList.contains('hidden');
+
+    if (isOpen) {
+      // Slide out, then hide
+      drawer.style.transform = 'translateX(100%)';
+      overlay.classList.add('hidden');
+      setTimeout(() => drawer.classList.add('hidden'), 260);
+    } else {
+      // Show, then slide in
+      drawer.classList.remove('hidden');
+      overlay.classList.remove('hidden');
+      // Double rAF ensures the element is rendered before transition starts
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        drawer.style.transform = 'translateX(0)';
+      }));
+    }
+  }
+</script>
+</body>
+</html>

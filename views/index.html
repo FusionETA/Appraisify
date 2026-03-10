@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Appraisify</title>
+  <!--
+    Production entry point: index.php (handles BX24.init + role detection → dashboard)
+    Development entry point: this file → welcome.html (first run) or dashboard.html (returning)
+  -->
+  <script>
+    // Skip welcome wizard if already completed (stored by wizard's final step)
+    const setupDone = localStorage.getItem('appraisify_setup_done');
+    window.location.replace(setupDone ? '/views/dashboard.html' : '/views/welcome.html');
+  </script>
+</head>
+<body></body>
+</html>

@@ -1,0 +1,17 @@
+<svg width="720" height="160" viewBox="0 0 720 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="160" fill="transparent"/>
+  <g transform="translate(0,0)">
+    <rect width="120" height="120" rx="26" fill="#111827"/>
+    <path d="M26 88L50 53L72 73L96 39" stroke="#FBBF24" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M26 88L58 94L96 39" stroke="#60A5FA" stroke-width="3.5" stroke-linecap="round" stroke-opacity="0.85"/>
+    <circle cx="26" cy="88" r="5" fill="#FCD34D"/>
+    <circle cx="50" cy="53" r="5" fill="#FCD34D"/>
+    <circle cx="72" cy="73" r="5" fill="#FCD34D"/>
+    <circle cx="96" cy="39" r="5" fill="#FCD34D"/>
+    <circle cx="58" cy="94" r="5" fill="#93C5FD"/>
+    <circle cx="90" cy="93" r="4" fill="#6EE7B7"/>
+    <path d="M16 105H104" stroke="#374151" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <text x="144" y="71" fill="#111827" font-family="Space Grotesk, Manrope, sans-serif" font-size="60" font-weight="700" letter-spacing="-1.5">Appraisify</text>
+  <text x="147" y="110" fill="#334155" font-family="Space Grotesk, Manrope, sans-serif" font-size="19" font-weight="600" letter-spacing="1.2">Performance, made clear.</text>
+</svg>

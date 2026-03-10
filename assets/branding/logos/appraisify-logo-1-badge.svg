@@ -1,0 +1,9 @@
+<svg width="960" height="280" viewBox="0 0 960 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="280" rx="28" fill="#F8FAFC"/>
+  <rect x="36" y="36" width="208" height="208" rx="44" fill="#136DEC"/>
+  <path d="M88 176L140 108L170 148L194 116L212 132L164 196L134 156L106 192L88 176Z" fill="white"/>
+  <circle cx="94" cy="96" r="12" fill="#93C5FD"/>
+  <circle cx="186" cy="192" r="10" fill="#93C5FD"/>
+  <text x="284" y="138" fill="#0F172A" font-family="Manrope, Inter, sans-serif" font-size="74" font-weight="800" letter-spacing="-1.2">Appraisify</text>
+  <text x="286" y="184" fill="#475569" font-family="Manrope, Inter, sans-serif" font-size="26" font-weight="600" letter-spacing="2">PERFORMANCE APPRAISALS</text>
+</svg>

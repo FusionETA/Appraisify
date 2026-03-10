@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>App Guide – Appraisify</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="../assets/css/main.css" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#136dec',
+            'bitrix-blue': '#2fc6f6',
+            'background-light': '#f0f3f5',
+            'background-dark': '#101822',
+          },
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' },
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-background-light text-slate-800 font-sans min-h-screen">
+
+<!-- Header -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+  <div class="max-w-4xl mx-auto px-6 h-14 flex items-center gap-4">
+    <a href="dashboard.html" class="flex items-center gap-1.5 text-slate-500 hover:text-primary transition-colors text-sm font-medium">
+      <span class="material-symbols-outlined text-lg">arrow_back</span>
+      Dashboard
+    </a>
+    <div class="w-px h-4 bg-slate-200"></div>
+    <div class="flex items-center gap-2">
+      <img src="../assets/branding/logos/appraisify-mark-7.svg" alt="Appraisify" class="w-9 h-9 rounded-xl object-cover"/>
+      <span class="font-bold text-slate-900">App Guide</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-8 pb-16">
+
+  <!-- Hero -->
+  <div class="bg-gradient-to-br from-primary to-blue-700 rounded-2xl p-8 text-white mb-8">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+        <span class="material-symbols-outlined text-2xl">analytics</span>
+      </div>
+      <div>
+        <h1 class="text-2xl font-extrabold">Appraisify Guide</h1>
+        <p class="text-blue-200 text-sm">Everything you need to run great appraisals in Bitrix24</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-3 gap-4 mt-6">
+      <div class="bg-white/10 rounded-xl p-3 text-center">
+        <div class="text-2xl font-black">3</div>
+        <div class="text-xs text-blue-200 mt-0.5">Review phases</div>
+      </div>
+      <div class="bg-white/10 rounded-xl p-3 text-center">
+        <div class="text-2xl font-black">4</div>
+        <div class="text-xs text-blue-200 mt-0.5">User roles</div>
+      </div>
+      <div class="bg-white/10 rounded-xl p-3 text-center">
+        <div class="text-2xl font-black">∞</div>
+        <div class="text-xs text-blue-200 mt-0.5">Question templates</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 1: Finding Appraisify -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+      <h2 class="font-bold text-slate-900 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">search</span>
+        Finding Appraisify in Bitrix24
+      </h2>
+    </div>
+    <div class="p-6">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="flex flex-col items-center text-center p-5 bg-slate-50 rounded-xl border border-slate-100">
+          <div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
+            <span class="text-primary font-black text-lg">1</span>
+          </div>
+          <p class="font-semibold text-slate-800 text-sm mb-1">Open Bitrix24</p>
+          <p class="text-xs text-slate-500">Log in to your Bitrix24 portal in any browser.</p>
+        </div>
+        <div class="flex flex-col items-center text-center p-5 bg-slate-50 rounded-xl border border-slate-100">
+          <div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
+            <span class="text-primary font-black text-lg">2</span>
+          </div>
+          <p class="font-semibold text-slate-800 text-sm mb-1">Go to Applications</p>
+          <p class="text-xs text-slate-500">Navigate to the left sidebar → Applications → Marketplace Apps.</p>
+        </div>
+        <div class="flex flex-col items-center text-center p-5 bg-slate-50 rounded-xl border border-slate-100">
+          <div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
+            <span class="text-primary font-black text-lg">3</span>
+          </div>
+          <p class="font-semibold text-slate-800 text-sm mb-1">Open Appraisify</p>
+          <p class="text-xs text-slate-500">Find Appraisify in your installed apps and click to open.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: CRM Kanban -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+      <h2 class="font-bold text-slate-900 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">view_kanban</span>
+        CRM Kanban View
+      </h2>
+      <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">Professional Plan</span>
+    </div>
+    <div class="p-6">
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+        <span class="material-symbols-outlined text-amber-600 text-lg mt-0.5 shrink-0">info</span>
+        <p class="text-sm text-amber-800">CRM Kanban monitoring requires the <strong>Professional plan</strong>. Upgrade in Subscription to enable this feature.</p>
+      </div>
+      <p class="text-sm text-slate-600 mb-4">When enabled, each appraisal is stored as a CRM entity, giving you a drag-and-drop Kanban board to track progress across all phases.</p>
+      <div class="grid grid-cols-4 gap-3 text-center text-xs">
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <p class="font-bold text-amber-700">Self-Assessment</p>
+          <p class="text-amber-600 mt-1 text-xs">Employee phase</p>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-3">
+          <p class="font-bold text-blue-700">In Review</p>
+          <p class="text-blue-600 mt-1 text-xs">Reviewer phase</p>
+        </div>
+        <div class="bg-purple-50 border border-purple-200 rounded-xl p-3">
+          <p class="font-bold text-purple-700">Partner Review</p>
+          <p class="text-purple-600 mt-1 text-xs">Partner phase</p>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+          <p class="font-bold text-emerald-700">Complete</p>
+          <p class="text-emerald-600 mt-1 text-xs">All phases done</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: Roles -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+      <h2 class="font-bold text-slate-900 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">manage_accounts</span>
+        User Roles
+      </h2>
+    </div>
+    <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-primary">admin_panel_settings</span>
+          <span class="font-bold text-slate-900">Admin</span>
+        </div>
+        <p class="text-xs text-slate-600">Manages the full cycle: selects employees, assigns reviewers/partners, creates question templates, and views all results.</p>
+      </div>
+      <div class="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-amber-600">person</span>
+          <span class="font-bold text-slate-900">Employee</span>
+        </div>
+        <p class="text-xs text-slate-600">Fills out their self-assessment. Cannot see reviewer or partner scores until the cycle is complete.</p>
+      </div>
+      <div class="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-emerald-600">supervisor_account</span>
+          <span class="font-bold text-slate-900">Reviewer</span>
+        </div>
+        <p class="text-xs text-slate-600">Evaluates assigned employees after their self-assessment is submitted. Sees the employee's scores for context.</p>
+      </div>
+      <div class="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-purple-600">handshake</span>
+          <span class="font-bold text-slate-900">Partner</span>
+        </div>
+        <p class="text-xs text-slate-600">Provides a peer perspective after the reviewer phase. Sees both previous scores. Finalises the appraisal cycle.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: FAQ -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+      <h2 class="font-bold text-slate-900 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">quiz</span>
+        Frequently Asked Questions
+      </h2>
+    </div>
+    <div id="faq-list" class="divide-y divide-slate-100">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- Contact -->
+  <div class="bg-primary/5 border border-primary/20 rounded-2xl p-6 text-center">
+    <span class="material-symbols-outlined text-primary text-3xl mb-2 block">support_agent</span>
+    <h3 class="font-bold text-slate-900 mb-1">Need more help?</h3>
+    <p class="text-sm text-slate-500 mb-4">Our support team is ready to assist you with setup and configuration.</p>
+    <a href="mailto:support@appraisify.app" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors">
+      <span class="material-symbols-outlined text-lg">mail</span>
+      Contact Support
+    </a>
+  </div>
+
+</main>
+
+<script>
+  const FAQ = [
+    { q: 'Can an employee see their reviewer\'s scores?', a: 'No. Scores from each phase remain hidden until the full cycle is complete. Once all three phases are submitted, the combined summary is visible to all participants.' },
+    { q: 'What happens if a reviewer doesn\'t complete their evaluation?', a: 'The appraisal cycle stays in the Reviewer phase. The admin can send reminders or reassign a different reviewer from the admin dashboard.' },
+    { q: 'Can I use the same question set for multiple cycles?', a: 'Yes. Templates saved in Question Builder are reusable. You can also duplicate and modify them for different teams or periods.' },
+    { q: 'How are scores calculated?', a: 'Each question is rated on a 1–5 scale. The average across all questions gives the phase score. The overall appraisal score is the average of all three phase scores.' },
+    { q: 'Is my data stored securely?', a: 'All appraisal data is stored within your Bitrix24 environment using HLB (High-Load Blocks) and CRM entities. Appraisify does not store data on external servers.' },
+  ];
+
+  const faqList = document.getElementById('faq-list');
+  faqList.innerHTML = FAQ.map((item, i) => `
+    <div class="faq-item">
+      <button onclick="toggleFaq(${i})" class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-slate-50/50 transition-colors">
+        <span class="font-semibold text-slate-800 text-sm pr-4">${item.q}</span>
+        <span id="faq-chevron-${i}" class="material-symbols-outlined text-slate-400 shrink-0 transition-transform">expand_more</span>
+      </button>
+      <div id="faq-answer-${i}" class="hidden px-6 pb-4">
+        <p class="text-sm text-slate-600 leading-relaxed">${item.a}</p>
+      </div>
+    </div>`).join('');
+
+  function toggleFaq(i) {
+    const answer  = document.getElementById(`faq-answer-${i}`);
+    const chevron = document.getElementById(`faq-chevron-${i}`);
+    const hidden  = answer.classList.toggle('hidden');
+    chevron.style.transform = hidden ? '' : 'rotate(180deg)';
+  }
+</script>
+</body>
+</html>

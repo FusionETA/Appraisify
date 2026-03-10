@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to Appraisify</title>
+  <script src="//api.bitrix24.com/api/v1/"></script>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+  <link href="../assets/css/main.css" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#136dec',
+            'bitrix-blue': '#2fc6f6',
+            'background-light': '#f0f3f5',
+            'background-dark': '#101822',
+          },
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' },
+        },
+      },
+    }
+  </script>
+</head>
+
+<body class="bg-background-light text-slate-800 font-sans min-h-screen flex items-center justify-center">
+
+  <div class="w-full max-w-2xl mx-auto px-6 py-12">
+
+    <!-- Logo -->
+    <div class="flex items-center justify-center mb-10">
+      <img src="../assets/branding/logos/appraisify-wordmark-7.svg" alt="Appraisify" class="h-14 w-auto"/>
+    </div>
+
+    <!-- Step indicator -->
+    <div class="flex items-center justify-center gap-0 mb-10" id="step-indicator">
+      <!-- injected by JS -->
+    </div>
+
+    <!-- Step panels -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+
+      <!-- Step 1: Welcome -->
+      <div class="step-panel p-10 text-center" data-step="1">
+        <div class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+          <span class="material-symbols-outlined text-primary text-4xl">waving_hand</span>
+        </div>
+        <h1 class="text-3xl font-extrabold text-slate-900 mb-3">Welcome to Appraisify</h1>
+        <p class="text-slate-500 text-lg max-w-md mx-auto mb-8 leading-relaxed">
+          The performance appraisal tool built for Bitrix24. Let's get your organisation set up in a few steps.
+        </p>
+        <div class="flex flex-col gap-3 items-center text-sm text-slate-500">
+          <div class="flex items-center gap-2"><span
+              class="material-symbols-outlined text-primary text-lg">check_circle</span> Multi-role appraisal workflows
+          </div>
+          <div class="flex items-center gap-2"><span
+              class="material-symbols-outlined text-primary text-lg">check_circle</span> Custom question sets per team
+            &amp; role</div>
+          <div class="flex items-center gap-2"><span
+              class="material-symbols-outlined text-primary text-lg">check_circle</span> Seamless Bitrix24 integration
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Permissions -->
+      <div class="step-panel p-10 hidden" data-step="2">
+        <h2 class="text-2xl font-extrabold text-slate-900 mb-2">Required Permissions</h2>
+        <p class="text-slate-500 mb-8">Appraisify needs the following Bitrix24 permissions to function correctly. Please
+          ensure these are granted in your Bitrix24 admin panel.</p>
+        <div class="space-y-4">
+          <div class="flex items-start gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50">
+            <span class="material-symbols-outlined text-primary mt-0.5">group</span>
+            <div>
+              <p class="font-semibold text-slate-800">User Access (user.*)</p>
+              <p class="text-sm text-slate-500 mt-0.5">Read employee profiles to build your organisation chart and
+                assign appraisals.</p>
+            </div>
+            <span class="material-symbols-outlined text-emerald-500 ml-auto shrink-0">check_circle</span>
+          </div>
+          <div class="flex items-start gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50">
+            <span class="material-symbols-outlined text-primary mt-0.5">task_alt</span>
+            <div>
+              <p class="font-semibold text-slate-800">CRM Access (crm.*)</p>
+              <p class="text-sm text-slate-500 mt-0.5">Store appraisal records as CRM entities for Kanban tracking and
+                reporting.</p>
+            </div>
+            <span class="material-symbols-outlined text-emerald-500 ml-auto shrink-0">check_circle</span>
+          </div>
+          <div class="flex items-start gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50">
+            <span class="material-symbols-outlined text-primary mt-0.5">notifications</span>
+            <div>
+              <p class="font-semibold text-slate-800">Notifications (im.notify)</p>
+              <p class="text-sm text-slate-500 mt-0.5">Send in-app notifications when appraisal phases progress.</p>
+            </div>
+            <span class="material-symbols-outlined text-emerald-500 ml-auto shrink-0">check_circle</span>
+          </div>
+          <div class="flex items-start gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50">
+            <span class="material-symbols-outlined text-primary mt-0.5">folder_open</span>
+            <div>
+              <p class="font-semibold text-slate-800">Disk (disk.*)</p>
+              <p class="text-sm text-slate-500 mt-0.5">Save generated PDF appraisal reports to Bitrix24 Drive.</p>
+            </div>
+            <span class="material-symbols-outlined text-emerald-500 ml-auto shrink-0">check_circle</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Done -->
+      <div class="step-panel p-10 text-center hidden" data-step="3">
+        <div class="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <span class="material-symbols-outlined text-emerald-500 text-5xl"
+            style="font-variation-settings:'FILL' 1">check_circle</span>
+        </div>
+        <h2 class="text-3xl font-extrabold text-slate-900 mb-3">You're all set!</h2>
+        <p class="text-slate-500 text-lg max-w-sm mx-auto mb-8 leading-relaxed">
+          Appraisify is configured and ready. Head to your dashboard to start your first appraisal cycle.
+        </p>
+        <div class="grid grid-cols-3 gap-4 max-w-sm mx-auto mb-8 text-center">
+          <div class="p-3 bg-slate-50 rounded-xl">
+            <div class="text-2xl font-black text-primary">0</div>
+            <div class="text-xs text-slate-500 mt-1">Appraisals</div>
+          </div>
+          <div class="p-3 bg-slate-50 rounded-xl">
+            <div class="text-2xl font-black text-slate-700">0</div>
+            <div class="text-xs text-slate-500 mt-1">Questions</div>
+          </div>
+          <div class="p-3 bg-slate-50 rounded-xl">
+            <div class="text-2xl font-black text-slate-700">14d</div>
+            <div class="text-xs text-slate-500 mt-1">Trial left</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer nav -->
+      <div class="px-10 py-6 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <button id="btn-back" onclick="prevStep()"
+          class="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors invisible">
+          <span class="material-symbols-outlined text-lg">arrow_back</span> Back
+        </button>
+        <div id="dot-nav" class="flex gap-2"><!-- dots --></div>
+        <button id="btn-next" onclick="nextStep()"
+          class="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">
+          Get Started <span class="material-symbols-outlined text-lg">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+
+    <p class="text-center text-xs text-slate-400 mt-6">© 2024 Appraisify. All rights reserved.</p>
+  </div>
+
+  <script>
+    const STEPS = 3;
+    let current = 1;
+
+    const panels = document.querySelectorAll('.step-panel');
+    const btnBack = document.getElementById('btn-back');
+    const btnNext = document.getElementById('btn-next');
+    const dotNav = document.getElementById('dot-nav');
+    const indic = document.getElementById('step-indicator');
+
+    function render() {
+      // Panels
+      panels.forEach(p => p.classList.toggle('hidden', +p.dataset.step !== current));
+
+      // Back button
+      btnBack.classList.toggle('invisible', current === 1);
+
+      // Next button label
+      if (current === STEPS) {
+        btnNext.innerHTML = '<span class="material-symbols-outlined text-lg">dashboard</span> Go to Dashboard';
+      } else if (current === STEPS - 1) {
+        btnNext.innerHTML = 'Almost done <span class="material-symbols-outlined text-lg">check</span>';
+      } else {
+        btnNext.innerHTML = 'Continue <span class="material-symbols-outlined text-lg">arrow_forward</span>';
+      }
+
+      // Dot nav
+      dotNav.innerHTML = Array.from({ length: STEPS }, (_, i) => {
+        const n = i + 1;
+        const cls = n < current ? 'bg-primary' : n === current ? 'bg-primary' : 'bg-slate-300';
+        const size = n === current ? 'w-6 h-2' : 'w-2 h-2';
+        return `<div class="${size} ${cls} rounded-full transition-all duration-300"></div>`;
+      }).join('');
+
+      // Step indicator
+      const labels = ['Welcome', 'Permissions', 'Complete'];
+      indic.innerHTML = labels.map((label, i) => {
+        const n = i + 1;
+        const done = n < current;
+        const active = n === current;
+        const circleClass = done ? 'step-done' : active ? 'step-active' : 'step-idle';
+        const textClass = active ? 'text-primary font-bold' : done ? 'text-slate-600' : 'text-slate-400';
+        const line = n < STEPS ? `<div class="w-12 h-0.5 ${n < current ? 'bg-primary' : 'bg-slate-200'} mx-1"></div>` : '';
+        return `
+        <div class="flex items-center">
+          <div class="flex flex-col items-center gap-1.5">
+            <div class="step-circle ${circleClass}">${done ? '<span class="material-symbols-outlined text-sm">check</span>' : n}</div>
+            <span class="text-xs ${textClass} whitespace-nowrap">${label}</span>
+          </div>
+          ${line}
+        </div>`;
+      }).join('');
+    }
+
+    function nextStep() {
+      if (current === STEPS) {
+        // Persist setup completion in portal-wide shared storage so ALL users skip
+        // the welcome wizard on their next login (not just this browser/session).
+        localStorage.setItem('appraisify_setup_done', '1');
+        if (typeof BX24 !== 'undefined' && BX24.appOption) {
+          try { BX24.appOption.set('setup_done', '1'); } catch (e) { console.warn('appOption.set setup_done failed:', e); }
+        }
+        window.location.href = 'dashboard.html';
+        return;
+      }
+      if (current < STEPS) { current++; render(); }
+    }
+    function prevStep() {
+      if (current > 1) { current--; render(); }
+    }
+
+    render();
+  </script>
+</body>
+
+</html>
