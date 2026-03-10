@@ -53,12 +53,13 @@ export async function blobPut(pathname, value) {
 
 /**
  * Fetch and JSON-parse a blob by its URL (returned from blobPut / blobFind).
- * Includes the auth token — required for private blob stores.
+ * Public blob stores serve CDN URLs without auth — no Authorization header needed for reads.
+ * (Auth is only required for PUT / LIST / DELETE on the blob.vercel-storage.com API endpoint.)
  * @param {string} url
  * @returns {any | null} parsed value, or null if 404
  */
 export async function blobGet(url) {
-  const resp = await fetch(url, { headers: authHeaders() });
+  const resp = await fetch(url);
   if (resp.status === 404) return null;
   if (!resp.ok) {
     const err = new Error(`Blob GET failed: HTTP ${resp.status}`);
