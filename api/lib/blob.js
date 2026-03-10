@@ -37,7 +37,6 @@ export async function blobPut(pathname, value) {
     headers: authHeaders({
       'Content-Type': 'application/json',
       'x-add-random-suffix': '0',
-      'x-access': 'private',
     }),
     body: JSON.stringify(value),
   });
