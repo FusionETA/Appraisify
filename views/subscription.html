@@ -48,25 +48,14 @@
   <!-- Current plan card -->
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
     <div class="bg-gradient-to-r from-primary to-blue-600 px-6 py-5 text-white">
-      <div class="flex items-center justify-between">
-        <div>
-          <p class="text-blue-200 text-xs font-semibold uppercase tracking-wider mb-1">Current Plan</p>
-          <h2 class="text-2xl font-extrabold">Trial</h2>
-        </div>
-        <div class="text-right">
-          <p class="text-blue-200 text-xs mb-0.5">Trial expires in</p>
-          <p class="text-3xl font-black" id="days-remaining">14</p>
-          <p class="text-blue-200 text-xs">days</p>
-        </div>
+      <div>
+        <p class="text-blue-200 text-xs font-semibold uppercase tracking-wider mb-1">Current Plan</p>
+        <h2 class="text-2xl font-extrabold">Appraisify</h2>
       </div>
     </div>
     <div class="p-6">
-      <p class="text-sm font-semibold text-slate-700 mb-4">Included in your trial:</p>
+      <p class="text-sm font-semibold text-slate-700 mb-4">What's included:</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-6">
-        <div class="flex items-center gap-2 text-sm text-slate-600">
-          <span class="material-symbols-outlined text-emerald-500 text-base">check_circle</span>
-          Up to 5 active appraisals
-        </div>
         <div class="flex items-center gap-2 text-sm text-slate-600">
           <span class="material-symbols-outlined text-emerald-500 text-base">check_circle</span>
           All 3 review phases (Self, Reviewer, Partner)
@@ -79,21 +68,40 @@
           <span class="material-symbols-outlined text-emerald-500 text-base">check_circle</span>
           Bitrix24 in-app notifications
         </div>
-        <div class="flex items-center gap-2 text-sm text-slate-400">
-          <span class="material-symbols-outlined text-slate-300 text-base">cancel</span>
-          CRM Kanban view
+        <div class="flex items-center gap-2 text-sm text-slate-600">
+          <span class="material-symbols-outlined text-emerald-500 text-base">check_circle</span>
+          Draft saving &amp; autosave
         </div>
-        <div class="flex items-center gap-2 text-sm text-slate-400">
-          <span class="material-symbols-outlined text-slate-300 text-base">cancel</span>
+        <div class="flex items-center gap-2 text-sm text-slate-600">
+          <span class="material-symbols-outlined text-emerald-500 text-base">check_circle</span>
           PDF report generation
         </div>
-        <div class="flex items-center gap-2 text-sm text-slate-400">
-          <span class="material-symbols-outlined text-slate-300 text-base">cancel</span>
-          Bulk appraisal cycles
+        <div class="flex items-center gap-2 text-sm text-slate-600">
+          <span class="material-symbols-outlined text-emerald-500 text-base">check_circle</span>
+          CRM Kanban tracking
         </div>
-        <div class="flex items-center gap-2 text-sm text-slate-400">
-          <span class="material-symbols-outlined text-slate-300 text-base">cancel</span>
-          Analytics dashboard
+      </div>
+      <div class="mb-6">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-sm">schedule</span> Coming soon
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div class="flex items-center gap-2 text-sm text-slate-400">
+            <span class="material-symbols-outlined text-blue-300 text-base">schedule</span>
+            Bulk appraisal launch
+          </div>
+          <div class="flex items-center gap-2 text-sm text-slate-400">
+            <span class="material-symbols-outlined text-blue-300 text-base">schedule</span>
+            Email reminders
+          </div>
+          <div class="flex items-center gap-2 text-sm text-slate-400">
+            <span class="material-symbols-outlined text-blue-300 text-base">schedule</span>
+            Analytics dashboard
+          </div>
+          <div class="flex items-center gap-2 text-sm text-slate-400">
+            <span class="material-symbols-outlined text-blue-300 text-base">schedule</span>
+            Drive PDF storage
+          </div>
         </div>
       </div>
       <a href="mailto:sales@appraisify.app?subject=Appraisify Subscription Enquiry"
@@ -104,26 +112,23 @@
     </div>
   </div>
 
-  <!-- Plan comparison table -->
+  <!-- Feature overview table -->
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
     <div class="px-6 py-5 border-b border-slate-100">
-      <h2 class="font-extrabold text-slate-900 text-lg">Plan Comparison</h2>
+      <h2 class="font-extrabold text-slate-900 text-lg">Feature Overview</h2>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-slate-100">
-            <th class="px-6 py-4 text-left font-semibold text-slate-600 w-52">Feature</th>
-            <th class="px-4 py-4 text-center font-semibold text-slate-500 w-36">
-              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs">Trial</div>
+            <th class="px-6 py-4 text-left font-semibold text-slate-600">Feature</th>
+            <th class="px-4 py-4 text-center w-40">
+              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs">Available Now</div>
             </th>
-            <th class="px-4 py-4 text-center w-36">
-              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-bold text-xs">Standard</div>
-            </th>
-            <th class="px-4 py-4 text-center w-36">
-              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary text-white font-bold text-xs">
-                <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1">workspace_premium</span>
-                Professional
+            <th class="px-4 py-4 text-center w-40">
+              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-bold text-xs">
+                <span class="material-symbols-outlined text-sm">schedule</span>
+                Coming Soon
               </div>
             </th>
           </tr>
@@ -134,7 +139,7 @@
       </table>
     </div>
     <div class="px-6 py-5 border-t border-slate-100 bg-slate-50/50">
-      <p class="text-xs text-slate-500">Pricing is per Bitrix24 portal per month. Contact us for annual billing discounts and enterprise plans.</p>
+      <p class="text-xs text-slate-500">Contact us to discuss pricing and enterprise plans.</p>
     </div>
   </div>
 
@@ -157,39 +162,30 @@
 
 <script>
   const COMPARISON_ROWS = [
-    { feature: 'Active appraisals',            trial: 'Up to 5',   standard: 'Unlimited', pro: 'Unlimited' },
-    { feature: 'Users',                         trial: 'Up to 10',  standard: 'Unlimited', pro: 'Unlimited' },
-    { feature: '3-phase appraisal workflow',    trial: true,        standard: true,        pro: true        },
-    { feature: 'Custom question templates',     trial: true,        standard: true,        pro: true        },
-    { feature: 'In-app notifications',          trial: true,        standard: true,        pro: true        },
-    { feature: 'Draft saving & autosave',       trial: true,        standard: true,        pro: true        },
-    { feature: 'PDF report generation',         trial: false,       standard: true,        pro: true        },
-    { feature: 'Bulk appraisal launch',         trial: false,       standard: true,        pro: true        },
-    { feature: 'Email reminders',               trial: false,       standard: true,        pro: true        },
-    { feature: 'Analytics dashboard',           trial: false,       standard: false,       pro: true        },
-    { feature: 'CRM Kanban view',               trial: false,       standard: false,       pro: true        },
-    { feature: 'Drive PDF storage',             trial: false,       standard: false,       pro: true        },
-    { feature: 'Priority support',              trial: false,       standard: false,       pro: true        },
-    { feature: 'Monthly price (portal)',        trial: 'Free',      standard: '$29',       pro: '$79'       },
+    { feature: '3-phase appraisal workflow',    now: true,  soon: false },
+    { feature: 'Custom question templates',     now: true,  soon: false },
+    { feature: 'In-app notifications',          now: true,  soon: false },
+    { feature: 'Draft saving & autosave',       now: true,  soon: false },
+    { feature: 'PDF report generation',         now: true,  soon: false },
+    { feature: 'CRM Kanban tracking',           now: true,  soon: false },
+    { feature: 'Bulk appraisal launch',         now: false, soon: true  },
+    { feature: 'Email reminders',               now: false, soon: true  },
+    { feature: 'Analytics dashboard',           now: false, soon: true  },
+    { feature: 'Drive PDF storage',             now: false, soon: true  },
   ];
 
-  function renderCell(val) {
-    if (val === true)  return '<span class="material-symbols-outlined text-emerald-500 text-lg" style="font-variation-settings:\'FILL\' 1">check_circle</span>';
-    if (val === false) return '<span class="material-symbols-outlined text-slate-300 text-lg">cancel</span>';
-    return `<span class="font-semibold text-slate-700">${val}</span>`;
+  function renderCell(now, soon) {
+    if (now)  return '<span class="material-symbols-outlined text-emerald-500 text-lg" style="font-variation-settings:\'FILL\' 1">check_circle</span>';
+    if (soon) return '<span class="material-symbols-outlined text-blue-400 text-lg">schedule</span>';
+    return '';
   }
 
   document.getElementById('comparison-table').innerHTML = COMPARISON_ROWS.map((row, i) => `
     <tr class="${i % 2 === 0 ? '' : 'bg-slate-50/30'} hover:bg-slate-50/50">
       <td class="px-6 py-3 text-slate-700 font-medium">${row.feature}</td>
-      <td class="px-4 py-3 text-center">${renderCell(row.trial)}</td>
-      <td class="px-4 py-3 text-center">${renderCell(row.standard)}</td>
-      <td class="px-4 py-3 text-center">${renderCell(row.pro)}</td>
+      <td class="px-4 py-3 text-center">${renderCell(row.now, false)}</td>
+      <td class="px-4 py-3 text-center">${renderCell(false, row.soon)}</td>
     </tr>`).join('');
-
-  // Calculate days remaining from trial start (mock)
-  const trialDays = 14;
-  document.getElementById('days-remaining').textContent = trialDays;
 </script>
 </body>
 </html>

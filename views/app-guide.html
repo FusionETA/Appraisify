@@ -109,34 +109,33 @@
 
   <!-- Section 2: CRM Kanban -->
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
-    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
       <h2 class="font-bold text-slate-900 flex items-center gap-2">
         <span class="material-symbols-outlined text-primary">view_kanban</span>
         CRM Kanban View
       </h2>
-      <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">Professional Plan</span>
     </div>
     <div class="p-6">
-      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 flex items-start gap-3">
-        <span class="material-symbols-outlined text-amber-600 text-lg mt-0.5 shrink-0">info</span>
-        <p class="text-sm text-amber-800">CRM Kanban monitoring requires the <strong>Professional plan</strong>. Upgrade in Subscription to enable this feature.</p>
-      </div>
-      <p class="text-sm text-slate-600 mb-4">When enabled, each appraisal is stored as a CRM entity, giving you a drag-and-drop Kanban board to track progress across all phases.</p>
-      <div class="grid grid-cols-4 gap-3 text-center text-xs">
+      <p class="text-sm text-slate-600 mb-4">Each appraisal is automatically tracked as a CRM deal in Bitrix24, giving you a native drag-and-drop Kanban board to monitor progress across all phases.</p>
+      <div class="grid grid-cols-5 gap-3 text-center text-xs">
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+          <p class="font-bold text-slate-600">Initialized</p>
+          <p class="text-slate-500 mt-1 text-xs">Cycle started</p>
+        </div>
         <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
-          <p class="font-bold text-amber-700">Self-Assessment</p>
-          <p class="text-amber-600 mt-1 text-xs">Employee phase</p>
+          <p class="font-bold text-amber-700">Reviewee Pending</p>
+          <p class="text-amber-600 mt-1 text-xs">Self-assessment</p>
         </div>
         <div class="bg-blue-50 border border-blue-200 rounded-xl p-3">
-          <p class="font-bold text-blue-700">In Review</p>
+          <p class="font-bold text-blue-700">Reviewer Pending</p>
           <p class="text-blue-600 mt-1 text-xs">Reviewer phase</p>
         </div>
         <div class="bg-purple-50 border border-purple-200 rounded-xl p-3">
-          <p class="font-bold text-purple-700">Partner Review</p>
+          <p class="font-bold text-purple-700">Partner Pending</p>
           <p class="text-purple-600 mt-1 text-xs">Partner phase</p>
         </div>
         <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-          <p class="font-bold text-emerald-700">Complete</p>
+          <p class="font-bold text-emerald-700">Submitted</p>
           <p class="text-emerald-600 mt-1 text-xs">All phases done</p>
         </div>
       </div>
@@ -215,7 +214,7 @@
     { q: 'What happens if a reviewer doesn\'t complete their evaluation?', a: 'The appraisal cycle stays in the Reviewer phase. The admin can send reminders or reassign a different reviewer from the admin dashboard.' },
     { q: 'Can I use the same question set for multiple cycles?', a: 'Yes. Templates saved in Question Builder are reusable. You can also duplicate and modify them for different teams or periods.' },
     { q: 'How are scores calculated?', a: 'Each question is rated on a 1–5 scale. The average across all questions gives the phase score. The overall appraisal score is the average of all three phase scores.' },
-    { q: 'Is my data stored securely?', a: 'All appraisal data is stored within your Bitrix24 environment using HLB (High-Load Blocks) and CRM entities. Appraisify does not store data on external servers.' },
+    { q: 'Is my data stored securely?', a: 'Appraisal scores and responses are stored as custom fields on CRM deals within your Bitrix24 portal. Question templates and app settings are stored securely on Appraisify\'s servers.' },
   ];
 
   const faqList = document.getElementById('faq-list');
