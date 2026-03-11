@@ -29,22 +29,34 @@ export default function handler(req, res) {
 </head>
 <body>
   <script>
-    function go() {
-      // BX24.appOption is portal-wide shared storage (set during first install).
-      // localStorage is a per-browser fallback for dev / non-BX24 environments.
-      var setupDone =
-        (typeof BX24 !== 'undefined' && BX24.appOption && BX24.appOption.get('setup_done')) ||
-        localStorage.getItem('appraisify_setup_done');
-
-      var dest = setupDone ? '/views/dashboard.html' : '/views/welcome.html';
+    function goTo(dest) {
       window.location.replace(dest + window.location.search);
     }
 
     if (typeof BX24 !== 'undefined') {
-      BX24.init(function () { go(); });
+      BX24.init(function () {
+        // BX24.appOption is portal-wide shared storage (set when admin completes wizard).
+        // localStorage is a per-browser fallback.
+        var setupDone =
+          (BX24.appOption && BX24.appOption.get('setup_done')) ||
+          localStorage.getItem('appraisify_setup_done');
+
+        if (setupDone) {
+          goTo('/views/dashboard.html');
+          return;
+        }
+
+        // Setup not yet done — only the installing admin should see the welcome wizard.
+        // Non-admins go straight to dashboard (wizard will appear once admin completes it).
+        BX24.callMethod('user.admin', {}, function (result) {
+          var isAdmin = !result.error() && result.data() === true;
+          goTo(isAdmin ? '/views/welcome.html' : '/views/dashboard.html');
+        });
+      });
     } else {
-      // Outside Bitrix24 (e.g. direct browser access) – just navigate
-      go();
+      // Outside Bitrix24 (e.g. direct browser access) – use localStorage only.
+      var setupDone = localStorage.getItem('appraisify_setup_done');
+      goTo(setupDone ? '/views/dashboard.html' : '/views/welcome.html');
     }
   </script>
 </body>
