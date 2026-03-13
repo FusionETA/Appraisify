@@ -27,25 +27,26 @@ async function notifyInstall(domain, member_id, access_token) {
 
   try {
     // 1. Fetch installer's profile from their own portal
-    let name = '', email = '', phone = '', position = '';
+    let firstName = '', lastName = '', email = '', phone = '', position = '';
     try {
       const profileRes = await fetch(
         `https://${domain}/rest/user.current?auth=${encodeURIComponent(access_token)}`
       );
       if (profileRes.ok) {
         const profileData = await profileRes.json();
-        const u = profileData.result || {};
-        name     = [u.NAME, u.LAST_NAME].filter(Boolean).join(' ');
-        email    = Array.isArray(u.EMAIL)    ? (u.EMAIL[0]?.VALUE    || '') : (u.EMAIL    || '');
-        phone    = Array.isArray(u.PERSONAL_PHONE) ? (u.PERSONAL_PHONE[0]?.VALUE || '') : (u.PERSONAL_PHONE || '');
-        position = u.WORK_POSITION || '';
+        const u  = profileData.result || {};
+        firstName = u.NAME      || '';
+        lastName  = u.LAST_NAME || '';
+        email     = Array.isArray(u.EMAIL)          ? (u.EMAIL[0]?.VALUE          || '') : (u.EMAIL          || '');
+        phone     = Array.isArray(u.PERSONAL_PHONE) ? (u.PERSONAL_PHONE[0]?.VALUE || '') : (u.PERSONAL_PHONE || '');
+        position  = u.WORK_POSITION || '';
       }
     } catch (profileErr) {
       console.warn('[store-auth] Install notify: could not fetch installer profile:', profileErr.message);
     }
 
     const base = webhookBase.replace(/\/$/, '');
-    const now   = new Date().toISOString();
+    const now  = new Date().toISOString();
 
     // 2. Check if a deal already exists for this domain (reinstall case)
     const searchRes = await fetch(`${base}/crm.deal.list`, {
@@ -62,6 +63,7 @@ async function notifyInstall(domain, member_id, access_token) {
 
     if (existing) {
       // Reinstall — add a timeline comment to the existing deal
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
       const commentRes = await fetch(`${base}/crm.timeline.comment.add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,43 +71,63 @@ async function notifyInstall(domain, member_id, access_token) {
           fields: {
             ENTITY_TYPE: 'deal',
             ENTITY_ID:   existing.ID,
-            COMMENT:     `♻️ Reinstalled on ${now}\nInstaller: ${name || '(unknown)'} | ${email || '(unknown)'}`,
+            COMMENT:     `♻️ Reinstalled on ${now}\nInstaller: ${fullName || '(unknown)'} | ${email || '(unknown)'}`,
           },
         }),
       });
       const commentData = await commentRes.json();
       console.log(`[store-auth] Install notify: reinstall comment added to deal #${existing.ID} for ${domain} (comment id=${commentData.result})`);
-    } else {
-      // First install — create a new deal
-      const comments = [
-        `Domain:     ${domain}`,
-        `Member ID:  ${member_id}`,
-        `Installer:  ${name || '(unknown)'}`,
-        `Email:      ${email || '(unknown)'}`,
-        `Phone:      ${phone || '(unknown)'}`,
-        `Position:   ${position || '(unknown)'}`,
-        `Installed:  ${now}`,
-      ].join('\n');
+      return;
+    }
 
-      const dealRes = await fetch(`${base}/crm.deal.add`, {
+    // 3. New install — create installer as a Contact (if we have enough info)
+    let contactId = null;
+    if (firstName || lastName || email) {
+      const contactFields = {
+        NAME:      firstName,
+        LAST_NAME: lastName,
+        POST:      position,
+        WEB:       [{ VALUE: `https://${domain}`, VALUE_TYPE: 'WORK' }],
+      };
+      if (email) contactFields.EMAIL = [{ VALUE: email, VALUE_TYPE: 'WORK' }];
+      if (phone) contactFields.PHONE = [{ VALUE: phone, VALUE_TYPE: 'WORK' }];
+
+      const contactRes  = await fetch(`${base}/crm.contact.add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fields: {
-            TITLE:       `New Install — ${domain}`,
-            CATEGORY_ID: 56,
-            COMMENTS:    comments,
-          },
-        }),
+        body: JSON.stringify({ fields: contactFields }),
       });
-
-      const dealData = await dealRes.json();
-      if (dealData.result) {
-        console.log(`[store-auth] Install notify: deal #${dealData.result} created for ${domain}`);
+      const contactData = await contactRes.json();
+      if (contactData.result) {
+        contactId = contactData.result;
+        console.log(`[store-auth] Install notify: contact #${contactId} created for ${firstName} ${lastName} (${domain})`);
       } else {
-        console.warn('[store-auth] Install notify: deal creation returned:', JSON.stringify(dealData));
+        console.warn('[store-auth] Install notify: contact creation returned:', JSON.stringify(contactData));
       }
     }
+
+    // 4. Create deal with each piece of info in its own field
+    const dealFields = {
+      TITLE:              `New Install — ${domain}`,
+      CATEGORY_ID:        56,
+      SOURCE_DESCRIPTION: `https://${domain}`,
+      ADDITIONAL_INFO:    `Member ID: ${member_id}\nInstalled: ${now}`,
+    };
+    if (contactId) dealFields.CONTACT_IDS = [contactId];
+
+    const dealRes  = await fetch(`${base}/crm.deal.add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: dealFields }),
+    });
+    const dealData = await dealRes.json();
+    if (dealData.result) {
+      const linked = contactId ? `contact #${contactId} linked` : 'no contact — missing name+email';
+      console.log(`[store-auth] Install notify: deal #${dealData.result} created for ${domain} (${linked})`);
+    } else {
+      console.warn('[store-auth] Install notify: deal creation returned:', JSON.stringify(dealData));
+    }
+
   } catch (e) {
     console.error('[store-auth] Install notify failed (non-fatal):', e.message);
   }
