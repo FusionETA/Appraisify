@@ -132,8 +132,7 @@ export default async function handler(req, res) {
     await storeTokens(domain, { access_token, refresh_token, domain, member_id });
     console.log(`[store-auth] Stored tokens for ${domain} (member_id=${member_id})`);
 
-    // Fire-and-forget — don't await, don't block the install response
-    notifyInstall(domain, member_id, access_token);
+    await notifyInstall(domain, member_id, access_token);
 
     return res.status(200).json({ ok: true });
   } catch (e) {
