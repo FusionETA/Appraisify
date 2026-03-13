@@ -13,10 +13,77 @@
 
 import { storeTokens } from './lib/auth.js';
 
+// ---------------------------------------------------------------------------
+// CRM custom field setup
+// Each deal gets proper named fields instead of dumping everything in COMMENTS.
+// Fields are created automatically on first install if they don't exist.
+// Cached per Vercel cold-start so we only call crm.deal.userfield.list once.
+// ---------------------------------------------------------------------------
+
+let _fieldMap = null;
+
+const FIELD_DEFS = [
+  { key: 'application', name: 'APP_NAME',      label: 'Application',       type: 'string' },
+  { key: 'domain',      name: 'APP_DOMAIN',    label: 'Bitrix Domain',     type: 'string' },
+  { key: 'instanceId',  name: 'APP_INST_ID',   label: 'Instance Id',       type: 'string' },
+  { key: 'installDate', name: 'APP_INST_DATE', label: 'Installation Date', type: 'date'   },
+  { key: 'tier',        name: 'APP_TIER',      label: 'Tier',              type: 'string' },
+];
+
+async function getOrCreateDealFields(base) {
+  if (_fieldMap) return _fieldMap;
+
+  // Fetch all existing custom deal fields
+  const listRes  = await fetch(`${base}/crm.deal.userfield.list`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ start: 0 }),
+  });
+  const listData = await listRes.json();
+  const existing = Array.isArray(listData.result) ? listData.result : [];
+  const existingNames = new Set(existing.map(f => f.FIELD_NAME));
+
+  const map = {};
+  for (const def of FIELD_DEFS) {
+    const fullName = `UF_CRM_${def.name}`;
+    if (existingNames.has(fullName)) {
+      map[def.key] = fullName;
+      console.log(`[store-auth] CRM field exists: ${fullName} (${def.label})`);
+    } else {
+      const createRes  = await fetch(`${base}/crm.deal.userfield.add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            FIELD_NAME:        def.name,
+            LABEL:             def.label,
+            EDIT_FORM_LABEL:   { en: def.label },
+            LIST_COLUMN_LABEL: { en: def.label },
+            USER_TYPE_ID:      def.type,
+            SHOW_IN_LIST:      'Y',
+            EDIT_IN_LIST:      'Y',
+            IS_SEARCHABLE:     'Y',
+          },
+        }),
+      });
+      const createData = await createRes.json();
+      if (createData.result) {
+        map[def.key] = fullName;
+        console.log(`[store-auth] CRM field created: ${fullName} (${def.label})`);
+      } else {
+        console.warn(`[store-auth] Could not create field ${fullName}:`, JSON.stringify(createData));
+      }
+    }
+  }
+
+  _fieldMap = map;
+  return map;
+}
+
 /**
  * Notify fusioneta's CRM of a new install by creating a deal in the
  * Appraisify Installs pipeline (category 56).
- * Fires-and-forgets — never throws so it can't break the install flow.
+ * Never throws so it can't break the install flow.
  */
 async function notifyInstall(domain, member_id, access_token) {
   const webhookBase = process.env.INSTALL_NOTIFY_WEBHOOK;
@@ -106,14 +173,18 @@ async function notifyInstall(domain, member_id, access_token) {
       }
     }
 
-    // 4. Create deal with each piece of info in its own field
+    // 4. Create deal with proper custom fields
+    const crmFields = await getOrCreateDealFields(base);
     const dealFields = {
-      TITLE:              `New Install — ${domain}`,
-      CATEGORY_ID:        56,
-      SOURCE_DESCRIPTION: `https://${domain}`,
-      ADDITIONAL_INFO:    `Member ID: ${member_id}\nInstalled: ${now}`,
+      TITLE:       `New Install — ${domain}`,
+      CATEGORY_ID: 56,
     };
-    if (contactId) dealFields.CONTACT_IDS = [contactId];
+    if (crmFields.application) dealFields[crmFields.application] = 'Appraisify';
+    if (crmFields.domain)      dealFields[crmFields.domain]      = domain;
+    if (crmFields.instanceId)  dealFields[crmFields.instanceId]  = member_id;
+    if (crmFields.installDate) dealFields[crmFields.installDate] = now.split('T')[0]; // YYYY-MM-DD
+    if (crmFields.tier)        dealFields[crmFields.tier]        = 'Free';
+    if (contactId)             dealFields.CONTACT_IDS            = [contactId];
 
     const dealRes  = await fetch(`${base}/crm.deal.add`, {
       method: 'POST',
