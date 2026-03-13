@@ -44,34 +44,67 @@ async function notifyInstall(domain, member_id, access_token) {
       console.warn('[store-auth] Install notify: could not fetch installer profile:', profileErr.message);
     }
 
-    // 2. Create a deal in fusioneta's CRM pipeline (category 56)
-    const comments = [
-      `Domain:     ${domain}`,
-      `Member ID:  ${member_id}`,
-      `Installer:  ${name || '(unknown)'}`,
-      `Email:      ${email || '(unknown)'}`,
-      `Phone:      ${phone || '(unknown)'}`,
-      `Position:   ${position || '(unknown)'}`,
-      `Installed:  ${new Date().toISOString()}`,
-    ].join('\n');
+    const base = webhookBase.replace(/\/$/, '');
+    const now   = new Date().toISOString();
 
-    const dealRes = await fetch(`${webhookBase.replace(/\/$/, '')}/crm.deal.add`, {
+    // 2. Check if a deal already exists for this domain (reinstall case)
+    const searchRes = await fetch(`${base}/crm.deal.list`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        fields: {
-          TITLE:       `New Install — ${domain}`,
-          CATEGORY_ID: 56,
-          COMMENTS:    comments,
-        },
+        filter: { CATEGORY_ID: 56, '%TITLE': domain },
+        select: ['ID', 'TITLE'],
+        order:  { ID: 'ASC' },
       }),
     });
+    const searchData = await searchRes.json();
+    const existing   = Array.isArray(searchData.result) ? searchData.result[0] : null;
 
-    const dealData = await dealRes.json();
-    if (dealData.result) {
-      console.log(`[store-auth] Install notify: deal #${dealData.result} created for ${domain}`);
+    if (existing) {
+      // Reinstall — add a timeline comment to the existing deal
+      const commentRes = await fetch(`${base}/crm.timeline.comment.add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            ENTITY_TYPE: 'deal',
+            ENTITY_ID:   existing.ID,
+            COMMENT:     `♻️ Reinstalled on ${now}\nInstaller: ${name || '(unknown)'} | ${email || '(unknown)'}`,
+          },
+        }),
+      });
+      const commentData = await commentRes.json();
+      console.log(`[store-auth] Install notify: reinstall comment added to deal #${existing.ID} for ${domain} (comment id=${commentData.result})`);
     } else {
-      console.warn('[store-auth] Install notify: deal creation returned:', JSON.stringify(dealData));
+      // First install — create a new deal
+      const comments = [
+        `Domain:     ${domain}`,
+        `Member ID:  ${member_id}`,
+        `Installer:  ${name || '(unknown)'}`,
+        `Email:      ${email || '(unknown)'}`,
+        `Phone:      ${phone || '(unknown)'}`,
+        `Position:   ${position || '(unknown)'}`,
+        `Installed:  ${now}`,
+      ].join('\n');
+
+      const dealRes = await fetch(`${base}/crm.deal.add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            TITLE:       `New Install — ${domain}`,
+            CATEGORY_ID: 56,
+            COMMENTS:    comments,
+          },
+        }),
+      });
+
+      const dealData = await dealRes.json();
+      if (dealData.result) {
+        console.log(`[store-auth] Install notify: deal #${dealData.result} created for ${domain}`);
+      } else {
+        console.warn('[store-auth] Install notify: deal creation returned:', JSON.stringify(dealData));
+      }
     }
   } catch (e) {
     console.error('[store-auth] Install notify failed (non-fatal):', e.message);
