@@ -449,6 +449,18 @@ const BX24App = (() => {
     return callAsSystem('crm.deal.list', { filter, select });
   }
 
+  function getDomain() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let domain = (urlParams.get('DOMAIN') || urlParams.get('domain') || '').split('/')[0].toLowerCase().trim();
+    if (!domain && typeof BX24 !== 'undefined' && BX24.getAuth) {
+      try {
+        const auth = BX24.getAuth();
+        if (auth && auth.domain) domain = String(auth.domain).split('/')[0].toLowerCase().trim();
+      } catch (_) {}
+    }
+    return domain;
+  }
+
   function resizeFrame(height) {
     if (!DEV_MODE && BX24.resizeWindow) BX24.resizeWindow(800, height || 900);
   }
@@ -462,6 +474,6 @@ const BX24App = (() => {
     getUser, getUsers, getDepartments,
     getCategoryId, createDeal, updateDeal, listDeals, getDeal,
     listDealUserFields, addDealUserField, ensureAppraisalResponseFields, ensureDealCardConfig,
-    resizeFrame, openPath, DEV_MODE,
+    resizeFrame, openPath, getDomain, DEV_MODE,
   };
 })();

@@ -519,7 +519,7 @@ async function handleSubmit(opts) {
     keepalive: true,
     body: JSON.stringify({
       event:   opts.phase === 'partner' ? 'appraisal_completed' : 'appraisal_submitted',
-      domain:  BX24App.domain,
+      domain:  BX24App.getDomain(),
       dealId,
       phase:   opts.phase,
       stageTo: nextStage,
