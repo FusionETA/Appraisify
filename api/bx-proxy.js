@@ -11,9 +11,9 @@
  *   BX24_CLIENT_SECRET     — for token refresh
  */
 
-import { loadTokens, refreshTokens } from './lib/auth.js';
-import { flattenParams } from './lib/utils.js';
-import { logError } from './lib/logger.js';
+import { loadTokens, refreshTokens } from './_lib/auth.js';
+import { flattenParams } from './_lib/utils.js';
+import { logError } from './_lib/logger.js';
 
 // Methods permitted via the system proxy.
 const ALLOWED_METHODS = new Set([

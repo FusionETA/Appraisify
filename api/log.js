@@ -8,8 +8,8 @@
  *   BLOB_READ_WRITE_TOKEN — Vercel Blob token
  */
 
-import { logAppraisal } from './lib/logger.js';
-import { parseBody, normalizeDomain } from './lib/utils.js';
+import { logAppraisal } from './_lib/logger.js';
+import { parseBody, normalizeDomain } from './_lib/utils.js';
 
 export default async function handler(req, res) {
   res.setHeader('X-Frame-Options', 'ALLOWALL');

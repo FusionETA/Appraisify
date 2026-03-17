@@ -10,10 +10,10 @@
  *   BX24_CLIENT_SECRET     — for token refresh
  */
 
-import { blobGet, blobFind } from './lib/blob.js';
-import { callBitrix } from './lib/bitrix.js';
-import { parseBody, resolveDomain } from './lib/utils.js';
-import { logError } from './lib/logger.js';
+import { blobGet, blobFind } from './_lib/blob.js';
+import { callBitrix } from './_lib/bitrix.js';
+import { parseBody, resolveDomain } from './_lib/utils.js';
+import { logError } from './_lib/logger.js';
 
 function extractTemplateIdFromDeal(deal) {
   const comments = String(deal?.COMMENTS || '');

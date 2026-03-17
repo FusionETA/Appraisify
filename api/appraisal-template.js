@@ -9,8 +9,8 @@
  *   BLOB_READ_WRITE_TOKEN — Vercel Blob token
  */
 
-import { blobPut, blobGet, blobFind } from './lib/blob.js';
-import { parseBody, resolveDomain } from './lib/utils.js';
+import { blobPut, blobGet, blobFind } from './_lib/blob.js';
+import { parseBody, resolveDomain } from './_lib/utils.js';
 
 function mappingPath(domain, dealId) {
   return `portals/${domain}/appraisal-templates/${dealId}.json`;

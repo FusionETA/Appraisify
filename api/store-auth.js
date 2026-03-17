@@ -11,7 +11,7 @@
  *   BLOB_READ_WRITE_TOKEN — from Vercel dashboard → Storage → Blob → Connect
  */
 
-import { storeTokens } from './lib/auth.js';
+import { storeTokens } from './_lib/auth.js';
 
 // ---------------------------------------------------------------------------
 // CRM custom field setup

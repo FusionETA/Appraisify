@@ -10,8 +10,8 @@
  *   BLOB_READ_WRITE_TOKEN — Vercel Blob token
  */
 
-import { blobPut, blobGet, blobFind, blobList } from './lib/blob.js';
-import { normalizeDomain, parseBody, resolveDomain } from './lib/utils.js';
+import { blobPut, blobGet, blobFind, blobList } from './_lib/blob.js';
+import { normalizeDomain, parseBody, resolveDomain } from './_lib/utils.js';
 
 const MAX_QUESTIONS_PER_WORKSPACE = 20;
 

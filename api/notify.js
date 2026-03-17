@@ -10,9 +10,9 @@
  *   BX24_CLIENT_SECRET     — for token refresh
  */
 
-import { callBitrix } from './lib/bitrix.js';
-import { parseBody, resolveDomain } from './lib/utils.js';
-import { logError } from './lib/logger.js';
+import { callBitrix } from './_lib/bitrix.js';
+import { parseBody, resolveDomain } from './_lib/utils.js';
+import { logError } from './_lib/logger.js';
 
 function parseEmployeeName(title) {
   const t = String(title || '').trim();
