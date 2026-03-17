@@ -390,7 +390,7 @@
 
       if (!resp.ok || data.error) {
         const MSGS = {
-          token_invalid:  'This appraisal link is invalid. Please use the link from your email.',
+          token_invalid:  'This appraisal link is not valid or has already been used. Please use the link from your email.',
           token_expired:  'This appraisal link has expired. Links are valid for 7 days — please contact your HR team for a new one.',
           token_used:     'This appraisal link has already been used and cannot be reused.',
           deal_not_found: 'The appraisal record was not found. Please contact your HR team.',
