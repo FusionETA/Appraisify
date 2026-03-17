@@ -5,24 +5,57 @@
  *   portals/{domain}/logs/YYYY-MM-DD.json  — appraisal events per portal
  *   logs/errors/YYYY-MM-DD.json            — API errors across all portals
  *
- * Each file is a JSON array of entries. Files rotate daily, keeping individual
- * files small and old data retained indefinitely in Blob at negligible cost.
+ * Each file is a JSON array of entries. Files rotate daily.
+ * Files older than LOG_RETAIN_DAYS are automatically deleted when a new
+ * daily file is created (runs at most once per day per log stream).
  */
 
-import { blobFind, blobGet, blobPut } from './blob.js';
+import { blobFind, blobGet, blobPut, blobList, blobDelete } from './blob.js';
+
+const LOG_RETAIN_DAYS = 15;
 
 const today = () => new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-async function _append(path, entry) {
-  // Read existing entries (if file exists)
+function cutoffDate() {
+  const d = new Date();
+  d.setDate(d.getDate() - LOG_RETAIN_DAYS);
+  return d.toISOString().split('T')[0]; // YYYY-MM-DD of the oldest file to keep
+}
+
+/** Delete log files under `prefix` that are older than LOG_RETAIN_DAYS. */
+async function _cleanup(prefix) {
+  try {
+    const blobs = await blobList(prefix);
+    const cutoff = cutoffDate();
+    for (const blob of blobs) {
+      const match = blob.pathname.match(/(\d{4}-\d{2}-\d{2})\.json$/);
+      if (match && match[1] < cutoff) {
+        await blobDelete(blob.url);
+        console.log('[logger] Deleted old log:', blob.pathname);
+      }
+    }
+  } catch (e) {
+    console.error('[logger] Cleanup failed for', prefix, ':', e.message);
+  }
+}
+
+/**
+ * Append an entry to a daily JSON array log file.
+ * When the file is brand-new (first write of the day), runs cleanup in the
+ * background so old files are pruned at most once per day per stream.
+ */
+async function _append(path, prefix, entry) {
   let entries = [];
+  let isNewFile = true;
+
   try {
     const blob = await blobFind(path);
     if (blob?.url) {
+      isNewFile = false;
       const data = await blobGet(blob.url);
       if (Array.isArray(data)) entries = data;
     }
-  } catch (_) { /* new file or unreadable — start fresh */ }
+  } catch (_) { /* unreadable — start fresh */ }
 
   entries.push({ timestamp: new Date().toISOString(), ...entry });
 
@@ -31,6 +64,9 @@ async function _append(path, entry) {
   } catch (e) {
     console.error('[logger] Failed to write log to', path, ':', e.message);
   }
+
+  // Prune old files once per day (when today's file is first created)
+  if (isNewFile) _cleanup(prefix).catch(() => {});
 }
 
 /**
@@ -39,7 +75,8 @@ async function _append(path, entry) {
  */
 export async function logAppraisal(domain, entry) {
   if (!domain) return;
-  await _append(`portals/${domain}/logs/${today()}.json`, { domain, ...entry });
+  const prefix = `portals/${domain}/logs/`;
+  await _append(`${prefix}${today()}.json`, prefix, { domain, ...entry });
 }
 
 /**
@@ -49,6 +86,7 @@ export async function logAppraisal(domain, entry) {
  */
 export async function logError(domain, entry) {
   try {
-    await _append(`logs/errors/${today()}.json`, { domain: domain || 'unknown', ...entry });
+    const prefix = 'logs/errors/';
+    await _append(`${prefix}${today()}.json`, prefix, { domain: domain || 'unknown', ...entry });
   } catch (_) { /* never let logging break the caller */ }
 }
