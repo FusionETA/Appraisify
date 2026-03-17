@@ -132,12 +132,24 @@
     },
   };
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function fmtScore(v) {
+    const n = parseFloat(v);
+    return isNaN(n) ? '' : n.toFixed(2).replace(/\.00$/, '');
+  }
+
   // ── Form rendering (matching appraisal-reviewee.html exactly) ────────────
 
-  function renderForm(sections, phase) {
+  function renderForm(sections, phase, responses) {
     const cfg       = PHASE_CFG[phase] || PHASE_CFG.self;
     const activeCol = cfg.cols.find(c => c.active);
     const container = el('form-sections');
+    const resp      = responses || {};
 
     container.innerHTML = sections.map(section => {
 
@@ -154,6 +166,8 @@
 
       // Desktop rows
       const desktopRows = section.questions.map(q => {
+        const qIdx = parseInt(q.id.replace('q', ''), 10);
+
         const scoreCells = cfg.cols.map(col => {
           if (col.active) {
             return `<td class="px-4 py-4 text-center ${cfg.activeCellBg} align-top">
@@ -162,6 +176,16 @@
                 class="rating-input"
                 oninput="onScoreChange(this)" onblur="onScoreBlur(this)"/>
               <p class="text-xs text-red-500 mt-1" data-score-hint style="display:none">Only 1–5 is accepted</p>
+            </td>`;
+          }
+          const existing = (resp[col.field] || {})[qIdx];
+          if (existing) {
+            const commentHtml = existing.comment
+              ? `<p class="text-xs text-slate-400 mt-1.5 italic leading-snug">${escHtml(existing.comment)}</p>`
+              : '';
+            return `<td class="px-4 py-4 text-center bg-slate-50/50 align-top">
+              <div class="rating-readonly">${fmtScore(existing.score)}</div>
+              ${commentHtml}
             </td>`;
           }
           return `<td class="px-4 py-4 text-center bg-slate-50/50 align-top">
@@ -183,6 +207,8 @@
 
       // Mobile cards
       const mobileCards = section.questions.map(q => {
+        const qIdx = parseInt(q.id.replace('q', ''), 10);
+
         const scoreCells = cfg.cols.map(col => {
           if (col.active) {
             return `<div class="mobile-q-score-cell" style="${cfg.activeMobileBg}">
@@ -192,6 +218,14 @@
                 class="rating-input-mobile"
                 oninput="onScoreChange(this)" onblur="onScoreBlur(this)"/>
               <p class="text-xs text-red-500 mt-1" data-score-hint style="display:none">Only 1–5 is accepted</p>
+            </div>`;
+          }
+          const existing = (resp[col.field] || {})[qIdx];
+          if (existing) {
+            return `<div class="mobile-q-score-cell">
+              <span class="mobile-q-score-label">${col.label}</span>
+              <span class="rating-badge">${fmtScore(existing.score)}</span>
+              ${existing.comment ? `<p class="text-xs text-slate-400 mt-1 italic leading-snug px-1">${escHtml(existing.comment)}</p>` : ''}
             </div>`;
           }
           return `<div class="mobile-q-score-cell">
@@ -365,7 +399,7 @@
         return;
       }
 
-      const { phase, deal, template } = data;
+      const { phase, deal, template, responses } = data;
       _phase  = phase;
       _dealId = deal.id;
       const cfg = PHASE_CFG[phase] || PHASE_CFG.self;
@@ -411,7 +445,7 @@
       _totalQ = sections.reduce((sum, s) => sum + s.questions.length, 0);
       updateProgress();
 
-      renderForm(sections, phase);
+      renderForm(sections, phase, responses);
       renderSectionTabs(sections);
 
       // ── Submit button + modal text ───────────────────────────────────────

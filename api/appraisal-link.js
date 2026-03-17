@@ -72,6 +72,24 @@ export default async function handler(req, res) {
       } catch (_) {}
     }
 
+    // Extract previously submitted scores/comments from deal CRM fields
+    // Fields: UF_CRM_APR_S_{S|R|P}{01-20} (scores) and UF_CRM_APR_C_{S|R|P}{01-20} (comments)
+    const PHASE_CODE = { self: 'S', reviewer: 'R', partner: 'P' };
+    const responses = {};
+    for (const [phaseName, code] of Object.entries(PHASE_CODE)) {
+      const phaseData = {};
+      for (let i = 1; i <= 20; i++) {
+        const idx    = String(i).padStart(2, '0');
+        const score  = deal[`UF_CRM_APR_S_${code}${idx}`];
+        const comment = deal[`UF_CRM_APR_C_${code}${idx}`];
+        const s = parseFloat(score);
+        if (!isNaN(s) && s > 0) {
+          phaseData[i] = { score: s, comment: String(comment || '') };
+        }
+      }
+      responses[phaseName] = phaseData;
+    }
+
     return res.status(200).json({
       phase,
       deal: {
@@ -85,6 +103,7 @@ export default async function handler(req, res) {
       template: template
         ? { id: template.id, name: template.name || '', sections: template.sections || {} }
         : null,
+      responses,
     });
 
   } catch (e) {
