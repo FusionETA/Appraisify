@@ -147,18 +147,22 @@ export default async function handler(req, res) {
       console.warn('[appraisal-submit] Timeline comment failed (non-fatal):', e.message);
     });
 
-    // Trigger next-phase in-app notification (and Phase 2: email) — fire and forget
+    // Trigger next-phase notification + token generation.
+    // Must be awaited — Vercel kills the function the moment the response is sent,
+    // so fire-and-forget fetch calls are silently dropped before they complete.
     const notifyType = PHASE_EVENT[phase];
     if (notifyType) {
       const host = req.headers.host || '';
       const proto = host.startsWith('localhost') ? 'http' : 'https';
-      fetch(`${proto}://${host}/api/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: notifyType, dealId: String(dealId), domain }),
-      }).catch(e => {
+      try {
+        await fetch(`${proto}://${host}/api/notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: notifyType, dealId: String(dealId), domain }),
+        });
+      } catch (e) {
         console.warn('[appraisal-submit] Notify dispatch failed (non-fatal):', e.message);
-      });
+      }
     }
 
     // Log submission
