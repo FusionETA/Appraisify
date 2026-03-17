@@ -3,16 +3,28 @@
  *
  * Sends Bitrix24 in-app notifications to appraisal participants using
  * per-tenant OAuth tokens instead of a shared webhook.
+ * Also generates a secure single-use external appraisal link for the recipient.
  *
  * Env vars required:
  *   BLOB_READ_WRITE_TOKEN  — Vercel Blob token
  *   BX24_CLIENT_ID         — for token refresh
  *   BX24_CLIENT_SECRET     — for token refresh
+ *   APP_URL                — public app URL (e.g. https://appraisify-v2-123.vercel.app)
+ *                            used to build the appraisal link; falls back to request host
  */
 
 import { callBitrix } from './_lib/bitrix.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
+import { generateToken } from './_lib/tokens.js';
+
+// Which phase token to generate for each event type (undefined = no link)
+const LINK_PHASE = {
+  launch:             'self',
+  self_submitted:     'reviewer',
+  reviewer_submitted: 'partner',
+  // partner_submitted → appraisal complete, no new link needed
+};
 
 function parseEmployeeName(title) {
   const t = String(title || '').trim();
@@ -20,16 +32,17 @@ function parseEmployeeName(title) {
   return t.split(/\s*[–\-]\s*/)[0].trim() || 'employee';
 }
 
-function buildNotificationMessage(type, deal) {
-  const name = parseEmployeeName(deal?.TITLE);
+function buildNotificationMessage(type, deal, link) {
+  const name   = parseEmployeeName(deal?.TITLE);
   const dealId = String(deal?.ID || '');
-  const ref = dealId ? `#APR-${dealId}` : 'this appraisal';
+  const ref    = dealId ? `#APR-${dealId}` : 'this appraisal';
+  const linkPart = link ? ` | Direct link: ${link}` : '';
 
   const MAP = {
-    launch: `Your appraisal cycle has started for ${name}. Please go to Appraisify to complete your self-assessment. (${ref})`,
-    self_submitted: `${name} has submitted self-assessment. Please go to Appraisify to complete reviewer evaluation. (${ref})`,
-    reviewer_submitted: `${name} reviewer evaluation is complete. Please go to Appraisify to submit partner review. (${ref})`,
-    partner_submitted: `${name} appraisal cycle is completed. Please go to Appraisify to view the final review summary. (${ref})`,
+    launch:             `Your appraisal cycle has started for ${name}. Please complete your self-assessment. (${ref})${linkPart}`,
+    self_submitted:     `${name} has submitted self-assessment. Please complete reviewer evaluation. (${ref})${linkPart}`,
+    reviewer_submitted: `${name} reviewer evaluation is complete. Please submit partner review. (${ref})${linkPart}`,
+    partner_submitted:  `${name} appraisal cycle is completed. Please go to Appraisify to view the final review summary. (${ref})`,
   };
 
   return MAP[type] || `Appraisal update for ${name}. Please go to Appraisify for details. (${ref})`;
@@ -85,7 +98,22 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, type, dealId, notified: 0, skipped: true, reason: 'no_recipients' });
     }
 
-    const message = buildNotificationMessage(type, deal);
+    // Generate external appraisal link (single-use, 7-day token) for actionable phases
+    let link = null;
+    const linkPhase = LINK_PHASE[type];
+    if (linkPhase) {
+      try {
+        const appUrl = (process.env.APP_URL || `https://${req.headers.host}`).replace(/\/$/, '');
+        const t = await generateToken(domain, Number(dealId), linkPhase);
+        link = `${appUrl}/appraisal?token=${t}`;
+        console.log(`[notify] Generated appraisal link for ${type} (${linkPhase}):`, link);
+      } catch (e) {
+        // Non-fatal — notification still sent without link
+        console.error('[notify] Token generation failed (non-fatal):', e.message);
+      }
+    }
+
+    const message = buildNotificationMessage(type, deal, link);
     const results = [];
 
     for (const uid of recipients) {
@@ -102,7 +130,7 @@ export default async function handler(req, res) {
     }
 
     const notified = results.filter(r => r.ok).length;
-    return res.status(200).json({ ok: true, type, dealId, notified, results });
+    return res.status(200).json({ ok: true, type, dealId, notified, results, link });
 
   } catch (e) {
     logError(domain, { event: 'error', source: 'notify', error: e.code || 'notification_failed', message: e.message, dealId }).catch(() => {});
