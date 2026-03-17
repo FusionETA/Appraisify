@@ -3,7 +3,7 @@
  *
  * Sends Bitrix24 in-app notifications to appraisal participants using
  * per-tenant OAuth tokens instead of a shared webhook.
- * Also generates a secure single-use external appraisal link for the recipient.
+ * Includes a direct link to the relevant in-app appraisal form page.
  *
  * Env vars required:
  *   BLOB_READ_WRITE_TOKEN  — Vercel Blob token
@@ -16,14 +16,13 @@
 import { callBitrix } from './_lib/bitrix.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
-import { generateToken } from './_lib/tokens.js';
 
-// Which phase token to generate for each event type (undefined = no link)
-const LINK_PHASE = {
-  launch:             'self',
-  self_submitted:     'reviewer',
-  reviewer_submitted: 'partner',
-  // partner_submitted → appraisal complete, no new link needed
+// Internal app page to link to for each notification type
+const NOTIFY_PAGE = {
+  launch:             '/views/appraisal-reviewee.html',
+  self_submitted:     '/views/appraisal-reviewer.html',
+  reviewer_submitted: '/views/appraisal-partner.html',
+  // partner_submitted → appraisal complete, no new page needed
 };
 
 function parseEmployeeName(title) {
@@ -98,20 +97,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, type, dealId, notified: 0, skipped: true, reason: 'no_recipients' });
     }
 
-    // Generate external appraisal link (single-use, 7-day token) for actionable phases
+    // Build direct link to the in-app appraisal form page
     let link = null;
-    const linkPhase = LINK_PHASE[type];
-    if (linkPhase) {
-      try {
-        const appUrl = (process.env.APP_URL || `https://${req.headers.host}`).replace(/\/$/, '');
-        const t = await generateToken(domain, Number(dealId), linkPhase);
-        link = `${appUrl}/appraisal?token=${t}`;
-        console.log(`[notify] Generated appraisal link for ${type} (${linkPhase}):`, link);
-      } catch (e) {
-        // Non-fatal — notification still sent without link
-        console.error('[notify] Token generation failed (non-fatal):', e.message);
-        logError(domain, { event: 'token_gen_failed', source: 'notify', error: e.code || 'token_gen_failed', message: e.message, dealId, type }).catch(() => {});
-      }
+    const notifyPage = NOTIFY_PAGE[type];
+    if (notifyPage) {
+      const appUrl = (process.env.APP_URL || `https://${req.headers.host}`).replace(/\/$/, '');
+      link = `${appUrl}${notifyPage}?appraisal=${dealId}`;
     }
 
     const message = buildNotificationMessage(type, deal, link);
