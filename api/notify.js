@@ -110,6 +110,7 @@ export default async function handler(req, res) {
       } catch (e) {
         // Non-fatal — notification still sent without link
         console.error('[notify] Token generation failed (non-fatal):', e.message);
+        logError(domain, { event: 'token_gen_failed', source: 'notify', error: e.code || 'token_gen_failed', message: e.message, dealId, type }).catch(() => {});
       }
     }
 
@@ -125,7 +126,9 @@ export default async function handler(req, res) {
         });
         results.push({ userId: uid, ok: true });
       } catch (e) {
-        results.push({ userId: uid, ok: false, error: e.code || e.message || 'notify_failed' });
+        const errCode = e.code || 'notify_failed';
+        results.push({ userId: uid, ok: false, error: errCode });
+        logError(domain, { event: 'notify_failed', source: 'notify', error: errCode, message: e.message, dealId, type, userId: uid }).catch(() => {});
       }
     }
 
