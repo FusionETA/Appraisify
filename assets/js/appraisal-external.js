@@ -1,9 +1,10 @@
 /**
  * Appraisify – External Appraisal Form Logic
  *
- * Standalone form (no Bitrix24 SDK). Reads a token from ?token=
- * in the URL, fetches deal + template data from /api/appraisal-link,
- * renders questions, and submits to /api/appraisal-submit.
+ * Standalone form (no Bitrix24 SDK). Reads a token from ?token= in the URL,
+ * fetches deal + template data from /api/appraisal-link, renders the form
+ * with the exact same layout as the internal appraisal forms, and submits
+ * to /api/appraisal-submit.
  */
 
 (function () {
@@ -12,206 +13,253 @@
   const params = new URLSearchParams(window.location.search);
   const token  = params.get('token') || '';
 
-  let _appraisalData = null;
-  let _scores        = {};   // { "q1": 4.5, "q2": 3 }
-  let _comments      = {};   // { "q1": "some note" }
+  let _phase    = '';
+  let _dealId   = '';
+  let _totalQ   = 0;
+  let _scores   = {};   // { "q1": 4.5, "q2": 3 }
+  let _comments = {};   // { "q1": "some note" }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
-
-  function escapeHtml(str) {
-    const d = document.createElement('div');
-    d.appendChild(document.createTextNode(str || ''));
-    return d.innerHTML;
-  }
 
   function el(id) { return document.getElementById(id); }
 
   // ── State machine ────────────────────────────────────────────────────────
 
-  const STATES = ['loading', 'error', 'form', 'success'];
-
   function setState(state, message) {
-    STATES.forEach(s => {
+    ['loading', 'error', 'form', 'success'].forEach(s => {
       const node = el(`state-${s}`);
       if (node) node.classList.toggle('hidden', s !== state);
     });
-
     if (state === 'error' && message) {
-      const msgEl = el('error-message');
-      if (msgEl) msgEl.textContent = message;
+      const m = el('error-message');
+      if (m) m.textContent = message;
     }
-
     const bar = el('action-bar');
     if (bar) bar.classList.toggle('hidden', state !== 'form');
   }
 
-  // ── Template question extraction ─────────────────────────────────────────
+  // ── Template → sections (identical to appraisal-reviewee.html) ───────────
 
-  /**
-   * Flattens a template's sections into a list of { qid, text, _section }.
-   *
-   * qid is ALWAYS "q1", "q2", "q3"… (1-based sequential) so it matches the
-   * UF_CRM_APR_S_{code}01 / UF_CRM_APR_C_{code}01 field naming convention.
-   *
-   * Handles multiple template structures:
-   *   A) sections.scope = [{ _uid, text, section, desc }]           ← flat question list (actual)
-   *   B) sections.scope = [{ id, name, questions: [{id, text}] }]   ← nested section groups
-   *   C) sections.scope = [{ id, text }]                            ← simple flat list
-   */
-  function collectQuestions(template) {
-    if (!template?.sections) return [];
-
-    const questions = [];
-    let idx = 0;
-
-    for (const [sectionKey, sectionItems] of Object.entries(template.sections)) {
-      if (!Array.isArray(sectionItems)) continue;
-
-      for (const item of sectionItems) {
-        if (!item) continue;
-
-        // Structure B: item is a section group containing a questions array
-        if (Array.isArray(item.questions)) {
-          for (const q of item.questions) {
-            if (q?.text) {
-              idx++;
-              questions.push({ qid: `q${idx}`, text: q.text, _section: item.name || item.section || sectionKey });
-            }
-          }
-        // Structures A & C: item is a question directly (has text)
-        } else if (item.text) {
-          idx++;
-          questions.push({ qid: `q${idx}`, text: item.text, _section: item.section || sectionKey });
-        }
-      }
-    }
-
-    return questions;
+  function slugifySection(text) {
+    return String(text || 'section').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'section';
   }
 
-  // ── Form rendering ────────────────────────────────────────────────────────
+  function buildSectionsFromTemplate(template) {
+    const grouped  = [];
+    const groupMap = {};
+    let qNo = 0;
 
-  const PHASE_LABELS = {
-    self:     { badge: 'Self-Assessment', desc: 'Please rate yourself on each competency and add supporting comments.' },
-    reviewer: { badge: 'Reviewer Evaluation', desc: 'Please evaluate the employee on each competency and add your comments.' },
-    partner:  { badge: 'Partner Review', desc: 'Please provide your partner review ratings and comments for each competency.' },
-  };
+    const list = []
+      .concat(Array.isArray(template.sections?.scope)      ? template.sections.scope      : [])
+      .concat(Array.isArray(template.sections?.engagement) ? template.sections.engagement : []);
 
-  const PHASE_MODAL_DESC = {
-    self:     "Once submitted, you won't be able to edit your responses. Your reviewer will be notified to begin their evaluation.",
-    reviewer: "Once submitted, you won't be able to edit your responses. The partner reviewer will be notified.",
-    partner:  "Once submitted, you won't be able to edit your responses. The appraisal cycle will be marked complete.",
-  };
-
-  function renderForm(data) {
-    const { phase, deal, template } = data;
-    const phaseInfo = PHASE_LABELS[phase] || { badge: 'Appraisal', desc: '' };
-
-    // Header
-    const phaseBadge = el('phase-badge');
-    if (phaseBadge) { phaseBadge.textContent = phaseInfo.badge; phaseBadge.classList.remove('hidden'); }
-
-    const dealTitle = el('deal-title');
-    if (dealTitle) dealTitle.textContent = deal?.title || 'Appraisal';
-
-    const phaseDesc = el('phase-description');
-    if (phaseDesc) phaseDesc.textContent = phaseInfo.desc;
-
-    // Submit button label
-    const btnSubmit = el('btn-submit');
-    if (btnSubmit) btnSubmit.querySelector('span:last-child').textContent = `Submit ${phaseInfo.badge}`;
-
-    // Modal description
-    const modalDesc = el('modal-description');
-    if (modalDesc) modalDesc.textContent = PHASE_MODAL_DESC[phase] || "Once submitted, you won't be able to edit your responses.";
-
-    // Questions
-    const questions = collectQuestions(template);
-    const container = el('questions-container');
-
-    if (!container) return;
-    container.innerHTML = '';
-
-    if (!questions.length) {
-      const notice = el('no-template-notice');
-      if (notice) notice.classList.remove('hidden');
-      return;
-    }
-
-    // Group questions by section for visual separation
-    let lastSection = null;
-    questions.forEach((q, i) => {
-      if (q._section !== lastSection) {
-        const sectionHeader = document.createElement('div');
-        sectionHeader.className = 'pt-2 pb-1';
-        sectionHeader.innerHTML = `
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            ${escapeHtml(q._section || 'Questions')}
-          </h2>`;
-        container.appendChild(sectionHeader);
-        lastSection = q._section;
+    list.forEach(q => {
+      const sectionTitle = String(q.section || 'General').trim() || 'General';
+      if (!groupMap[sectionTitle]) {
+        groupMap[sectionTitle] = {
+          id: `${slugifySection(sectionTitle)}-${Object.keys(groupMap).length + 1}`,
+          title: sectionTitle,
+          questions: [],
+        };
+        grouped.push(groupMap[sectionTitle]);
       }
+      qNo += 1;
+      groupMap[sectionTitle].questions.push({ id: `q${qNo}`, text: String(q.text || '').trim() });
+    });
 
-      container.appendChild(createQuestionCard(q, phase, i + 1));
+    return grouped.filter(s => s.questions.length);
+  }
+
+  // ── Phase column configuration ────────────────────────────────────────────
+
+  const PHASE_CFG = {
+    self: {
+      cols: [
+        { label: 'Self',     field: 'self',     active: true  },
+        { label: 'Reviewer', field: 'reviewer', active: false },
+        { label: 'Partner',  field: 'partner',  active: false },
+      ],
+      activeIcon:        'edit',
+      activeColor:       'text-amber-700',
+      activeCellBg:      'bg-amber-50/20',
+      activeCommentBg:   'bg-amber-50/10',
+      activeMobileBg:    'background:rgba(255,251,235,0.4)',
+      activeMobileColor: 'color:#92400e',
+      badgeText:         'Self-Assessment Phase',
+      badgeClass:        'bg-amber-100 text-amber-700',
+      headerSub:         'Self-Assessment',
+      submitLabel:       'Submit Self-Appraisal',
+      modalTitle:        'Submit Self-Appraisal?',
+      modalDesc:         "Once submitted, you won't be able to edit your responses. Your reviewer will be notified to begin their evaluation.",
+    },
+    reviewer: {
+      cols: [
+        { label: 'Self',     field: 'self',     active: false },
+        { label: 'Reviewer', field: 'reviewer', active: true  },
+        { label: 'Partner',  field: 'partner',  active: false },
+      ],
+      activeIcon:        'rate_review',
+      activeColor:       'text-primary',
+      activeCellBg:      'bg-primary/5',
+      activeCommentBg:   'bg-primary/5',
+      activeMobileBg:    'background:rgba(19,109,236,0.05)',
+      activeMobileColor: 'color:#136dec',
+      badgeText:         'Reviewer Phase',
+      badgeClass:        'bg-blue-100 text-blue-700',
+      headerSub:         'Reviewer Evaluation',
+      submitLabel:       'Submit Reviewer Evaluation',
+      modalTitle:        'Submit Reviewer Evaluation?',
+      modalDesc:         "Once submitted, you won't be able to edit your responses. The partner reviewer will be notified.",
+    },
+    partner: {
+      cols: [
+        { label: 'Self',     field: 'self',     active: false },
+        { label: 'Reviewer', field: 'reviewer', active: false },
+        { label: 'Partner',  field: 'partner',  active: true  },
+      ],
+      activeIcon:        'diversity_3',
+      activeColor:       'text-primary',
+      activeCellBg:      'bg-primary/5',
+      activeCommentBg:   'bg-primary/5',
+      activeMobileBg:    'background:rgba(19,109,236,0.05)',
+      activeMobileColor: 'color:#136dec',
+      badgeText:         'Partner Phase',
+      badgeClass:        'bg-purple-100 text-purple-700',
+      headerSub:         'Partner Review',
+      submitLabel:       'Submit Partner Review',
+      modalTitle:        'Submit Partner Review?',
+      modalDesc:         "Once submitted, you won't be able to edit your responses. The appraisal cycle will be marked complete.",
+    },
+  };
+
+  // ── Form rendering (matching appraisal-reviewee.html exactly) ────────────
+
+  function renderForm(sections, phase) {
+    const cfg       = PHASE_CFG[phase] || PHASE_CFG.self;
+    const activeCol = cfg.cols.find(c => c.active);
+    const container = el('form-sections');
+
+    container.innerHTML = sections.map(section => {
+
+      // Column header cells
+      const thCells = cfg.cols.map(col => {
+        if (col.active) {
+          return `<th class="px-4 py-3 text-center w-28 ${cfg.activeCellBg}">
+            <span class="inline-flex items-center gap-1 ${cfg.activeColor}">
+              <span class="material-symbols-outlined text-sm">${cfg.activeIcon}</span> ${col.label}
+            </span></th>`;
+        }
+        return `<th class="px-4 py-3 text-center w-28 bg-slate-50/80 text-slate-400">${col.label}</th>`;
+      }).join('');
+
+      // Desktop rows
+      const desktopRows = section.questions.map(q => {
+        const scoreCells = cfg.cols.map(col => {
+          if (col.active) {
+            return `<td class="px-4 py-4 text-center ${cfg.activeCellBg} align-top">
+              <input type="number" min="1" max="5" step="0.01" placeholder="1–5"
+                data-field="${col.field}-score" data-qid="${q.id}"
+                class="rating-input"
+                oninput="onScoreChange(this)" onblur="onScoreBlur(this)"/>
+              <p class="text-xs text-red-500 mt-1" data-score-hint style="display:none">Only 1–5 is accepted</p>
+            </td>`;
+          }
+          return `<td class="px-4 py-4 text-center bg-slate-50/50 align-top">
+            <div class="rating-readonly text-slate-400 italic text-xs">Pending</div>
+          </td>`;
+        }).join('');
+
+        return `<tr class="question-row" data-qid="${q.id}" data-section="${section.id}">
+          <td class="px-6 py-4 font-medium text-slate-700 align-top">${q.text}</td>
+          ${scoreCells}
+          <td class="px-6 py-4 ${cfg.activeCommentBg} align-top">
+            <textarea rows="3" placeholder="Add your comments or supporting evidence…"
+              data-field="${activeCol.field}-comment" data-qid="${q.id}"
+              class="comment-input"
+              oninput="onCommentChange(this)"></textarea>
+          </td>
+        </tr>`;
+      }).join('');
+
+      // Mobile cards
+      const mobileCards = section.questions.map(q => {
+        const scoreCells = cfg.cols.map(col => {
+          if (col.active) {
+            return `<div class="mobile-q-score-cell" style="${cfg.activeMobileBg}">
+              <span class="mobile-q-score-label" style="${cfg.activeMobileColor}">✏ ${col.label}</span>
+              <input type="number" min="1" max="5" step="0.01" placeholder="—"
+                data-field="${col.field}-score" data-qid="${q.id}"
+                class="rating-input-mobile"
+                oninput="onScoreChange(this)" onblur="onScoreBlur(this)"/>
+              <p class="text-xs text-red-500 mt-1" data-score-hint style="display:none">Only 1–5 is accepted</p>
+            </div>`;
+          }
+          return `<div class="mobile-q-score-cell">
+            <span class="mobile-q-score-label">${col.label}</span>
+            <span class="rating-badge rating-badge-pending">Pending</span>
+          </div>`;
+        }).join('');
+
+        return `<div class="mobile-q-card" data-qid="${q.id}" data-section="${section.id}">
+          <div class="mobile-q-card-header">${q.text}</div>
+          <div class="mobile-q-scores">${scoreCells}</div>
+          <div class="mobile-q-comment">
+            <span class="mobile-q-comment-label" style="${cfg.activeMobileColor}">Your Comment</span>
+            <textarea rows="3" placeholder="Add your comments or supporting evidence…"
+              data-field="${activeCol.field}-comment" data-qid="${q.id}"
+              class="comment-input"
+              oninput="onCommentChange(this)"></textarea>
+          </div>
+        </div>`;
+      }).join('');
+
+      return `<div class="section-block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" data-section="${section.id}">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+          <h3 class="font-bold text-slate-900">${section.title}</h3>
+        </div>
+        <div class="hidden md:block overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th class="px-6 py-3 text-left w-80">Question</th>
+                ${thCells}
+                <th class="px-6 py-3 text-left ${cfg.activeCommentBg}">Comments</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">${desktopRows}</tbody>
+          </table>
+        </div>
+        <div class="md:hidden space-y-3 p-4">${mobileCards}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderSectionTabs(sections) {
+    const tabBar = el('section-tabs');
+    if (!tabBar) return;
+    sections.forEach(s => {
+      const btn = document.createElement('button');
+      btn.onclick = () => filterSection(s.id);
+      btn.dataset.tab = s.id;
+      btn.className = 'section-tab shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary transition-colors';
+      btn.textContent = s.title;
+      tabBar.appendChild(btn);
     });
   }
 
-  function createQuestionCard(q, phase, number) {
-    const div = document.createElement('div');
-    div.className = 'bg-white rounded-2xl border border-slate-200 shadow-sm p-5';
-    div.dataset.qid = q.qid;
-
-    div.innerHTML = `
-      <div class="flex items-start gap-3 mb-4">
-        <span class="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">${number}</span>
-        <p class="text-sm font-semibold text-slate-800 leading-relaxed">${escapeHtml(q.text)}</p>
-      </div>
-
-      <!-- Desktop: side-by-side layout -->
-      <div class="hidden sm:flex items-start gap-4">
-        <div class="flex-shrink-0 w-36">
-          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Score (1–5)</label>
-          <input type="number" min="1" max="5" step="0.01" placeholder="1–5"
-            data-field="${phase}-score" data-qid="${q.id}"
-            class="rating-input"
-            oninput="window._APR.onScoreChange(this)"
-            onblur="window._APR.onScoreBlur(this)"/>
-          <p class="text-xs text-red-500 mt-1" data-score-hint style="display:none">Only 1–5 is accepted</p>
-        </div>
-        <div class="flex-1">
-          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Comments (optional)</label>
-          <textarea rows="3" placeholder="Add your comments or supporting evidence…"
-            data-field="${phase}-comment" data-qid="${q.id}"
-            class="comment-input w-full"
-            oninput="window._APR.onCommentChange(this)"></textarea>
-        </div>
-      </div>
-
-      <!-- Mobile: stacked layout -->
-      <div class="sm:hidden space-y-3">
-        <div>
-          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Score (1–5)</label>
-          <input type="number" min="1" max="5" step="0.01" placeholder="1–5"
-            data-field="${phase}-score" data-qid="${q.id}"
-            class="rating-input-mobile"
-            oninput="window._APR.onScoreChange(this)"
-            onblur="window._APR.onScoreBlur(this)"/>
-          <p class="text-xs text-red-500 mt-1" data-score-hint style="display:none">Only 1–5 is accepted</p>
-        </div>
-        <div>
-          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Comments (optional)</label>
-          <textarea rows="3" placeholder="Add your comments or supporting evidence…"
-            data-field="${phase}-comment" data-qid="${q.id}"
-            class="comment-input w-full"
-            oninput="window._APR.onCommentChange(this)"></textarea>
-        </div>
-      </div>
-    `;
-
-    return div;
+  function filterSection(id) {
+    document.querySelectorAll('.section-block').forEach(block => {
+      block.style.display = (id === 'all' || block.dataset.section === id) ? '' : 'none';
+    });
+    document.querySelectorAll('.section-tab').forEach(btn => {
+      const active = btn.dataset.tab === id;
+      btn.className = active
+        ? 'section-tab shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border border-primary bg-primary text-white transition-colors'
+        : 'section-tab shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary transition-colors';
+    });
   }
 
-  // ── Score / comment handlers ──────────────────────────────────────────────
+  // ── Score / comment handlers (identical signatures to appraisal.js) ───────
 
   function onScoreChange(inputEl) {
     const qid  = inputEl.dataset.qid;
@@ -219,19 +267,17 @@
     const val  = parseFloat(raw);
     const hint = inputEl.parentElement.querySelector('[data-score-hint]');
 
-    if (raw === '' || raw === null) {
+    if (raw === '') {
       delete _scores[qid];
       if (hint) hint.style.display = 'none';
-      return;
-    }
-
-    if (isNaN(val) || val < 1 || val > 5) {
+    } else if (isNaN(val) || val < 1 || val > 5) {
       if (hint) hint.style.display = '';
       delete _scores[qid];
     } else {
       if (hint) hint.style.display = 'none';
       _scores[qid] = val;
     }
+    updateProgress();
   }
 
   function onScoreBlur(inputEl) {
@@ -245,24 +291,37 @@
     _comments[textareaEl.dataset.qid] = textareaEl.value;
   }
 
+  // ── Progress bar ─────────────────────────────────────────────────────────
+
+  function updateProgress() {
+    const scored = Object.keys(_scores).length;
+    const pct    = _totalQ > 0 ? Math.round((scored / _totalQ) * 100) : 0;
+    const label  = el('progress-label');
+    const bar    = el('progress-bar');
+    const avg    = el('avg-score');
+    if (label) label.textContent = `${scored} / ${_totalQ} questions`;
+    if (bar)   bar.style.width   = `${pct}%`;
+    if (avg) {
+      const vals = Object.values(_scores).filter(v => !isNaN(v));
+      avg.textContent = vals.length
+        ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
+        : '—';
+    }
+  }
+
   // ── Submit flow ───────────────────────────────────────────────────────────
 
   function confirmSubmit() {
     el('modal-submit').classList.remove('hidden');
   }
 
-  function cancelSubmit() {
-    el('modal-submit').classList.add('hidden');
-  }
-
   async function submitAppraisal() {
     el('modal-submit').classList.add('hidden');
 
-    const btn = el('btn-submit');
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<span class="material-symbols-outlined text-lg" style="animation:spin 1s linear infinite">progress_activity</span> <span>Submitting…</span>';
-    }
+    const btn   = el('btn-submit');
+    const label = el('btn-submit-label');
+    if (btn)   btn.disabled      = true;
+    if (label) label.textContent = 'Submitting…';
 
     try {
       const resp = await fetch('/api/appraisal-submit', {
@@ -270,25 +329,18 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, scores: _scores, comments: _comments }),
       });
-
       const json = await resp.json().catch(() => ({}));
-
-      if (!resp.ok || json.error) {
-        throw new Error(json.error_description || json.error || `HTTP ${resp.status}`);
-      }
-
+      if (!resp.ok || json.error) throw new Error(json.error_description || json.error || `HTTP ${resp.status}`);
       setState('success');
-
     } catch (e) {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<span class="material-symbols-outlined text-lg">send</span> <span>Submit</span>';
-      }
+      if (btn) btn.disabled = false;
+      const cfg = PHASE_CFG[_phase] || PHASE_CFG.self;
+      if (label) label.textContent = cfg.submitLabel;
       alert('Submission failed: ' + e.message + '\n\nPlease try again or contact your HR team.');
     }
   }
 
-  // ── Form loader ───────────────────────────────────────────────────────────
+  // ── Initialise ────────────────────────────────────────────────────────────
 
   async function loadForm() {
     setState('loading');
@@ -303,18 +355,73 @@
       const data = await resp.json().catch(() => ({}));
 
       if (!resp.ok || data.error) {
-        const ERROR_MESSAGES = {
-          token_invalid: 'This appraisal link is invalid. Please use the link from your email.',
-          token_expired: 'This appraisal link has expired. Links are valid for 7 days — please contact your HR team for a new one.',
-          token_used:    'This appraisal link has already been used and cannot be reused.',
+        const MSGS = {
+          token_invalid:  'This appraisal link is invalid. Please use the link from your email.',
+          token_expired:  'This appraisal link has expired. Links are valid for 7 days — please contact your HR team for a new one.',
+          token_used:     'This appraisal link has already been used and cannot be reused.',
           deal_not_found: 'The appraisal record was not found. Please contact your HR team.',
         };
-        setState('error', ERROR_MESSAGES[data.error] || 'This appraisal link is not valid. Please contact your HR team.');
+        setState('error', MSGS[data.error] || 'This appraisal link is not valid. Please contact your HR team.');
         return;
       }
 
-      _appraisalData = data;
-      renderForm(data);
+      const { phase, deal, template } = data;
+      _phase  = phase;
+      _dealId = deal.id;
+      const cfg = PHASE_CFG[phase] || PHASE_CFG.self;
+
+      // ── Header ──────────────────────────────────────────────────────────
+      const phaseBadge = el('phase-badge');
+      if (phaseBadge) {
+        phaseBadge.textContent = cfg.badgeText;
+        phaseBadge.className   = `px-2.5 py-0.5 rounded-full text-xs font-bold ${cfg.badgeClass}`;
+        phaseBadge.classList.remove('hidden');
+      }
+      const hdrSub = el('hdr-sub');
+      if (hdrSub) hdrSub.textContent = cfg.headerSub;
+
+      // Extract name from "Name – Cycle" deal title format
+      const dealName = String(deal.title || '').split(/\s*[–\-]\s*/)[0].trim() || '—';
+      const hdrName  = el('hdr-name');
+      const hdrAv    = el('hdr-avatar');
+      if (hdrName) hdrName.textContent = dealName;
+      if (hdrAv)   hdrAv.textContent   = (dealName.charAt(0) || '?').toUpperCase();
+
+      // ── Metadata card ────────────────────────────────────────────────────
+      const revieweeEl = el('meta-reviewee');
+      if (revieweeEl) revieweeEl.textContent = dealName;
+      const refEl = el('meta-ref');
+      if (refEl) refEl.textContent = `#APR-${deal.id}`;
+      const yearEl = el('meta-year');
+      if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+      // ── Build + render sections ──────────────────────────────────────────
+      const sections = buildSectionsFromTemplate(template || { sections: {} });
+
+      if (!sections.length) {
+        const fc = el('form-sections');
+        if (fc) fc.innerHTML = `<div class="bg-white rounded-2xl border border-red-200 p-6 text-sm text-red-700">
+          This template has no questions. Please contact your admin.</div>`;
+        const btnS = el('btn-submit');
+        if (btnS) btnS.disabled = true;
+        setState('form');
+        return;
+      }
+
+      _totalQ = sections.reduce((sum, s) => sum + s.questions.length, 0);
+      updateProgress();
+
+      renderForm(sections, phase);
+      renderSectionTabs(sections);
+
+      // ── Submit button + modal text ───────────────────────────────────────
+      const btnLabel   = el('btn-submit-label');
+      const modalTitle = el('modal-title');
+      const modalDesc  = el('modal-description');
+      if (btnLabel)   btnLabel.textContent   = cfg.submitLabel;
+      if (modalTitle) modalTitle.textContent = cfg.modalTitle;
+      if (modalDesc)  modalDesc.textContent  = cfg.modalDesc;
+
       setState('form');
 
     } catch (e) {
@@ -322,19 +429,16 @@
     }
   }
 
-  // ── Expose to inline HTML handlers ───────────────────────────────────────
+  // ── Expose as globals so inline HTML handlers work without prefix ─────────
 
-  window._APR = { onScoreChange, onScoreBlur, onCommentChange, confirmSubmit, cancelSubmit, submitAppraisal };
+  window.onScoreChange   = onScoreChange;
+  window.onScoreBlur     = onScoreBlur;
+  window.onCommentChange = onCommentChange;
+  window.filterSection   = filterSection;
+  window.confirmSubmit   = confirmSubmit;
+  window.submitAppraisal = submitAppraisal;
 
   // ── Boot ──────────────────────────────────────────────────────────────────
-
-  // Add spin animation for the submit button loading state
-  if (!document.getElementById('apr-spin-style')) {
-    const style = document.createElement('style');
-    style.id = 'apr-spin-style';
-    style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
-    document.head.appendChild(style);
-  }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadForm);
