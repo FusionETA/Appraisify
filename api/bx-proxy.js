@@ -13,6 +13,7 @@
 
 import { loadTokens, refreshTokens } from './lib/auth.js';
 import { flattenParams } from './lib/utils.js';
+import { logError } from './lib/logger.js';
 
 // Methods permitted via the system proxy.
 const ALLOWED_METHODS = new Set([
@@ -110,6 +111,7 @@ export default async function handler(req, res) {
 
   } catch (e) {
     console.error('[bx-proxy] Error:', e.message);
+    logError(domain, { event: 'error', source: 'bx-proxy', method, error: e.code || 'proxy_error', message: e.message }).catch(() => {});
     const status = e.code === 'storage_not_configured' ? 500
       : e.code === 'oauth_not_configured' ? 500
       : e.code === 'token_refresh_failed' ? 401

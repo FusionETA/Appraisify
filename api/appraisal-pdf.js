@@ -13,6 +13,7 @@
 import { blobGet, blobFind } from './lib/blob.js';
 import { callBitrix } from './lib/bitrix.js';
 import { parseBody, resolveDomain } from './lib/utils.js';
+import { logError } from './lib/logger.js';
 
 function extractTemplateIdFromDeal(deal) {
   const comments = String(deal?.COMMENTS || '');
@@ -301,6 +302,7 @@ export default async function handler(req, res) {
 
   } catch (e) {
     const code = e.code || 'pdf_generation_failed';
+    logError(domain, { event: 'error', source: 'appraisal-pdf', error: code, message: e.message, dealId: dealId || null }).catch(() => {});
     const status = code === 'template_mapping_not_found' || code === 'template_not_found' || code === 'deal_not_found'
       ? 404
       : code === 'tenant_context_missing' || code === 'missing_deal_id'

@@ -12,6 +12,7 @@
 
 import { callBitrix } from './lib/bitrix.js';
 import { parseBody, resolveDomain } from './lib/utils.js';
+import { logError } from './lib/logger.js';
 
 function parseEmployeeName(title) {
   const t = String(title || '').trim();
@@ -104,6 +105,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, type, dealId, notified, results });
 
   } catch (e) {
+    logError(domain, { event: 'error', source: 'notify', error: e.code || 'notification_failed', message: e.message, dealId }).catch(() => {});
     return res.status(503).json({
       error: e.code || 'notification_failed',
       error_description: e.message || 'Notification dispatch failed',

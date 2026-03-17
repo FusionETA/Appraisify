@@ -512,6 +512,19 @@ async function handleSubmit(opts) {
   }
   if (_autosaveTimer) clearInterval(_autosaveTimer);
 
+  // Log appraisal submission — fire-and-forget, never block redirect
+  fetch('/api/log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      event:   opts.phase === 'partner' ? 'appraisal_completed' : 'appraisal_submitted',
+      domain:  BX24App.domain,
+      dealId,
+      phase:   opts.phase,
+      stageTo: nextStage,
+    }),
+  }).catch(() => {});
+
   const ref = new URLSearchParams(window.location.search).get('appraisal') || '';
   window.location.href = `confirm.html?phase=${opts.phase}&ref=${encodeURIComponent(ref)}`;
 }
