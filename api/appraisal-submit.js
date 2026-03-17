@@ -103,13 +103,10 @@ export default async function handler(req, res) {
 
   const { domain, dealId, phase, blobUrl, data: rawData } = tokenResult;
 
-  // Consume token immediately to prevent replay attacks
-  try {
-    await consumeToken(token, blobUrl, rawData);
-  } catch (e) {
-    console.error('[appraisal-submit] Token consumption failed:', e.message);
-    return res.status(500).json({ error: 'token_consume_failed', error_description: 'Could not mark token as used.' });
-  }
+  // Delete token (fire-and-forget — non-fatal; periodic sweep handles any stragglers)
+  consumeToken(token, blobUrl, rawData).catch(e => {
+    console.error('[appraisal-submit] Token deletion failed (non-fatal):', e.message);
+  });
 
   try {
     // Get deal from Bitrix24 (need CATEGORY_ID for stage prefix)
