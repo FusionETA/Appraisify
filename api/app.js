@@ -35,6 +35,22 @@ export default function handler(req, res) {
 
     if (typeof BX24 !== 'undefined') {
       BX24.init(function () {
+        // Re-store the current OAuth token on every load so the server-side token
+        // stays fresh and picks up any scope changes added to the app since install.
+        var auth = BX24.getAuth();
+        if (auth && auth.access_token) {
+          fetch('/api/store-auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              access_token:  auth.access_token,
+              refresh_token: auth.refresh_token,
+              domain:        auth.domain,
+              member_id:     auth.member_id,
+            }),
+          }).catch(function () {}); // fire-and-forget, never block navigation
+        }
+
         // BX24.appOption is portal-wide shared storage (set when admin completes wizard).
         // localStorage is a per-browser fallback.
         var setupDone =
