@@ -9,6 +9,7 @@
  */
 
 import { blobPut, blobFind, blobGet, blobDelete, blobList } from './blob.js';
+import { logAppraisal, logError } from './logger.js';
 
 const TOKEN_TTL_DAYS = 7;
 
@@ -28,11 +29,16 @@ async function _cleanupExpiredTokens() {
   try {
     const blobs = await blobList('tokens/');
     const cutoff = Date.now() - TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
+    let deleted = 0;
     for (const blob of blobs) {
       const uploaded = blob.uploadedAt ? new Date(blob.uploadedAt).getTime() : 0;
       if (uploaded && uploaded < cutoff) {
         await blobDelete(blob.url);
+        deleted++;
       }
+    }
+    if (deleted > 0) {
+      logError('system', { event: 'token_sweep', deleted, total: blobs.length }).catch(() => {});
     }
   } catch (_) { /* never let cleanup break the caller */ }
 }
@@ -97,16 +103,16 @@ export async function validateToken(token) {
   }
 
   if (data.usedAt) {
-    // Token was consumed — delete the blob and report as used
     blobDelete(blob.url).catch(() => {});
+    logAppraisal(data.domain, { event: 'token_deleted', reason: 'already_used', dealId: data.dealId, phase: data.phase }).catch(() => {});
     const err = new Error('This appraisal link has already been used.');
     err.code = 'token_used';
     throw err;
   }
 
   if (!data.expiresAt || new Date(data.expiresAt) < new Date()) {
-    // Token expired — delete the blob immediately
     blobDelete(blob.url).catch(() => {});
+    logAppraisal(data.domain, { event: 'token_deleted', reason: 'expired', dealId: data.dealId, phase: data.phase }).catch(() => {});
     const err = new Error('This appraisal link has expired.');
     err.code = 'token_expired';
     throw err;
@@ -122,6 +128,7 @@ export async function validateToken(token) {
  * @param {string} blobUrl — CDN URL from validateToken result
  * @param {object} _data — unused (kept for API compatibility)
  */
-export async function consumeToken(token, blobUrl, _data) {
+export async function consumeToken(token, blobUrl, data) {
   await blobDelete(blobUrl);
+  logAppraisal(data?.domain, { event: 'token_deleted', reason: 'consumed', dealId: data?.dealId, phase: data?.phase }).catch(() => {});
 }
