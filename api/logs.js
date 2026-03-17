@@ -12,6 +12,7 @@
  */
 
 import { blobList, blobGet } from './_lib/blob.js';
+import { loadTokens } from './_lib/auth.js';
 
 function dateRange(days) {
   const dates = [];
@@ -46,11 +47,30 @@ export default async function handler(req, res) {
   const days   = Math.min(7, Math.max(1, parseInt(req.query.days || '2', 10)));
   const dates  = dateRange(days);
 
-  const [errorEntries, portalEntries] = await Promise.all([
+  const [errorEntries, portalEntries, tokenInfo] = await Promise.all([
     // Global error log: logs/errors/YYYY-MM-DD.json
     Promise.all(dates.map(d => fetchLogFile('logs/errors/', d))).then(r => r.flat()),
     // Per-portal appraisal log: portals/{domain}/logs/YYYY-MM-DD.json
     Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/`, d))).then(r => r.flat()),
+    // Token scopes: load stored token and call /rest/scope
+    loadTokens(domain).then(async tokens => {
+      if (!tokens) return { stored: false };
+      try {
+        const r = await fetch(
+          `https://${domain}/rest/scope.json?auth=${encodeURIComponent(tokens.access_token)}`
+        );
+        const data = await r.json();
+        return {
+          stored:    true,
+          storedAt:  tokens.storedAt || null,
+          member_id: tokens.member_id,
+          scopes:    data.result || [],
+          hasIm:     Array.isArray(data.result) && data.result.includes('im'),
+        };
+      } catch (e) {
+        return { stored: true, storedAt: tokens.storedAt, error: e.message };
+      }
+    }).catch(e => ({ stored: false, error: e.message })),
   ]);
 
   // Sort newest-first
@@ -60,7 +80,8 @@ export default async function handler(req, res) {
     domain,
     days,
     dates,
-    errors:   sort(errorEntries),
+    token:      tokenInfo,
+    errors:     sort(errorEntries),
     appraisals: sort(portalEntries),
   });
 }
