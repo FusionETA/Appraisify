@@ -48,15 +48,21 @@
   // ── Template question extraction ─────────────────────────────────────────
 
   /**
-   * Flattens a template's sections into a list of { id, text, _sectionName }.
-   * Handles two structures:
-   *   A) sections.scope = [{ id, name, questions: [{id, text}] }]  ← section groups
-   *   B) sections.scope = [{ id, text }]                            ← flat question list
+   * Flattens a template's sections into a list of { qid, text, _section }.
+   *
+   * qid is ALWAYS "q1", "q2", "q3"… (1-based sequential) so it matches the
+   * UF_CRM_APR_S_{code}01 / UF_CRM_APR_C_{code}01 field naming convention.
+   *
+   * Handles multiple template structures:
+   *   A) sections.scope = [{ _uid, text, section, desc }]           ← flat question list (actual)
+   *   B) sections.scope = [{ id, name, questions: [{id, text}] }]   ← nested section groups
+   *   C) sections.scope = [{ id, text }]                            ← simple flat list
    */
   function collectQuestions(template) {
     if (!template?.sections) return [];
 
     const questions = [];
+    let idx = 0;
 
     for (const [sectionKey, sectionItems] of Object.entries(template.sections)) {
       if (!Array.isArray(sectionItems)) continue;
@@ -64,16 +70,18 @@
       for (const item of sectionItems) {
         if (!item) continue;
 
-        // Structure A: item is a section group containing a questions array
+        // Structure B: item is a section group containing a questions array
         if (Array.isArray(item.questions)) {
           for (const q of item.questions) {
-            if (q?.id && q?.text) {
-              questions.push({ id: q.id, text: q.text, _section: item.name || sectionKey });
+            if (q?.text) {
+              idx++;
+              questions.push({ qid: `q${idx}`, text: q.text, _section: item.name || item.section || sectionKey });
             }
           }
-        // Structure B: item is a question directly
-        } else if (item.id && item.text) {
-          questions.push({ id: item.id, text: item.text, _section: sectionKey });
+        // Structures A & C: item is a question directly (has text)
+        } else if (item.text) {
+          idx++;
+          questions.push({ qid: `q${idx}`, text: item.text, _section: item.section || sectionKey });
         }
       }
     }
@@ -151,7 +159,7 @@
   function createQuestionCard(q, phase, number) {
     const div = document.createElement('div');
     div.className = 'bg-white rounded-2xl border border-slate-200 shadow-sm p-5';
-    div.dataset.qid = q.id;
+    div.dataset.qid = q.qid;
 
     div.innerHTML = `
       <div class="flex items-start gap-3 mb-4">
