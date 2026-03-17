@@ -512,10 +512,11 @@ async function handleSubmit(opts) {
   }
   if (_autosaveTimer) clearInterval(_autosaveTimer);
 
-  // Log appraisal submission — fire-and-forget, never block redirect
+  // Log appraisal submission — keepalive ensures the request survives the page redirect
   fetch('/api/log', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    keepalive: true,
     body: JSON.stringify({
       event:   opts.phase === 'partner' ? 'appraisal_completed' : 'appraisal_submitted',
       domain:  BX24App.domain,
