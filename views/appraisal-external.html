@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Appraisify — Complete Your Appraisal</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="../assets/css/main.css" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#136dec',
+            'bitrix-blue': '#2fc6f6',
+            'background-light': '#f0f3f5',
+            'background-dark': '#101822',
+          },
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' },
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-background-light text-slate-800 font-sans min-h-screen">
+
+<!-- Header -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+  <div class="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined text-primary text-2xl">assessment</span>
+      <span class="text-base font-extrabold text-slate-900 tracking-tight">Appraisify</span>
+    </div>
+    <span id="phase-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary hidden"></span>
+  </div>
+</header>
+
+<main class="max-w-3xl mx-auto px-4 py-8 pb-32">
+
+  <!-- Loading state -->
+  <div id="state-loading" class="flex flex-col items-center justify-center py-24 gap-4">
+    <span class="material-symbols-outlined text-primary text-5xl animate-spin">progress_activity</span>
+    <p class="text-slate-500 text-sm font-medium">Loading your appraisal…</p>
+  </div>
+
+  <!-- Error state -->
+  <div id="state-error" class="hidden flex flex-col items-center justify-center py-24 gap-5 text-center">
+    <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
+      <span class="material-symbols-outlined text-red-400 text-3xl">link_off</span>
+    </div>
+    <div>
+      <h2 class="text-xl font-extrabold text-slate-900 mb-2">Link Not Valid</h2>
+      <p id="error-message" class="text-slate-500 text-sm max-w-sm">This appraisal link is invalid or has expired.</p>
+    </div>
+    <p class="text-xs text-slate-400">Please contact your HR team if you need a new link.</p>
+  </div>
+
+  <!-- Form state -->
+  <div id="state-form" class="hidden">
+    <!-- Deal info card -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Appraisal for</p>
+      <h1 id="deal-title" class="text-xl font-extrabold text-slate-900">Loading…</h1>
+      <p id="phase-description" class="text-sm text-slate-500 mt-1"></p>
+    </div>
+
+    <!-- Questions container -->
+    <div id="questions-container" class="space-y-4"></div>
+
+    <!-- No template fallback -->
+    <div id="no-template-notice" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
+      <div class="flex items-start gap-3">
+        <span class="material-symbols-outlined text-amber-500 text-xl flex-shrink-0 mt-0.5">warning</span>
+        <p class="text-sm text-amber-800">No questions found for this appraisal. Please contact your HR admin.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success state -->
+  <div id="state-success" class="hidden flex flex-col items-center justify-center py-24 gap-5 text-center">
+    <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center">
+      <span class="material-symbols-outlined text-green-500 text-4xl">check_circle</span>
+    </div>
+    <div>
+      <h2 class="text-2xl font-extrabold text-slate-900 mb-2">Submitted!</h2>
+      <p class="text-slate-500 text-sm max-w-sm">Your appraisal has been submitted successfully. The next person in the cycle has been notified.</p>
+    </div>
+    <p class="text-xs text-slate-400">You can close this page.</p>
+  </div>
+
+</main>
+
+<!-- Fixed action bar (shown only during form state) -->
+<div id="action-bar" class="action-bar hidden">
+  <div class="max-w-3xl mx-auto px-6 flex items-center justify-between gap-4">
+    <p id="action-hint" class="text-sm text-slate-500">Fill in scores (1–5) for each question, then submit.</p>
+    <button id="btn-submit" onclick="window._APR.confirmSubmit()"
+      class="flex items-center gap-2 px-7 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm shadow-primary/30 disabled:opacity-40 disabled:cursor-not-allowed">
+      <span class="material-symbols-outlined text-lg">send</span>
+      Submit
+    </button>
+  </div>
+</div>
+
+<!-- Submit confirmation modal -->
+<div id="modal-submit" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
+    <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+      <span class="material-symbols-outlined text-primary text-3xl">send</span>
+    </div>
+    <h3 class="text-xl font-extrabold text-slate-900 mb-2">Submit Your Appraisal?</h3>
+    <p id="modal-description" class="text-slate-500 text-sm mb-6">Once submitted, you won't be able to edit your responses.</p>
+    <div class="flex gap-3">
+      <button onclick="window._APR.cancelSubmit()"
+        class="flex-1 px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+        Cancel
+      </button>
+      <button onclick="window._APR.submitAppraisal()"
+        class="flex-1 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors">
+        Yes, Submit
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/js/appraisal-external.js"></script>
+</body>
+</html>

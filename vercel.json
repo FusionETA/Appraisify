@@ -11,6 +11,7 @@
   "rewrites": [
     { "source": "/", "destination": "/api/app" },
     { "source": "/views/index.html", "destination": "/api/app" },
-    { "source": "/install", "destination": "/api/install" }
+    { "source": "/install", "destination": "/api/install" },
+    { "source": "/appraisal", "destination": "/views/appraisal-external.html" }
   ]
 }
