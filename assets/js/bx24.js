@@ -512,10 +512,7 @@ const BX24App = (() => {
     if (DEV_MODE) {
       return MOCK_DEALS.find(d => String(d.ID) === String(id)) || null;
     }
-    // Use the current user's own session token for CRM reads.
-    // This avoids the system proxy's CRM access restrictions and the BX24.callMethod
-    // scope limitations. The user always has access to deals assigned to them.
-    const result = await callAsCurrentUser('crm.deal.get', { id: Number(id) });
+    const result = await callAsSystem('crm.deal.get', { id: Number(id) });
     return result || null;
   }
 
@@ -537,11 +534,8 @@ const BX24App = (() => {
         return true;
       });
     }
-    // Use the current user's session token for CRM reads via direct REST call.
-    // Bypasses system proxy CRM restrictions and BX24.callMethod scope limits.
-    const params = { filter };
-    if (select && select.length) params.select = select;
-    return callAllAsCurrentUser('crm.deal.list', params);
+    const result = await callAsSystem('crm.deal.list', { filter, select });
+    return Array.isArray(result) ? result : [];
   }
 
   function getDomain() {
