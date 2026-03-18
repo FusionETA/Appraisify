@@ -56,10 +56,6 @@ export async function callBitrix(domain, method, params = {}) {
     throw err;
   }
 
-  if (data.result === null || data.result === undefined) {
-    console.warn(`[bitrix] ${method} returned null result. Full response:`, JSON.stringify(data));
-  }
-
   return data.result;
 }
 
