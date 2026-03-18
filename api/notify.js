@@ -165,7 +165,7 @@ export default async function handler(req, res) {
           results[results.length - 1].emailed = true;
         }
       } catch (e) {
-        results[results.length - 1].email_error = e.code || e.message || 'email_failed';
+        results[results.length - 1].email_error = [e.code, e.message].filter(Boolean).join(': ') || 'email_failed';
         logError(domain, { event: 'email_failed', source: 'notify', error: e.code || 'email_failed', message: e.message, dealId, type, userId: uid }).catch(() => {});
       }
     }
