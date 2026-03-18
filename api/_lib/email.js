@@ -45,7 +45,7 @@ function esc(str) {
 
 // ─── HTML email template ─────────────────────────────────────────────────────
 
-function buildHtml({ employeeName, bodyHtml, ctaLabel, ctaUrl, ref }) {
+function buildHtml({ type, employeeName, bodyHtml, ctaLabel, ctaUrl, ref }) {
   const ctaBlock = ctaLabel && ctaUrl ? `
     <tr>
       <td align="center" style="padding:28px 40px 8px;">
@@ -63,7 +63,7 @@ function buildHtml({ employeeName, bodyHtml, ctaLabel, ctaUrl, ref }) {
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>${esc(EMAIL_SUBJECT[ref] || 'Appraisify Notification')}</title>
+  <title>${esc(EMAIL_SUBJECT[type]?.(ref) || 'Appraisify Notification')}</title>
 </head>
 <body style="margin:0;padding:0;background:#f0f3f5;font-family:'Manrope',Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f3f5;padding:32px 16px;">
@@ -141,7 +141,7 @@ export async function sendAppraisalEmail({ to, type, employeeName, ref, ctaUrl }
 
   const subject  = subjectFn(ref);
   const bodyHtml = bodyFn(employeeName);
-  const html     = buildHtml({ employeeName, bodyHtml, ctaLabel, ctaUrl, ref });
+  const html     = buildHtml({ type, employeeName, bodyHtml, ctaLabel, ctaUrl, ref });
 
   const resp = await fetch(RESEND_API, {
     method:  'POST',
