@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "vercel-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vercel", "dev", "--listen", "3000", "--yes"],
+      "port": 3000
+    },
+    {
       "name": "frontend",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", ".", "--no-clipboard", "-p", "3000"],
