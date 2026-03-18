@@ -17,8 +17,6 @@ import { callBitrix, fetchDeal } from './_lib/bitrix.js';
 import { blobFind, blobGet, blobPut } from './_lib/kv.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
-import { generateToken } from './_lib/tokens.js';
-import { sendAppraisalEmail } from './_lib/email.js';
 
 // Internal app page to link to for each in-app (Bitrix24 bell) notification
 const NOTIFY_PAGE = {
@@ -26,14 +24,6 @@ const NOTIFY_PAGE = {
   self_submitted:     '/views/appraisal-reviewer.html',
   reviewer_submitted: '/views/appraisal-partner.html',
   // partner_submitted → appraisal complete, no new page needed
-};
-
-// Phase token to generate for actionable email CTAs (external form link)
-const LINK_PHASE = {
-  launch:             'self',
-  self_submitted:     'reviewer',
-  reviewer_submitted: 'partner',
-  // partner_submitted → PDF link instead (built separately below)
 };
 
 function parseEmployeeName(title) {
@@ -136,30 +126,10 @@ export default async function handler(req, res) {
       link = `${appUrl}${notifyPage}?appraisal=${dealId}`;
     }
 
-    // Build email CTA link:
-    //   actionable phases → external form via single-use token
-    //   completion        → direct PDF download
-    let emailLink = null;
-    const linkPhase = LINK_PHASE[type];
-    if (linkPhase) {
-      try {
-        const t = await generateToken(domain, Number(dealId), linkPhase);
-        emailLink = `${appUrl}/appraisal?token=${t}`;
-      } catch (e) {
-        console.error('[notify] Token generation failed (non-fatal):', e.message);
-        logError(domain, { event: 'token_gen_failed', source: 'notify', error: e.code || 'token_gen_failed', message: e.message, dealId, type }).catch(() => {});
-      }
-    } else if (type === 'partner_submitted') {
-      emailLink = `${appUrl}/api/appraisal-pdf?dealId=${dealId}&domain=${encodeURIComponent(domain)}`;
-    }
-
     const message = buildNotificationMessage(type, deal, link);
-    const name    = parseEmployeeName(deal?.TITLE);
-    const ref     = `#APR-${dealId}`;
     const results = [];
 
     for (const uid of recipients) {
-      // In-app Bitrix24 notification
       try {
         await callBitrix(domain, 'im.notify.system.add', {
           USER_ID: uid,
@@ -171,22 +141,6 @@ export default async function handler(req, res) {
         const errCode = e.code || 'notify_failed';
         results.push({ userId: uid, ok: false, error: errCode });
         logError(domain, { event: 'notify_failed', source: 'notify', error: errCode, message: e.message, dealId, type, userId: uid }).catch(() => {});
-      }
-
-      // Email notification (non-fatal — never blocks in-app)
-      try {
-        const userResult = await callBitrix(domain, 'user.get', { ID: uid });
-        const user       = Array.isArray(userResult) ? userResult[0] : userResult;
-        const rawEmail   = Array.isArray(user?.EMAIL) ? user.EMAIL[0]?.VALUE : user?.EMAIL;
-        if (!rawEmail) {
-          results[results.length - 1].email_skipped = 'no_email_address';
-        } else {
-          await sendAppraisalEmail({ to: rawEmail, type, employeeName: name, ref, ctaUrl: emailLink });
-          results[results.length - 1].emailed = true;
-        }
-      } catch (e) {
-        results[results.length - 1].email_error = [e.code, e.message].filter(Boolean).join(': ') || 'email_failed';
-        logError(domain, { event: 'email_failed', source: 'notify', error: e.code || 'email_failed', message: e.message, dealId, type, userId: uid }).catch(() => {});
       }
     }
 
@@ -216,8 +170,7 @@ export default async function handler(req, res) {
     }
 
     const notified = results.filter(r => r.ok).length;
-    const emailed  = results.filter(r => r.emailed).length;
-    return res.status(200).json({ ok: true, type, dealId, notified, emailed, results, link, emailLink });
+    return res.status(200).json({ ok: true, type, dealId, notified, results, link });
 
   } catch (e) {
     logError(domain, { event: 'error', source: 'notify', error: e.code || 'notification_failed', message: e.message, dealId }).catch(() => {});
