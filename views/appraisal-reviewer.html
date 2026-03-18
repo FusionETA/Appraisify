@@ -70,9 +70,9 @@
       <div><p class="profile-label">Reviewee</p><p id="meta-reviewee" class="profile-value">Jordan Lee</p></div>
       <div><p class="profile-label">Reviewer</p><p id="meta-reviewer" class="profile-value">—</p></div>
       <div><p class="profile-label">Partner</p><p class="profile-value text-slate-400 italic">TBD</p></div>
-      <div><p class="profile-label">Year</p><p class="profile-value">2024</p></div>
-      <div><p class="profile-label">Team</p><p id="meta-team" class="profile-value">Engineering</p></div>
-      <div><p class="profile-label">Role</p><p id="meta-role" class="profile-value">Product Designer</p></div>
+      <div><p class="profile-label">Year</p><p id="meta-year" class="profile-value">—</p></div>
+      <div><p class="profile-label">Team</p><p id="meta-team" class="profile-value">—</p></div>
+      <div><p class="profile-label">Role</p><p id="meta-role" class="profile-value">—</p></div>
       <div><p class="profile-label">Ref#</p><p class="profile-value font-mono text-xs">#APR-2024-0891</p></div>
     </div>
   </div>
@@ -339,11 +339,19 @@
       console.warn('[Appraisify] Could not load deal data:', e);
     }
 
+    if (deal?.TITLE) {
+      const m = String(deal.TITLE).match(/\b(20\d\d)\b/);
+      if (m) document.getElementById('meta-year').textContent = m[1];
+    }
+
     try {
       const templateId = await resolveTemplateIdForDeal(dealId, deal);
       const template = await TemplatesAPI.getTemplate(templateId);
       if (!template) throw new Error('Template not found for this appraisal.');
       APPRAISAL_DATA.sections = buildSectionsFromTemplate(template);
+      const fmtMeta = v => (!v || v === 'all') ? '—' : v.charAt(0).toUpperCase() + v.slice(1);
+      document.getElementById('meta-team').textContent = fmtMeta(template.team);
+      document.getElementById('meta-role').textContent = fmtMeta(template.role);
     } catch (e) {
       if (BX24App.DEV_MODE) {
         APPRAISAL_DATA.sections = devFallbackSections();

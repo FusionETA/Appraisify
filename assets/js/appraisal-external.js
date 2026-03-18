@@ -427,7 +427,15 @@
       const refEl = el('meta-ref');
       if (refEl) refEl.textContent = `#APR-${deal.id}`;
       const yearEl = el('meta-year');
-      if (yearEl) yearEl.textContent = new Date().getFullYear();
+      if (yearEl) {
+        const m = String(deal.title || '').match(/\b(20\d\d)\b/);
+        yearEl.textContent = m ? m[1] : '—';
+      }
+      const fmtMeta = v => (!v || v === 'all') ? '—' : v.charAt(0).toUpperCase() + v.slice(1);
+      const teamEl = el('meta-team');
+      const roleEl = el('meta-role');
+      if (teamEl) teamEl.textContent = fmtMeta(template?.team);
+      if (roleEl) roleEl.textContent = fmtMeta(template?.role);
 
       // ── Build + render sections ──────────────────────────────────────────
       const sections = buildSectionsFromTemplate(template || { sections: {} });

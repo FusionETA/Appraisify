@@ -101,7 +101,7 @@ export default async function handler(req, res) {
         UF_CRM_APR_PARTNER: deal.UF_CRM_APR_PARTNER || null,
       },
       template: template
-        ? { id: template.id, name: template.name || '', sections: template.sections || {} }
+        ? { id: template.id, name: template.name || '', team: template.team || 'all', role: template.role || 'all', sections: template.sections || {} }
         : null,
       responses,
     });
