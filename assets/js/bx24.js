@@ -133,6 +133,96 @@ const BX24App = (() => {
     });
   }
 
+  /**
+   * Serialises a nested params object into a URLSearchParams instance.
+   * Handles nested objects and arrays using bracket notation, e.g.
+   *   { filter: { ID: 1 }, select: ['ID'] }
+   *   → filter[ID]=1&select[0]=ID
+   */
+  function _appendParams(fd, obj, prefix) {
+    if (Array.isArray(obj)) {
+      obj.forEach((v, i) => _appendParams(fd, v, `${prefix}[${i}]`));
+    } else if (obj !== null && typeof obj === 'object') {
+      Object.entries(obj).forEach(([k, v]) => _appendParams(fd, v, prefix ? `${prefix}[${k}]` : k));
+    } else if (obj !== undefined && obj !== null) {
+      fd.append(prefix, String(obj));
+    }
+  }
+
+  /**
+   * Makes a single Bitrix24 REST call using the CURRENT USER's session token
+   * obtained from BX24.getAuth(). This bypasses both the system proxy (which
+   * uses the installer's OAuth token and may have restricted CRM access) and
+   * BX24.callMethod (which is subject to the app's declared client-side scopes).
+   *
+   * The user's own access_token is always valid for deals they are assigned to
+   * (employees) or all CRM deals (admins).
+   *
+   * @param {string} method - Bitrix24 REST method name
+   * @param {object} params - method parameters
+   * @returns {Promise<any>} - raw Bitrix24 result value
+   */
+  async function callAsCurrentUser(method, params = {}) {
+    const auth = BX24.getAuth();
+    const domain = String(auth.domain || '').split('/')[0].toLowerCase();
+    const fd = new URLSearchParams();
+    fd.append('auth', auth.access_token);
+    // Append all nested params in bracket notation
+    Object.entries(params).forEach(([k, v]) => _appendParams(fd, v, k));
+
+    const resp = await fetch(`https://${domain}/rest/${method}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: fd.toString(),
+    });
+    const json = await resp.json();
+    if (json.error) {
+      const err = new Error(json.error_description || json.error);
+      err.code = json.error;
+      throw err;
+    }
+    return json.result;
+  }
+
+  /**
+   * Fetches ALL pages of a paginated Bitrix24 REST method using the current
+   * user's session token (callAsCurrentUser). Handles the REST API's cursor-
+   * based pagination via the `next` field in the response.
+   *
+   * @param {string} method - Bitrix24 REST method name
+   * @param {object} params - method parameters (filter, select, order, etc.)
+   * @returns {Promise<Array>}
+   */
+  async function callAllAsCurrentUser(method, params = {}) {
+    if (DEV_MODE) return [];
+    const all = [];
+    let start = 0;
+    for (;;) {
+      const auth = BX24.getAuth();
+      const domain = String(auth.domain || '').split('/')[0].toLowerCase();
+      const fd = new URLSearchParams();
+      fd.append('auth', auth.access_token);
+      fd.append('start', String(start));
+      Object.entries(params).forEach(([k, v]) => _appendParams(fd, v, k));
+
+      const resp = await fetch(`https://${domain}/rest/${method}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: fd.toString(),
+      });
+      const json = await resp.json();
+      if (json.error) {
+        const err = new Error(json.error_description || json.error);
+        err.code = json.error;
+        throw err;
+      }
+      if (Array.isArray(json.result)) all.push(...json.result);
+      if (!json.next) break;
+      start = json.next;
+    }
+    return all;
+  }
+
   async function getUser() {
     if (DEV_MODE) return MOCK_USER;
     // Call both in parallel: user.current for profile data, user.admin for role
@@ -422,11 +512,10 @@ const BX24App = (() => {
     if (DEV_MODE) {
       return MOCK_DEALS.find(d => String(d.ID) === String(id)) || null;
     }
-    // Use the current user's own Bitrix24 session for reads.
-    // Employees always have access to deals they're assigned to; admins see all.
-    // The system proxy token may have restricted CRM access depending on the
-    // Bitrix24 portal's CRM access rules, so using the user session is more reliable.
-    const result = await call('crm.deal.get', { id: Number(id) });
+    // Use the current user's own session token for CRM reads.
+    // This avoids the system proxy's CRM access restrictions and the BX24.callMethod
+    // scope limitations. The user always has access to deals assigned to them.
+    const result = await callAsCurrentUser('crm.deal.get', { id: Number(id) });
     return result || null;
   }
 
@@ -448,11 +537,11 @@ const BX24App = (() => {
         return true;
       });
     }
-    // Use the current user's Bitrix24 session (BX24.callMethod) for CRM reads.
-    // Employees can see deals assigned to them; admins see all deals.
-    // callAll handles pagination automatically across 50-record pages.
-    const params = select && select.length ? { filter, select } : { filter };
-    return callAll('crm.deal.list', params);
+    // Use the current user's session token for CRM reads via direct REST call.
+    // Bypasses system proxy CRM restrictions and BX24.callMethod scope limits.
+    const params = { filter };
+    if (select && select.length) params.select = select;
+    return callAllAsCurrentUser('crm.deal.list', params);
   }
 
   function getDomain() {
