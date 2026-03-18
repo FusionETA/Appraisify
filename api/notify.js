@@ -158,11 +158,14 @@ export default async function handler(req, res) {
         const userResult = await callBitrix(domain, 'user.get', { ID: uid });
         const user       = Array.isArray(userResult) ? userResult[0] : userResult;
         const rawEmail   = Array.isArray(user?.EMAIL) ? user.EMAIL[0]?.VALUE : user?.EMAIL;
-        if (rawEmail) {
+        if (!rawEmail) {
+          results[results.length - 1].email_skipped = 'no_email_address';
+        } else {
           await sendAppraisalEmail({ to: rawEmail, type, employeeName: name, ref, ctaUrl: emailLink });
           results[results.length - 1].emailed = true;
         }
       } catch (e) {
+        results[results.length - 1].email_error = e.code || e.message || 'email_failed';
         logError(domain, { event: 'email_failed', source: 'notify', error: e.code || 'email_failed', message: e.message, dealId, type, userId: uid }).catch(() => {});
       }
     }
