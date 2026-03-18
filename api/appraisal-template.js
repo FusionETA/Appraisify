@@ -10,6 +10,7 @@
  */
 
 import { blobPut, blobGet, blobFind } from './_lib/kv.js';
+import { callBitrix } from './_lib/bitrix.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 
 function mappingPath(domain, dealId) {
@@ -35,7 +36,48 @@ export default async function handler(req, res) {
 
       // userId branch: return all active deals for a user (dashboard pending tasks)
       if (userId) {
-        const data  = await blobGet(`portals/${domain}/user_deals/${userId}`) || {};
+        const key  = `portals/${domain}/user_deals/${userId}`;
+        const data = await blobGet(key) || {};
+        const activeEntries = Object.entries(data).filter(([, d]) => d && d.stage !== 'APPRAISIFY_DONE');
+
+        if (activeEntries.length) {
+          // Verify deals still exist in CRM and sync real STAGE_ID as source of truth.
+          // Uses the stored admin OAuth token — works even when the user has "See Own" only.
+          const dealIds = activeEntries.map(([id]) => id);
+          let crmDeals = {};
+          try {
+            const list = await callBitrix(domain, 'crm.deal.list', {
+              filter: { '@ID': dealIds },
+              select: ['ID', 'STAGE_ID'],
+            });
+            (list || []).forEach(d => { crmDeals[String(d.ID)] = d; });
+          } catch (e) {
+            console.warn('[appraisal-template] CRM deal list failed (non-fatal):', e.message);
+          }
+
+          let dirty = false;
+          for (const [dealId] of activeEntries) {
+            const crmDeal = crmDeals[dealId];
+            if (!crmDeal) {
+              // Deal was deleted from CRM — remove from cache
+              delete data[dealId];
+              dirty = true;
+            } else {
+              // Sync stage from CRM (strip C{catId}: prefix if present)
+              const raw   = crmDeal.STAGE_ID || '';
+              const stage = raw.includes(':') ? raw.split(':')[1] : raw;
+              if (stage && stage !== data[dealId]?.stage) {
+                data[dealId] = { ...data[dealId], stage };
+                dirty = true;
+              }
+            }
+          }
+
+          if (dirty) {
+            blobPut(key, data).catch(e => console.warn('[appraisal-template] Upstash write failed:', e.message));
+          }
+        }
+
         const deals = Object.entries(data)
           .filter(([, d]) => d && d.stage !== 'APPRAISIFY_DONE')
           .map(([dealId, d]) => ({ dealId, ...d }));
