@@ -13,7 +13,7 @@
  *                            used to build the appraisal link; falls back to request host
  */
 
-import { callBitrix } from './_lib/bitrix.js';
+import { callBitrix, fetchDeal } from './_lib/bitrix.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
 import { generateToken } from './_lib/tokens.js';
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const deal = await callBitrix(domain, 'crm.deal.get', { id: Number(dealId) });
+    const deal = await fetchDeal(domain, dealId);
     if (!deal) {
       return res.status(404).json({ error: 'deal_not_found' });
     }

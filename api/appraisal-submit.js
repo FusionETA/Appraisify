@@ -13,7 +13,7 @@
  */
 
 import { validateToken, consumeToken } from './_lib/tokens.js';
-import { callBitrix } from './_lib/bitrix.js';
+import { callBitrix, fetchDeal } from './_lib/bitrix.js';
 import { parseBody } from './_lib/utils.js';
 import { logAppraisal, logError } from './_lib/logger.js';
 
@@ -110,7 +110,7 @@ export default async function handler(req, res) {
 
   try {
     // Get deal from Bitrix24 (need CATEGORY_ID for stage prefix)
-    const deal = await callBitrix(domain, 'crm.deal.get', { id: dealId });
+    const deal = await fetchDeal(domain, dealId);
     if (!deal) {
       return res.status(404).json({ error: 'deal_not_found', error_description: 'Appraisal deal not found.' });
     }

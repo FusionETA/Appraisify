@@ -62,3 +62,31 @@ export async function callBitrix(domain, method, params = {}) {
 
   return data.result;
 }
+
+/**
+ * Fetch a single CRM deal by ID using the stored OAuth tokens.
+ * Tries crm.deal.get first; falls back to crm.deal.list with ID filter
+ * in case the token owner lacks direct deal read access (CRM role restriction).
+ *
+ * @param {string} domain
+ * @param {number|string} dealId
+ * @returns {object|null} deal object or null if not found
+ */
+export async function fetchDeal(domain, dealId) {
+  const id = Number(dealId);
+
+  // Primary: crm.deal.get
+  const deal = await callBitrix(domain, 'crm.deal.get', { id });
+  if (deal) return deal;
+
+  // Fallback: crm.deal.list with ID filter (works when token has list but not get access)
+  console.warn(`[bitrix] crm.deal.get returned null for deal ${id}, trying crm.deal.list fallback`);
+  const list = await callBitrix(domain, 'crm.deal.list', {
+    filter: { ID: id },
+    select: ['ID', 'TITLE', 'STAGE_ID', 'ASSIGNED_BY_ID', 'CATEGORY_ID',
+             'UF_CRM_APR_REVIEWER', 'UF_CRM_APR_PARTNER', 'CLOSEDATE'],
+  });
+  if (Array.isArray(list) && list.length > 0) return list[0];
+
+  return null;
+}

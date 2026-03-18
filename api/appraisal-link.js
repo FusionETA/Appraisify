@@ -12,7 +12,7 @@
  */
 
 import { validateToken } from './_lib/tokens.js';
-import { callBitrix } from './_lib/bitrix.js';
+import { fetchDeal } from './_lib/bitrix.js';
 import { blobFind, blobGet } from './_lib/blob.js';
 import { logError } from './_lib/logger.js';
 
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
 
   try {
     // Fetch deal from Bitrix24
-    const deal = await callBitrix(domain, 'crm.deal.get', { id: dealId });
+    const deal = await fetchDeal(domain, dealId);
     if (!deal) {
       return res.status(404).json({ error: 'deal_not_found', error_description: 'Appraisal deal not found.' });
     }
