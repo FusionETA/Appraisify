@@ -446,7 +446,8 @@ const BX24App = (() => {
     }
     // Route through system proxy so non-admin users (employees, reviewers, partners)
     // can read CRM deals without needing individual CRM read permissions.
-    return callAsSystem('crm.deal.list', { filter, select });
+    const result = await callAsSystem('crm.deal.list', { filter, select });
+    return Array.isArray(result) ? result : [];
   }
 
   function getDomain() {
