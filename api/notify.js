@@ -155,8 +155,9 @@ export default async function handler(req, res) {
 
       // Email notification (non-fatal — never blocks in-app)
       try {
-        const user     = await callBitrix(domain, 'user.get', { ID: uid });
-        const rawEmail = Array.isArray(user?.EMAIL) ? user.EMAIL[0]?.VALUE : user?.EMAIL;
+        const userResult = await callBitrix(domain, 'user.get', { ID: uid });
+        const user       = Array.isArray(userResult) ? userResult[0] : userResult;
+        const rawEmail   = Array.isArray(user?.EMAIL) ? user.EMAIL[0]?.VALUE : user?.EMAIL;
         if (rawEmail) {
           await sendAppraisalEmail({ to: rawEmail, type, employeeName: name, ref, ctaUrl: emailLink });
           results[results.length - 1].emailed = true;
