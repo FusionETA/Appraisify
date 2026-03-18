@@ -13,7 +13,7 @@
 
 import { validateToken } from './_lib/tokens.js';
 import { fetchDeal } from './_lib/bitrix.js';
-import { blobFind, blobGet } from './_lib/blob.js';
+import { blobFind, blobGet } from './_lib/kv.js';
 import { logError } from './_lib/logger.js';
 
 export default async function handler(req, res) {

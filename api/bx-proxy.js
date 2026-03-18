@@ -94,7 +94,18 @@ export default async function handler(req, res) {
     // Bitrix24 returns { error: 'expired_token' } (HTTP 200) when access_token expires
     if (data.error === 'expired_token' || data.error === 'invalid_token') {
       console.log(`[bx-proxy] Token expired for ${domain}, refreshing...`);
-      tokens = await refreshTokens(domain, tokens);
+      // Guard against concurrent refresh race: multiple parallel requests can all
+      // see 'expired_token' at the same time and each try to use the same
+      // refresh_token. Bitrix24 only allows a refresh token to be used once —
+      // subsequent uses fail. Re-read Blob first: if another in-flight request
+      // already refreshed the token, reuse it instead of refreshing again.
+      const latestTokens = await loadTokens(domain);
+      if (latestTokens && latestTokens.access_token !== tokens.access_token) {
+        console.log(`[bx-proxy] Token already refreshed by concurrent request for ${domain}, reusing.`);
+        tokens = latestTokens;
+      } else {
+        tokens = await refreshTokens(domain, tokens);
+      }
       data = await callBitrixWithToken(domain, tokens, method, params || {});
     }
 

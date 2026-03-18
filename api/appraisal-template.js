@@ -9,7 +9,7 @@
  *   BLOB_READ_WRITE_TOKEN — Vercel Blob token
  */
 
-import { blobPut, blobGet, blobFind } from './_lib/blob.js';
+import { blobPut, blobGet, blobFind } from './_lib/kv.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 
 function mappingPath(domain, dealId) {

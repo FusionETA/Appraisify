@@ -167,19 +167,29 @@ async function loadPendingTasks() {
       return;
     }
 
+    console.log('[Appraisify] loadPendingTasks: categoryId =', categoryId, '| userId =', currentUser.ID);
+
+    // Self query: use current user's own session token — employees can always see
+    // deals where they are the Responsible person (ASSIGNED_BY_ID).
+    //
+    // Reviewer / partner queries: deals are assigned to OTHER people, so the
+    // employee's own token won't have CRM access to them. Use the system (admin)
+    // OAuth token via bx-proxy instead. Requires the installer to have "See All"
+    // CRM access in Bitrix24 → CRM → Settings → Access Rights.
+    const rvwrFilter = { CATEGORY_ID: categoryId, STAGE_ID: stageFilterId(categoryId, 'APPRAISIFY_RVWR'), UF_CRM_APR_REVIEWER: currentUser.ID };
+    const partFilter = { CATEGORY_ID: categoryId, STAGE_ID: stageFilterId(categoryId, 'APPRAISIFY_PART'), UF_CRM_APR_PARTNER: currentUser.ID };
+    const rvwrSelect = ['ID', 'TITLE', 'CLOSEDATE'];
+    const partSelect = ['ID', 'TITLE', 'CLOSEDATE'];
+
     const settled = await Promise.allSettled([
       BX24App.listDeals(
         { CATEGORY_ID: categoryId, ASSIGNED_BY_ID: currentUser.ID },
         ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE']
       ),
-      BX24App.listDeals(
-        { CATEGORY_ID: categoryId, STAGE_ID: stageFilterId(categoryId, 'APPRAISIFY_RVWR'), UF_CRM_APR_REVIEWER: currentUser.ID },
-        ['ID', 'TITLE', 'CLOSEDATE']
-      ),
-      BX24App.listDeals(
-        { CATEGORY_ID: categoryId, STAGE_ID: stageFilterId(categoryId, 'APPRAISIFY_PART'), UF_CRM_APR_PARTNER: currentUser.ID },
-        ['ID', 'TITLE', 'CLOSEDATE']
-      )
+      BX24App.callAsSystem('crm.deal.list', { filter: rvwrFilter, select: rvwrSelect })
+        .then(r => Array.isArray(r) ? r : []),
+      BX24App.callAsSystem('crm.deal.list', { filter: partFilter, select: partSelect })
+        .then(r => Array.isArray(r) ? r : []),
     ]);
 
     const [selfRes, reviewerRes, partnerRes] = settled;
@@ -187,6 +197,7 @@ async function loadPendingTasks() {
     const failures = [];
 
     if (selfRes.status === 'fulfilled') {
+      console.log('[Appraisify] loadPendingTasks self deals:', selfRes.value);
       const selfDeal = (selfRes.value || []).find(d => shortStageId(d.STAGE_ID) === 'APPRAISIFY_RVWEE');
       if (selfDeal) tasks.push(normalizeTask(selfDeal, 'self'));
     } else {
@@ -195,6 +206,7 @@ async function loadPendingTasks() {
     }
 
     if (reviewerRes.status === 'fulfilled') {
+      console.log('[Appraisify] loadPendingTasks reviewer deals:', reviewerRes.value);
       (reviewerRes.value || []).forEach(d => tasks.push(normalizeTask(d, 'reviewer')));
     } else {
       failures.push('reviewer');
@@ -202,6 +214,7 @@ async function loadPendingTasks() {
     }
 
     if (partnerRes.status === 'fulfilled') {
+      console.log('[Appraisify] loadPendingTasks partner deals:', partnerRes.value);
       (partnerRes.value || []).forEach(d => tasks.push(normalizeTask(d, 'partner')));
     } else {
       failures.push('partner');

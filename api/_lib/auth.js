@@ -8,7 +8,7 @@
  *   BX24_CLIENT_SECRET — Bitrix24 app client secret
  */
 
-import { blobPut, blobFind, blobGet } from './blob.js';
+import { blobPut, blobFind, blobGet, blobSetNX, blobDelete } from './kv.js';
 
 function authPath(domain) {
   return `portals/${domain}/auth.json`;
@@ -56,38 +56,53 @@ export async function refreshTokens(domain, currentTokens) {
     throw err;
   }
 
-  const resp = await fetch(`https://${domain}/oauth/token/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: BX24_CLIENT_ID,
-      client_secret: BX24_CLIENT_SECRET,
-      refresh_token: currentTokens.refresh_token,
-    }).toString(),
-  });
-
-  if (!resp.ok) {
-    const err = new Error(`Token refresh failed: HTTP ${resp.status}`);
-    err.code = 'token_refresh_failed';
-    throw err;
+  // Distributed lock: only one request may refresh at a time.
+  // Concurrent requests wait 3 s then return whatever tokens were stored by the winner.
+  const lockKey = `portals/${domain}/refresh_lock`;
+  const lockAcquired = await blobSetNX(lockKey, 15);
+  if (!lockAcquired) {
+    console.log(`[auth] Refresh lock held for ${domain} — waiting for winner to finish...`);
+    await new Promise(r => setTimeout(r, 3000));
+    const fresh = await loadTokens(domain);
+    return fresh || currentTokens;
   }
 
-  const data = await resp.json();
-  if (data.error) {
-    const err = new Error(data.error_description || data.error);
-    err.code = 'token_refresh_failed';
-    throw err;
+  try {
+    const resp = await fetch(`https://${domain}/oauth/token/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: BX24_CLIENT_ID,
+        client_secret: BX24_CLIENT_SECRET,
+        refresh_token: currentTokens.refresh_token,
+      }).toString(),
+    });
+
+    if (!resp.ok) {
+      const err = new Error(`Token refresh failed: HTTP ${resp.status}`);
+      err.code = 'token_refresh_failed';
+      throw err;
+    }
+
+    const data = await resp.json();
+    if (data.error) {
+      const err = new Error(data.error_description || data.error);
+      err.code = 'token_refresh_failed';
+      throw err;
+    }
+
+    const updated = {
+      ...currentTokens,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token || currentTokens.refresh_token,
+      refreshedAt: new Date().toISOString(),
+    };
+
+    await storeTokens(domain, updated);
+    console.log(`[auth] Tokens refreshed for ${domain}`);
+    return updated;
+  } finally {
+    await blobDelete(lockKey).catch(() => {});
   }
-
-  const updated = {
-    ...currentTokens,
-    access_token: data.access_token,
-    refresh_token: data.refresh_token || currentTokens.refresh_token,
-    refreshedAt: new Date().toISOString(),
-  };
-
-  await storeTokens(domain, updated);
-  console.log(`[auth] Tokens refreshed for ${domain}`);
-  return updated;
 }

@@ -274,13 +274,17 @@ const BX24App = (() => {
     const fromOptions = BX24.appOption.get('category_id');
     if (fromOptions) {
       const id = String(fromOptions);
+      console.log('[BX24App] getCategoryId: from appOption →', id);
       localStorage.setItem('appraisify_category_id', id);
       return id;
     }
 
     // 2. localStorage cache — fallback if appOption was not set (e.g. install failed partway)
     const cached = localStorage.getItem('appraisify_category_id');
-    if (cached) return cached;
+    if (cached) {
+      console.log('[BX24App] getCategoryId: from localStorage →', cached);
+      return cached;
+    }
 
     // 3. System proxy fallback — works for ALL users regardless of CRM permissions.
     //    Routes through /api/bx-proxy using the webhook so non-admin users can look
@@ -512,7 +516,8 @@ const BX24App = (() => {
     if (DEV_MODE) {
       return MOCK_DEALS.find(d => String(d.ID) === String(id)) || null;
     }
-    const result = await callAsSystem('crm.deal.get', { id: Number(id) });
+    // Use the current user's own token — ensures they can always read their own deal
+    const result = await callAsCurrentUser('crm.deal.get', { id: Number(id) });
     return result || null;
   }
 
@@ -534,7 +539,9 @@ const BX24App = (() => {
         return true;
       });
     }
-    const result = await callAsSystem('crm.deal.list', { filter, select });
+    // Use the current user's own Bitrix24 session token — it always has access to
+    // deals assigned to them, regardless of the system OAuth token's CRM permissions.
+    const result = await callAllAsCurrentUser('crm.deal.list', { filter, select });
     return Array.isArray(result) ? result : [];
   }
 

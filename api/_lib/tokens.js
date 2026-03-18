@@ -8,7 +8,7 @@
  * Token length: 32-char hex (16 random bytes).
  */
 
-import { blobPut, blobFind, blobGet, blobDelete, blobList } from './blob.js';
+import { blobPut, blobFind, blobGet, blobDelete, blobList } from './kv.js';
 import { logAppraisal, logError } from './logger.js';
 
 const TOKEN_TTL_DAYS = 7;

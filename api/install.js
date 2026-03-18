@@ -10,9 +10,30 @@
  *
  * After BX24.installFinish() the frame reloads into the main app (handler path).
  */
-export default function handler(req, res) {
+import { storeTokens } from './_lib/auth.js';
+
+export default async function handler(req, res) {
   res.setHeader('X-Frame-Options', 'ALLOWALL');
   res.setHeader('Content-Security-Policy', 'frame-ancestors *');
+
+  // Bitrix24 POSTs proper OAuth tokens (with refresh_token) in the install request body.
+  // Store them server-side immediately — BX24.getAuth() on the client does NOT include
+  // refresh_token, so this server-side capture is the only way to get a long-lived token.
+  if (req.method === 'POST') {
+    const body = req.body || {};
+    const access_token  = body.AUTH_ID   || body.access_token;
+    const refresh_token = body.REFRESH_ID || body.refresh_token;
+    const domain        = (body.DOMAIN   || body.domain || '').split('/')[0].toLowerCase().trim();
+    const member_id     = body.member_id;
+    if (access_token && refresh_token && domain) {
+      try {
+        await storeTokens(domain, { access_token, refresh_token, domain, member_id });
+        console.log(`[install] Server-side OAuth tokens stored for ${domain} (member_id=${member_id})`);
+      } catch (e) {
+        console.error('[install] Failed to store server-side tokens:', e.message);
+      }
+    }
+  }
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
   res.status(200).send(`<!DOCTYPE html>

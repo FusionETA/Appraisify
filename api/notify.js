@@ -14,7 +14,7 @@
  */
 
 import { callBitrix, fetchDeal } from './_lib/bitrix.js';
-import { blobFind, blobGet } from './_lib/blob.js';
+import { blobFind, blobGet } from './_lib/kv.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
 import { generateToken } from './_lib/tokens.js';

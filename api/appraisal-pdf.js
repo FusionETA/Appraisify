@@ -10,7 +10,7 @@
  *   BX24_CLIENT_SECRET     — for token refresh
  */
 
-import { blobGet, blobFind } from './_lib/blob.js';
+import { blobGet, blobFind } from './_lib/kv.js';
 import { callBitrix } from './_lib/bitrix.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';

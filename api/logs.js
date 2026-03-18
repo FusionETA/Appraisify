@@ -11,7 +11,7 @@
  *   days    — how many days back to fetch (default: 2, max: 7)
  */
 
-import { blobList, blobGet } from './_lib/blob.js';
+import { blobList, blobGet } from './_lib/kv.js';
 import { loadTokens } from './_lib/auth.js';
 
 function dateRange(days) {

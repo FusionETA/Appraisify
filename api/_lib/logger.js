@@ -10,7 +10,7 @@
  * daily file is created (runs at most once per day per log stream).
  */
 
-import { blobFind, blobGet, blobPut, blobList, blobDelete } from './blob.js';
+import { blobFind, blobGet, blobPut, blobList, blobDelete } from './kv.js';
 
 const LOG_RETAIN_DAYS = 15;
 
