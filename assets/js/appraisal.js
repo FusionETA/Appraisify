@@ -493,11 +493,7 @@ async function handleSubmit(opts) {
     };
     const notifyType = notifyTypeMap[opts.phase];
     if (notifyType) {
-      // Submissions redirect immediately; give notify a short completion window.
-      await Promise.race([
-        triggerWorkflowNotification(notifyType, dealId),
-        new Promise(resolve => setTimeout(resolve, 800)),
-      ]);
+      await triggerWorkflowNotification(notifyType, dealId);
     }
 
   } catch (e) {

@@ -505,8 +505,9 @@ const BX24App = (() => {
       console.log('[BX24App DEV] updateDeal:', id, fields);
       return true;
     }
-    // Bitrix24 crm.deal.update requires id as integer (string from URL param causes 400)
-    return callAsSystem('crm.deal.update', { id: Number(id), fields });
+    // Use the current user's own session token so the deal update is always
+    // authorised (employees can always edit deals they are participating in).
+    return callAsCurrentUser('crm.deal.update', { id: Number(id), fields });
   }
 
   /**
