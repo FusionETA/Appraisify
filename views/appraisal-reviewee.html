@@ -285,8 +285,8 @@
     document.getElementById('hdr-name').textContent    = name;
     document.getElementById('hdr-avatar').textContent  = name.charAt(0).toUpperCase();
     document.getElementById('meta-reviewee').textContent = name;
-    document.getElementById('meta-team').textContent   = '—';
-    document.getElementById('meta-role').textContent   = '—';
+    document.getElementById('meta-team').textContent   = (user.UF_DEPARTMENT || ['—'])[0] || '—';
+    document.getElementById('meta-role').textContent   = user.WORK_POSITION || '—';
     document.getElementById('meta-ref').textContent    = APPRAISAL_DATA.ref;
 
     // Read real deal ID from URL (set by dashboard link); fall back to mock for local dev
@@ -301,19 +301,11 @@
       console.warn('[Appraisify] Could not load deal data:', e);
     }
 
-    if (deal?.TITLE) {
-      const m = String(deal.TITLE).match(/\b(20\d\d)\b/);
-      if (m) document.getElementById('meta-year').textContent = m[1];
-    }
-
     try {
       const templateId = await resolveTemplateIdForDeal(dealId, deal);
       const template = await TemplatesAPI.getTemplate(templateId);
       if (!template) throw new Error('Template not found for this appraisal.');
       APPRAISAL_DATA.sections = buildSectionsFromTemplate(template);
-      const fmtMeta = v => (!v || v === 'all') ? '—' : v.charAt(0).toUpperCase() + v.slice(1);
-      document.getElementById('meta-team').textContent = fmtMeta(template.team);
-      document.getElementById('meta-role').textContent = fmtMeta(template.role);
     } catch (e) {
       if (BX24App.DEV_MODE) {
         APPRAISAL_DATA.sections = devFallbackSections();

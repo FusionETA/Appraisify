@@ -373,38 +373,18 @@ async function listTemplatesForDomain(domain, { includeArchived = false } = {}) 
 }
 
 async function seedDefaultTemplatesIfEmpty(domain) {
-  const defaults = getDefaultTemplateSeeds();
   const blobs = await blobList(templatePrefix(domain));
 
-  if (blobs.length === 0) {
-    // Fresh domain — create all defaults
-    for (const tpl of defaults) {
-      await createTemplateForDomain(domain, tpl);
-    }
-    return;
+  if (blobs.length > 0) {
+    // Check if any active (non-archived) templates exist
+    const docs = await Promise.all(blobs.map(b => blobGet(b.url).catch(() => null)));
+    const hasActive = docs.some(doc => doc && doc.archived !== true);
+    if (hasActive) return;
   }
 
-  // Load existing templates and collect active names
-  const docs = await Promise.all(blobs.map(b => blobGet(b.url).catch(() => null)));
-  const activeNames = new Set(
-    docs
-      .filter(doc => doc && doc.archived !== true)
-      .map(doc => doc.name),
-  );
-
-  if (activeNames.size === 0) {
-    // All templates are archived — recreate all defaults
-    for (const tpl of defaults) {
-      await createTemplateForDomain(domain, tpl);
-    }
-    return;
-  }
-
-  // Create any default templates missing from this domain's active set
+  const defaults = getDefaultTemplateSeeds();
   for (const tpl of defaults) {
-    if (!activeNames.has(tpl.name)) {
-      await createTemplateForDomain(domain, tpl);
-    }
+    await createTemplateForDomain(domain, tpl);
   }
 }
 
