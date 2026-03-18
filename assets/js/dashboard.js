@@ -77,8 +77,6 @@ async function loadMyAppraisal(name) {
   try {
     const categoryId = await BX24App.getCategoryId();
     console.log('[Appraisify] loadMyAppraisal categoryId:', categoryId, '| currentUser.ID:', currentUser?.ID);
-    // Temporary: fetch deal 58134 directly to inspect its actual fields
-    BX24App.getDeal(58134).then(d => console.log('[Appraisify] deal 58134 raw:', d && { ID: d.ID, CATEGORY_ID: d.CATEGORY_ID, ASSIGNED_BY_ID: d.ASSIGNED_BY_ID, STAGE_ID: d.STAGE_ID })).catch(e => console.warn('[Appraisify] deal 58134 fetch error:', e.message));
     if (!categoryId) throw new Error('No pipeline');
 
     const deals = await BX24App.listDeals(

@@ -422,7 +422,11 @@ const BX24App = (() => {
     if (DEV_MODE) {
       return MOCK_DEALS.find(d => String(d.ID) === String(id)) || null;
     }
-    const result = await callAsSystem('crm.deal.get', { id: Number(id) });
+    // Use the current user's own Bitrix24 session for reads.
+    // Employees always have access to deals they're assigned to; admins see all.
+    // The system proxy token may have restricted CRM access depending on the
+    // Bitrix24 portal's CRM access rules, so using the user session is more reliable.
+    const result = await call('crm.deal.get', { id: Number(id) });
     return result || null;
   }
 
@@ -444,10 +448,11 @@ const BX24App = (() => {
         return true;
       });
     }
-    // Route through system proxy so non-admin users (employees, reviewers, partners)
-    // can read CRM deals without needing individual CRM read permissions.
-    const result = await callAsSystem('crm.deal.list', { filter, select });
-    return Array.isArray(result) ? result : [];
+    // Use the current user's Bitrix24 session (BX24.callMethod) for CRM reads.
+    // Employees can see deals assigned to them; admins see all deals.
+    // callAll handles pagination automatically across 50-record pages.
+    const params = select && select.length ? { filter, select } : { filter };
+    return callAll('crm.deal.list', params);
   }
 
   function getDomain() {
