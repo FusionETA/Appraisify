@@ -505,9 +505,9 @@ const BX24App = (() => {
       console.log('[BX24App DEV] updateDeal:', id, fields);
       return true;
     }
-    // Use the current user's own session token so the deal update is always
-    // authorised (employees can always edit deals they are participating in).
-    return callAsCurrentUser('crm.deal.update', { id: Number(id), fields });
+    // Use the stored installer OAuth token via the server-side proxy.
+    // This token has admin CRM access regardless of who the current user is.
+    return callAsSystem('crm.deal.update', { id: Number(id), fields });
   }
 
   /**
