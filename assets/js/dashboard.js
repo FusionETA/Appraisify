@@ -76,12 +76,14 @@ async function loadMyAppraisal(name) {
 
   try {
     const categoryId = await BX24App.getCategoryId();
+    console.log('[Appraisify] loadMyAppraisal categoryId:', categoryId, '| currentUser.ID:', currentUser?.ID);
     if (!categoryId) throw new Error('No pipeline');
 
     const deals = await BX24App.listDeals(
       { CATEGORY_ID: categoryId, ASSIGNED_BY_ID: currentUser.ID },
       ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE']
     );
+    console.log('[Appraisify] loadMyAppraisal deals returned:', deals.length, deals.map(d => ({ ID: d.ID, STAGE_ID: d.STAGE_ID })));
 
     if (!deals.length) {
       badge.textContent = 'No active appraisal';
@@ -168,6 +170,7 @@ async function loadPendingTasks() {
       return;
     }
 
+    console.log('[Appraisify] loadPendingTasks categoryId:', categoryId, '| currentUser.ID:', currentUser?.ID);
     const settled = await Promise.allSettled([
       BX24App.listDeals(
         { CATEGORY_ID: categoryId, ASSIGNED_BY_ID: currentUser.ID },
@@ -188,6 +191,7 @@ async function loadPendingTasks() {
     const failures = [];
 
     if (selfRes.status === 'fulfilled') {
+      console.log('[Appraisify] selfDeals returned:', (selfRes.value || []).length, (selfRes.value || []).map(d => ({ ID: d.ID, STAGE_ID: d.STAGE_ID, short: shortStageId(d.STAGE_ID) })));
       const selfDeal = (selfRes.value || []).find(d => shortStageId(d.STAGE_ID) === 'APPRAISIFY_RVWEE');
       if (selfDeal) tasks.push(normalizeTask(selfDeal, 'self'));
     } else {
