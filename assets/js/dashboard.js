@@ -79,7 +79,7 @@ async function loadMyAppraisal(name) {
     if (!categoryId) throw new Error('No pipeline');
 
     const domain  = BX24App.getDomain();
-    const myResp  = await fetch(`/api/appraisal-template?domain=${encodeURIComponent(domain)}&userId=${encodeURIComponent(currentUser.ID)}`);
+    const myResp  = await fetch(`/api/appraisal-template?domain=${encodeURIComponent(domain)}&userId=${encodeURIComponent(currentUser.ID)}&categoryId=${encodeURIComponent(categoryId)}`);
     const myJson  = await myResp.json();
     const selfEntries = (myJson.deals || []).filter(d => d.role === 'self');
     // Map Upstash entry to CRM-like deal shape expected by the rest of this function
@@ -167,8 +167,9 @@ async function loadPendingTasks() {
   const PENDING_STAGE = { self: 'APPRAISIFY_RVWEE', reviewer: 'APPRAISIFY_RVWR', partner: 'APPRAISIFY_PART' };
 
   try {
+    const categoryId = await BX24App.getCategoryId();
     const domain = BX24App.getDomain();
-    const resp   = await fetch(`/api/appraisal-template?domain=${encodeURIComponent(domain)}&userId=${encodeURIComponent(currentUser.ID)}`);
+    const resp   = await fetch(`/api/appraisal-template?domain=${encodeURIComponent(domain)}&userId=${encodeURIComponent(currentUser.ID)}&categoryId=${encodeURIComponent(categoryId)}`);
     const json   = await resp.json();
 
     if (!resp.ok || !json.ok) throw new Error(json.error_description || json.error || 'Failed to load deals');
