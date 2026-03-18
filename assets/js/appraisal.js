@@ -480,9 +480,11 @@ async function handleSubmit(opts) {
       `[${opts.phase.toUpperCase()} ASSESSMENT] ${submittedAt}\n` +
       (lines.length ? lines.join('\n') : '(no scores recorded)');
 
-    BX24App.callAsSystem('crm.timeline.comment.add', {
+    BX24.callMethod('crm.timeline.comment.add', {
       fields: { ENTITY_TYPE: 'deal', ENTITY_ID: Number(dealId), COMMENT: commentText }
-    }).catch(e => console.warn('[Appraisify] Timeline comment failed:', e));
+    }, r => {
+      if (r.error()) console.warn('[Appraisify] Timeline comment failed:', r.error());
+    });
 
     const notifyTypeMap = {
       self: 'self_submitted',

@@ -91,7 +91,7 @@ export default async function handler(req, res) {
     // Try Blob-cached deal metadata first (avoids CRM permission issues with server-side token)
     let deal = null;
     try {
-      const mappingBlob = await blobFind(`portals/${domain}/appraisal-templates/${dealId}`);
+      const mappingBlob = await blobFind(`portals/${domain}/appraisal-templates/${dealId}.json`);
       if (mappingBlob?.url) {
         const m = await blobGet(mappingBlob.url);
         if (m?.revieweeId) {
