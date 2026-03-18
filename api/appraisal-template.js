@@ -62,7 +62,12 @@ export default async function handler(req, res) {
 
       await blobPut(mappingPath(domain, dealId), {
         templateId,
-        updatedAt: new Date().toISOString(),
+        title:      String(body.title      || ''),
+        revieweeId: body.revieweeId ? Number(body.revieweeId) : null,
+        reviewerId: body.reviewerId ? Number(body.reviewerId) : null,
+        partnerId:  body.partnerId  ? Number(body.partnerId)  : null,
+        categoryId: body.categoryId ? Number(body.categoryId) : null,
+        updatedAt:  new Date().toISOString(),
       });
 
       return res.status(200).json({ ok: true });

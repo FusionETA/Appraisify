@@ -138,7 +138,7 @@ const TemplatesAPI = (() => {
     return parseJson(resp);
   }
 
-  async function setTemplateForDeal(dealId, templateId) {
+  async function setTemplateForDeal(dealId, templateId, meta = {}) {
     const url = buildUrl('');
     const domain = new URL(url, window.location.origin).searchParams.get('domain');
     const resp = await fetch('/api/appraisal-template', {
@@ -147,7 +147,7 @@ const TemplatesAPI = (() => {
         'Content-Type': 'application/json',
         'x-appraisify-domain': domain,
       },
-      body: JSON.stringify({ dealId, templateId, domain }),
+      body: JSON.stringify({ dealId, templateId, domain, ...meta }),
     });
     const json = await parseJson(resp);
     return json.ok === true;

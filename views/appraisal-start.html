@@ -499,7 +499,13 @@
       console.log('[Appraisify] createDeal fields:', fields_log);
       try {
         const dealId = await BX24App.createDeal(fields);
-        await TemplatesAPI.setTemplateForDeal(String(dealId), selectedTemplateId);
+        await TemplatesAPI.setTemplateForDeal(String(dealId), selectedTemplateId, {
+          title:      fields.TITLE,
+          revieweeId: fields.ASSIGNED_BY_ID,
+          reviewerId: fields.UF_CRM_APR_REVIEWER || null,
+          partnerId:  fields.UF_CRM_APR_PARTNER  || null,
+          categoryId: fields.CATEGORY_ID,
+        });
         notifyLaunch(dealId);
         console.log('[Appraisify] createDeal OK → ID:', dealId);
         created++;

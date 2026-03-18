@@ -14,6 +14,7 @@
  */
 
 import { callBitrix, fetchDeal } from './_lib/bitrix.js';
+import { blobFind, blobGet } from './_lib/blob.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
 import { generateToken } from './_lib/tokens.js';
@@ -97,7 +98,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    const deal = await fetchDeal(domain, dealId);
+    // Try Blob-cached deal metadata first (avoids CRM permission issues with server-side token)
+    let deal = null;
+    try {
+      const mappingBlob = await blobFind(`portals/${domain}/appraisal-templates/${dealId}`);
+      if (mappingBlob?.url) {
+        const m = await blobGet(mappingBlob.url);
+        if (m?.revieweeId) {
+          deal = {
+            ID: String(dealId),
+            TITLE: m.title || '',
+            ASSIGNED_BY_ID: String(m.revieweeId),
+            UF_CRM_APR_REVIEWER: m.reviewerId ? String(m.reviewerId) : null,
+            UF_CRM_APR_PARTNER:  m.partnerId  ? String(m.partnerId)  : null,
+            CATEGORY_ID: m.categoryId ? String(m.categoryId) : null,
+          };
+        }
+      }
+    } catch (_) {}
+    // Fallback: fetch from Bitrix24 directly
+    if (!deal) deal = await fetchDeal(domain, dealId);
     if (!deal) {
       return res.status(404).json({ error: 'deal_not_found' });
     }

@@ -39,21 +39,33 @@ export default async function handler(req, res) {
   const { domain, dealId, phase } = tokenResult;
 
   try {
-    // Fetch deal from Bitrix24
-    const deal = await fetchDeal(domain, dealId);
-    if (!deal) {
-      return res.status(404).json({ error: 'deal_not_found', error_description: 'Appraisal deal not found.' });
-    }
-
-    // Load template mapping for this deal (portals/{domain}/appraisal-templates/{dealId}.json)
+    // Load deal metadata — try Blob cache first (avoids CRM permission issues),
+    // then fall back to Bitrix24 crm.deal.get/list
+    let deal = null;
     let templateId = null;
     try {
       const mappingBlob = await blobFind(`portals/${domain}/appraisal-templates/${dealId}`);
       if (mappingBlob?.url) {
-        const mapping = await blobGet(mappingBlob.url);
-        templateId = mapping?.templateId || null;
+        const m = await blobGet(mappingBlob.url);
+        templateId = m?.templateId || null;
+        if (m?.revieweeId) {
+          deal = {
+            ID: String(dealId),
+            TITLE: m.title || '',
+            ASSIGNED_BY_ID: String(m.revieweeId),
+            UF_CRM_APR_REVIEWER: m.reviewerId ? String(m.reviewerId) : null,
+            UF_CRM_APR_PARTNER:  m.partnerId  ? String(m.partnerId)  : null,
+            CATEGORY_ID: m.categoryId ? String(m.categoryId) : null,
+          };
+        }
       }
     } catch (_) {}
+
+    // Fallback: fetch live from Bitrix24
+    if (!deal) deal = await fetchDeal(domain, dealId);
+    if (!deal) {
+      return res.status(404).json({ error: 'deal_not_found', error_description: 'Appraisal deal not found.' });
+    }
 
     // Fallback: extract template ID embedded in deal COMMENTS field
     if (!templateId && deal.COMMENTS) {
