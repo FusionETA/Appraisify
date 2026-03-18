@@ -2,7 +2,7 @@
  * Appraisify – Email Notification Helper (Resend REST API)
  *
  * Sends HTML appraisal notification emails via Resend.
- * Uses native fetch — no npm package required (same pattern as blob.js).
+ * Uses native fetch — no npm package required.
  *
  * Env vars required:
  *   RESEND_API_KEY — from Resend dashboard → API Keys

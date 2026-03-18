@@ -101,10 +101,10 @@ export default async function handler(req, res) {
     return res.status(status).json({ error: e.code || 'token_invalid', error_description: e.message });
   }
 
-  const { domain, dealId, phase, blobUrl, data: rawData } = tokenResult;
+  const { domain, dealId, phase, tokenKey, data: rawData } = tokenResult;
 
   // Delete token (fire-and-forget — non-fatal; periodic sweep handles any stragglers)
-  consumeToken(token, blobUrl, rawData).catch(e => {
+  consumeToken(token, tokenKey, rawData).catch(e => {
     console.error('[appraisal-submit] Token deletion failed (non-fatal):', e.message);
   });
 

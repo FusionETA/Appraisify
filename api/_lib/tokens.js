@@ -1,5 +1,5 @@
 /**
- * Appraisify – Secure single-use appraisal link tokens (Vercel Blob backed)
+ * Appraisify – Secure single-use appraisal link tokens (Upstash Redis backed)
  *
  * Token schema stored at tokens/{token}.json:
  *   { domain, dealId, phase, expiresAt (ISO), usedAt (ISO | null) }
@@ -22,23 +22,26 @@ function tokenPath(token) {
 }
 
 /**
- * Delete all token blobs older than TOKEN_TTL_DAYS (expired, used, or abandoned).
+ * Delete all expired or used tokens older than TOKEN_TTL_DAYS.
+ * Uses the expiresAt field stored in the token data (Upstash has no uploadedAt).
  * Runs in the background — never throws.
  */
 async function _cleanupExpiredTokens() {
   try {
-    const blobs = await blobList('tokens/');
-    const cutoff = Date.now() - TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
+    const keys = await blobList('tokens/');
+    const cutoff = new Date();
     let deleted = 0;
-    for (const blob of blobs) {
-      const uploaded = blob.uploadedAt ? new Date(blob.uploadedAt).getTime() : 0;
-      if (uploaded && uploaded < cutoff) {
-        await blobDelete(blob.url);
+    for (const { url: key } of keys) {
+      const data = await blobGet(key).catch(() => null);
+      if (!data) { await blobDelete(key); deleted++; continue; }
+      const expired = !data.expiresAt || new Date(data.expiresAt) < cutoff;
+      if (expired || data.usedAt) {
+        await blobDelete(key);
         deleted++;
       }
     }
     if (deleted > 0) {
-      logError('system', { event: 'token_sweep', deleted, total: blobs.length }).catch(() => {});
+      logError('system', { event: 'token_sweep', deleted, total: keys.length }).catch(() => {});
     }
   } catch (_) { /* never let cleanup break the caller */ }
 }
@@ -70,7 +73,7 @@ export async function generateToken(domain, dealId, phase) {
  * Does NOT consume the token.
  *
  * @param {string} token
- * @returns {{ domain: string, dealId: number, phase: string, blobUrl: string, data: object }}
+ * @returns {{ domain: string, dealId: number, phase: string, tokenKey: string, data: object }}
  * @throws {Error} with .code = 'token_invalid' | 'token_expired' | 'token_used'
  */
 export async function validateToken(token) {
@@ -80,22 +83,23 @@ export async function validateToken(token) {
     throw err;
   }
 
-  let blob;
+  const tokenKey = tokenPath(token);
+  let found;
   try {
-    blob = await blobFind(tokenPath(token));
+    found = await blobFind(tokenKey);
   } catch (_) {
     const err = new Error('Token not found.');
     err.code = 'token_invalid';
     throw err;
   }
 
-  if (!blob?.url) {
+  if (!found) {
     const err = new Error('Token not found.');
     err.code = 'token_invalid';
     throw err;
   }
 
-  const data = await blobGet(blob.url);
+  const data = await blobGet(tokenKey);
   if (!data) {
     const err = new Error('Token not found.');
     err.code = 'token_invalid';
@@ -103,7 +107,7 @@ export async function validateToken(token) {
   }
 
   if (data.usedAt) {
-    blobDelete(blob.url).catch(() => {});
+    blobDelete(tokenKey).catch(() => {});
     logAppraisal(data.domain, { event: 'token_deleted', reason: 'already_used', dealId: data.dealId, phase: data.phase }).catch(() => {});
     const err = new Error('This appraisal link has already been used.');
     err.code = 'token_used';
@@ -111,24 +115,23 @@ export async function validateToken(token) {
   }
 
   if (!data.expiresAt || new Date(data.expiresAt) < new Date()) {
-    blobDelete(blob.url).catch(() => {});
+    blobDelete(tokenKey).catch(() => {});
     logAppraisal(data.domain, { event: 'token_deleted', reason: 'expired', dealId: data.dealId, phase: data.phase }).catch(() => {});
     const err = new Error('This appraisal link has expired.');
     err.code = 'token_expired';
     throw err;
   }
 
-  return { domain: data.domain, dealId: data.dealId, phase: data.phase, blobUrl: blob.url, data };
+  return { domain: data.domain, dealId: data.dealId, phase: data.phase, tokenKey, data };
 }
 
 /**
  * Consume (delete) a token after successful use.
- * Deletes the blob entirely — it is no longer needed once the form is submitted.
  * @param {string} token — the 32-char hex token string
- * @param {string} blobUrl — CDN URL from validateToken result
- * @param {object} _data — unused (kept for API compatibility)
+ * @param {string} tokenKey — key from validateToken result
+ * @param {object} data — token data for logging
  */
-export async function consumeToken(token, blobUrl, data) {
-  await blobDelete(blobUrl);
+export async function consumeToken(token, tokenKey, data) {
+  await blobDelete(tokenKey);
   logAppraisal(data?.domain, { event: 'token_deleted', reason: 'consumed', dealId: data?.dealId, phase: data?.phase }).catch(() => {});
 }
