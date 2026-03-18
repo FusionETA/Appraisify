@@ -78,10 +78,17 @@ async function loadMyAppraisal(name) {
     const categoryId = await BX24App.getCategoryId();
     if (!categoryId) throw new Error('No pipeline');
 
-    const deals = await BX24App.listDeals(
-      { CATEGORY_ID: categoryId, ASSIGNED_BY_ID: currentUser.ID },
-      ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE']
-    );
+    const domain  = BX24App.getDomain();
+    const myResp  = await fetch(`/api/appraisal-template?domain=${encodeURIComponent(domain)}&userId=${encodeURIComponent(currentUser.ID)}`);
+    const myJson  = await myResp.json();
+    const selfEntries = (myJson.deals || []).filter(d => d.role === 'self');
+    // Map Upstash entry to CRM-like deal shape expected by the rest of this function
+    const deals = selfEntries.map(d => ({
+      ID:       d.dealId,
+      TITLE:    d.title,
+      STAGE_ID: `C${categoryId}:${d.stage}`,
+      CLOSEDATE: d.closeDate || '',
+    }));
     if (!deals.length) {
       badge.textContent = 'No active appraisal';
       badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500';
@@ -156,70 +163,22 @@ async function loadPendingTasks() {
   const list = document.getElementById('pending-list');
   const warning = document.getElementById('pending-load-warning');
 
+  // Pending task stage for each role
+  const PENDING_STAGE = { self: 'APPRAISIFY_RVWEE', reviewer: 'APPRAISIFY_RVWR', partner: 'APPRAISIFY_PART' };
+
   try {
-    const categoryId = await BX24App.getCategoryId();
-    if (!categoryId) {
-      renderPendingTasks([]);
-      if (warning) {
-        warning.classList.remove('hidden');
-        warning.textContent = 'Unable to resolve appraisal pipeline. Task list may be incomplete.';
-      }
-      return;
-    }
+    const domain = BX24App.getDomain();
+    const resp   = await fetch(`/api/appraisal-template?domain=${encodeURIComponent(domain)}&userId=${encodeURIComponent(currentUser.ID)}`);
+    const json   = await resp.json();
 
-    console.log('[Appraisify] loadPendingTasks: categoryId =', categoryId, '| userId =', currentUser.ID);
+    if (!resp.ok || !json.ok) throw new Error(json.error_description || json.error || 'Failed to load deals');
 
-    // Self query: use current user's own session token — employees can always see
-    // deals where they are the Responsible person (ASSIGNED_BY_ID).
-    //
-    // Reviewer / partner queries: deals are assigned to OTHER people, so the
-    // employee's own token won't have CRM access to them. Use the system (admin)
-    // OAuth token via bx-proxy instead. Requires the installer to have "See All"
-    // CRM access in Bitrix24 → CRM → Settings → Access Rights.
-    const rvwrFilter = { CATEGORY_ID: categoryId, STAGE_ID: stageFilterId(categoryId, 'APPRAISIFY_RVWR'), UF_CRM_APR_REVIEWER: currentUser.ID };
-    const partFilter = { CATEGORY_ID: categoryId, STAGE_ID: stageFilterId(categoryId, 'APPRAISIFY_PART'), UF_CRM_APR_PARTNER: currentUser.ID };
-    const rvwrSelect = ['ID', 'TITLE', 'CLOSEDATE'];
-    const partSelect = ['ID', 'TITLE', 'CLOSEDATE'];
-
-    const settled = await Promise.allSettled([
-      BX24App.listDeals(
-        { CATEGORY_ID: categoryId, ASSIGNED_BY_ID: currentUser.ID },
-        ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE']
-      ),
-      BX24App.callAsSystem('crm.deal.list', { filter: rvwrFilter, select: rvwrSelect })
-        .then(r => Array.isArray(r) ? r : []),
-      BX24App.callAsSystem('crm.deal.list', { filter: partFilter, select: partSelect })
-        .then(r => Array.isArray(r) ? r : []),
-    ]);
-
-    const [selfRes, reviewerRes, partnerRes] = settled;
-    const tasks = [];
-    const failures = [];
-
-    if (selfRes.status === 'fulfilled') {
-      console.log('[Appraisify] loadPendingTasks self deals:', selfRes.value);
-      const selfDeal = (selfRes.value || []).find(d => shortStageId(d.STAGE_ID) === 'APPRAISIFY_RVWEE');
-      if (selfDeal) tasks.push(normalizeTask(selfDeal, 'self'));
-    } else {
-      failures.push('self');
-      console.error('[Appraisify] loadPendingTasks self error:', selfRes.reason);
-    }
-
-    if (reviewerRes.status === 'fulfilled') {
-      console.log('[Appraisify] loadPendingTasks reviewer deals:', reviewerRes.value);
-      (reviewerRes.value || []).forEach(d => tasks.push(normalizeTask(d, 'reviewer')));
-    } else {
-      failures.push('reviewer');
-      console.error('[Appraisify] loadPendingTasks reviewer error:', reviewerRes.reason);
-    }
-
-    if (partnerRes.status === 'fulfilled') {
-      console.log('[Appraisify] loadPendingTasks partner deals:', partnerRes.value);
-      (partnerRes.value || []).forEach(d => tasks.push(normalizeTask(d, 'partner')));
-    } else {
-      failures.push('partner');
-      console.error('[Appraisify] loadPendingTasks partner error:', partnerRes.reason);
-    }
+    const tasks = (json.deals || [])
+      .filter(d => d.stage === PENDING_STAGE[d.role])
+      .map(d => normalizeTask(
+        { ID: d.dealId, TITLE: d.title, STAGE_ID: d.stage, CLOSEDATE: d.closeDate || '' },
+        d.role,
+      ));
 
     tasks.sort((a, b) => {
       if (a.priority !== b.priority) return a.priority - b.priority;
@@ -228,15 +187,8 @@ async function loadPendingTasks() {
     });
 
     renderPendingTasks(tasks);
+    if (warning) warning.classList.add('hidden');
 
-    if (warning) {
-      if (failures.length) {
-        warning.classList.remove('hidden');
-        warning.textContent = `Some tasks could not be loaded (${failures.join(', ')}). Showing available results.`;
-      } else {
-        warning.classList.add('hidden');
-      }
-    }
   } catch (e) {
     console.error('[Appraisify] loadPendingTasks error:', e);
     renderPendingTasks([]);

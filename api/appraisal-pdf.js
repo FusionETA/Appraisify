@@ -5,7 +5,7 @@
  * loads the associated template from Vercel Blob, and generates a PDF report.
  *
  * Env vars required:
- *   BLOB_READ_WRITE_TOKEN  — Vercel Blob token
+
  *   BX24_CLIENT_ID         — for token refresh
  *   BX24_CLIENT_SECRET     — for token refresh
  */

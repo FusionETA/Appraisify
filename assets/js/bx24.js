@@ -211,9 +211,12 @@ const BX24App = (() => {
         body: fd.toString(),
       });
       const json = await resp.json();
-      if (json.error) {
-        const err = new Error(json.error_description || json.error);
-        err.code = json.error;
+      if (!resp.ok || json.error) {
+        console.error('[BX24App] callAllAsCurrentUser error in', method,
+          '| HTTP:', resp.status,
+          '| body:', JSON.stringify(json));
+        const err = new Error(json.error_description || json.error || `HTTP ${resp.status}`);
+        err.code = json.error || `HTTP_${resp.status}`;
         throw err;
       }
       if (Array.isArray(json.result)) all.push(...json.result);
@@ -516,8 +519,7 @@ const BX24App = (() => {
     if (DEV_MODE) {
       return MOCK_DEALS.find(d => String(d.ID) === String(id)) || null;
     }
-    // Use the current user's own token — ensures they can always read their own deal
-    const result = await callAsCurrentUser('crm.deal.get', { id: Number(id) });
+    const result = await callAsSystem('crm.deal.get', { id: Number(id) });
     return result || null;
   }
 
@@ -539,9 +541,7 @@ const BX24App = (() => {
         return true;
       });
     }
-    // Use the current user's own Bitrix24 session token — it always has access to
-    // deals assigned to them, regardless of the system OAuth token's CRM permissions.
-    const result = await callAllAsCurrentUser('crm.deal.list', { filter, select });
+    const result = await callAsSystem('crm.deal.list', { filter, select });
     return Array.isArray(result) ? result : [];
   }
 

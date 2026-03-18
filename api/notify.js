@@ -6,7 +6,7 @@
  * Includes a direct link to the relevant in-app appraisal form page.
  *
  * Env vars required:
- *   BLOB_READ_WRITE_TOKEN  — Vercel Blob token
+
  *   BX24_CLIENT_ID         — for token refresh
  *   BX24_CLIENT_SECRET     — for token refresh
  *   APP_URL                — public app URL (e.g. https://appraisify-v2-123.vercel.app)
@@ -14,7 +14,7 @@
  */
 
 import { callBitrix, fetchDeal } from './_lib/bitrix.js';
-import { blobFind, blobGet } from './_lib/kv.js';
+import { blobFind, blobGet, blobPut } from './_lib/kv.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
 import { generateToken } from './_lib/tokens.js';
@@ -188,6 +188,31 @@ export default async function handler(req, res) {
         results[results.length - 1].email_error = [e.code, e.message].filter(Boolean).join(': ') || 'email_failed';
         logError(domain, { event: 'email_failed', source: 'notify', error: e.code || 'email_failed', message: e.message, dealId, type, userId: uid }).catch(() => {});
       }
+    }
+
+    // Update stage in Upstash so the dashboard reflects the current state
+    // without needing CRM access (system token has "See Own" restriction).
+    const NEXT_STAGE = {
+      launch:             'APPRAISIFY_RVWEE',
+      self_submitted:     'APPRAISIFY_RVWR',
+      reviewer_submitted: 'APPRAISIFY_PART',
+      partner_submitted:  'APPRAISIFY_DONE',
+    };
+    const nextStage = NEXT_STAGE[type];
+    if (nextStage && deal) {
+      const participants = [
+        String(deal.ASSIGNED_BY_ID || ''),
+        String(deal.UF_CRM_APR_REVIEWER || ''),
+        String(deal.UF_CRM_APR_PARTNER  || ''),
+      ].filter(uid => uid && uid !== 'null');
+      await Promise.allSettled(participants.map(async (uid) => {
+        const key      = `portals/${domain}/user_deals/${uid}`;
+        const existing = await blobGet(key) || {};
+        if (existing[dealId]) {
+          existing[dealId] = { ...existing[dealId], stage: nextStage };
+          await blobPut(key, existing);
+        }
+      }));
     }
 
     const notified = results.filter(r => r.ok).length;

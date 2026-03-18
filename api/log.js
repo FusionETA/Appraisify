@@ -5,7 +5,7 @@
  * lifecycle events here. Errors are logged server-side directly.
  *
  * Env vars required:
- *   BLOB_READ_WRITE_TOKEN — Vercel Blob token
+
  */
 
 import { logAppraisal } from './_lib/logger.js';

@@ -8,7 +8,7 @@
  * Tokens are stored at: portals/{domain}/auth.json
  *
  * Env vars required:
- *   BLOB_READ_WRITE_TOKEN — from Vercel dashboard → Storage → Blob → Connect
+
  */
 
 import { storeTokens } from './_lib/auth.js';

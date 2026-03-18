@@ -8,7 +8,7 @@
  * timeline comment, and triggers the in-app notification to the next person.
  *
  * Env vars required:
- *   BLOB_READ_WRITE_TOKEN  — Vercel Blob token
+
  *   BX24_CLIENT_ID / BX24_CLIENT_SECRET — for Bitrix24 token refresh
  */
 

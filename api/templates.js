@@ -7,7 +7,7 @@
  *   portals/{domain}/templates/{id}.json  — individual template
  *
  * Env vars required:
- *   BLOB_READ_WRITE_TOKEN — Vercel Blob token
+
  */
 
 import { blobPut, blobGet, blobFind, blobList } from './_lib/kv.js';

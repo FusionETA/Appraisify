@@ -6,7 +6,7 @@
  * Blob path: portals/{domain}/appraisal-templates/{dealId}.json
  *
  * Env vars required:
- *   BLOB_READ_WRITE_TOKEN — Vercel Blob token
+
  */
 
 import { blobPut, blobGet, blobFind } from './_lib/kv.js';
@@ -31,6 +31,17 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
+      const userId = String(req.query?.userId || '').trim();
+
+      // userId branch: return all active deals for a user (dashboard pending tasks)
+      if (userId) {
+        const data  = await blobGet(`portals/${domain}/user_deals/${userId}`) || {};
+        const deals = Object.entries(data)
+          .filter(([, d]) => d && d.stage !== 'APPRAISIFY_DONE')
+          .map(([dealId, d]) => ({ dealId, ...d }));
+        return res.status(200).json({ ok: true, deals });
+      }
+
       const dealId = String(req.query?.dealId || body.dealId || '').trim();
       if (!dealId) {
         return res.status(400).json({ error: 'missing_deal_id' });
@@ -60,15 +71,33 @@ export default async function handler(req, res) {
         });
       }
 
+      const title      = String(body.title      || '');
+      const revieweeId = body.revieweeId ? Number(body.revieweeId) : null;
+      const reviewerId = body.reviewerId ? Number(body.reviewerId) : null;
+      const partnerId  = body.partnerId  ? Number(body.partnerId)  : null;
+      const categoryId = body.categoryId ? Number(body.categoryId) : null;
+      const closeDate  = String(body.closeDate  || '');
+
       await blobPut(mappingPath(domain, dealId), {
-        templateId,
-        title:      String(body.title      || ''),
-        revieweeId: body.revieweeId ? Number(body.revieweeId) : null,
-        reviewerId: body.reviewerId ? Number(body.reviewerId) : null,
-        partnerId:  body.partnerId  ? Number(body.partnerId)  : null,
-        categoryId: body.categoryId ? Number(body.categoryId) : null,
-        updatedAt:  new Date().toISOString(),
+        templateId, title, revieweeId, reviewerId, partnerId, categoryId,
+        closeDate, updatedAt: new Date().toISOString(),
       });
+
+      // Store per-user role assignments so the dashboard can find deals
+      // without needing CRM access (avoids "See Own" system token restriction).
+      const roleEntries = [
+        [revieweeId, 'self'],
+        [reviewerId, 'reviewer'],
+        [partnerId,  'partner'],
+      ];
+      await Promise.all(roleEntries
+        .filter(([uid]) => uid)
+        .map(async ([uid, role]) => {
+          const key      = `portals/${domain}/user_deals/${uid}`;
+          const existing = await blobGet(key) || {};
+          existing[dealId] = { role, stage: 'APPRAISIFY_RVWEE', title, closeDate };
+          await blobPut(key, existing);
+        }));
 
       return res.status(200).json({ ok: true });
     }
