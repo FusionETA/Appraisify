@@ -172,12 +172,18 @@ async function loadPendingTasks() {
       BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_APR_PARTNER:  currentUser.ID }, select),
     ]);
 
+    // Track deal+role pairs to avoid duplicates, but allow the same deal to appear
+    // under different roles. This handles the case where one person is both reviewer
+    // AND partner on the same deal — after reviewer submission the stage advances to
+    // APPRAISIFY_PART and only the partner task should show. Using a combined key
+    // (dealId+role) means each role is evaluated independently for each deal.
     const seen = new Set();
     const tasks = [];
     for (const [deals, role] of [[selfDeals, 'self'], [reviewerDeals, 'reviewer'], [partnerDeals, 'partner']]) {
       for (const deal of deals) {
-        if (seen.has(deal.ID)) continue;
-        seen.add(deal.ID);
+        const key = `${deal.ID}:${role}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
         const stage = shortStageId(deal.STAGE_ID);
         if (stage !== 'APPRAISIFY_DONE' && stage === PENDING_STAGE[role]) {
           tasks.push(normalizeTask(deal, role));
