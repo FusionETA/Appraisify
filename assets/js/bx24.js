@@ -495,8 +495,14 @@ const BX24App = (() => {
 
   /**
    * Updates a CRM deal's fields (e.g. advance STAGE_ID).
-   * Uses the current user's BX24 session — employees always have implicit edit
-   * rights on deals where they are the responsible person (ASSIGNED_BY_ID).
+   * Uses the installer's stored OAuth token (system account) so that reviewers
+   * and partners — who are NOT the ASSIGNED_BY_ID of the deal — can advance
+   * the deal stage on behalf of the employee being appraised.
+   *
+   * ⚠️  Requires the Bitrix24 account used to install the app to have
+   *     CRM "Edit All" permission on the Appraisify pipeline.
+   *     Without that, updates from reviewers/partners will be denied.
+   *
    * @param {string|number} id - deal ID
    * @param {object} fields    - fields to update
    */
@@ -505,15 +511,20 @@ const BX24App = (() => {
       console.log('[BX24App DEV] updateDeal:', id, fields);
       return true;
     }
-    // Use the current user's BX24 session token so employees can update their
-    // own deal without needing CRM edit-all permissions.
-    return call('crm.deal.update', { id: Number(id), fields });
+    // Must use the system token: reviewers/partners are not ASSIGNED_BY_ID of the
+    // deal, so their own session token would be denied by Bitrix24's CRM access check.
+    return callAsSystem('crm.deal.update', { id: Number(id), fields });
   }
 
   /**
    * Fetches a single CRM deal by ID, including all custom UF_CRM_* fields.
-   * Uses the current user's BX24 session — they always have read access to
-   * deals they are assigned to.
+   * Uses the installer's stored OAuth token (system account) so that reviewers
+   * and partners — who are NOT the ASSIGNED_BY_ID of the deal — can read the
+   * deal data when opening their appraisal form.
+   *
+   * ⚠️  Requires the Bitrix24 account used to install the app to have
+   *     CRM "See All" permission on the Appraisify pipeline.
+   *
    * @param {string|number} id - deal ID
    * @returns {Promise<object|null>}
    */
@@ -521,7 +532,9 @@ const BX24App = (() => {
     if (DEV_MODE) {
       return MOCK_DEALS.find(d => String(d.ID) === String(id)) || null;
     }
-    const result = await call('crm.deal.get', { id: Number(id) });
+    // Must use the system token: reviewers/partners are not ASSIGNED_BY_ID so
+    // their own session token would return ACCESS_DENIED from Bitrix24.
+    const result = await callAsSystem('crm.deal.get', { id: Number(id) });
     return result || null;
   }
 
