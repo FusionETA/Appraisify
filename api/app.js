@@ -35,38 +35,44 @@ export default function handler(req, res) {
 
     if (typeof BX24 !== 'undefined') {
       BX24.init(function () {
-        // Re-store the current OAuth token on every load so the server-side token
-        // stays fresh and picks up any scope changes added to the app since install.
-        var auth = BX24.getAuth();
-        if (auth && auth.access_token) {
-          fetch('/api/store-auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              access_token:  auth.access_token,
-              refresh_token: auth.refresh_token,
-              domain:        auth.domain,
-              member_id:     auth.member_id,
-            }),
-          }).catch(function () {}); // fire-and-forget, never block navigation
-        }
-
         // BX24.appOption is portal-wide shared storage (set when admin completes wizard).
         // localStorage is a per-browser fallback.
         var setupDone =
           (BX24.appOption && BX24.appOption.get('setup_done')) ||
           localStorage.getItem('appraisify_setup_done');
 
-        if (setupDone) {
-          goTo('/views/dashboard.html');
-          return;
-        }
-
-        // Setup not yet done — only the installing admin should see the welcome wizard.
-        // Non-admins go straight to dashboard (wizard will appear once admin completes it).
+        // Check admin status — needed both for routing and for deciding whether to
+        // refresh the stored system OAuth token.
         BX24.callMethod('user.admin', {}, function (result) {
           var isAdmin = !result.error() && result.data() === true;
-          goTo(isAdmin ? '/views/welcome.html' : '/views/dashboard.html');
+
+          // Only re-store the OAuth token when the current user is an admin.
+          // The system token is used by /api/bx-proxy for all privileged CRM calls
+          // (crm.deal.list, getDeal, updateDeal) and must belong to an account with
+          // CRM "See All" + "Edit All" access. Storing a regular employee's token
+          // here would overwrite the admin token and break all system calls.
+          if (isAdmin) {
+            var auth = BX24.getAuth();
+            if (auth && auth.access_token) {
+              fetch('/api/store-auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  access_token:  auth.access_token,
+                  refresh_token: auth.refresh_token,
+                  domain:        auth.domain,
+                  member_id:     auth.member_id,
+                }),
+              }).catch(function () {}); // fire-and-forget, never block navigation
+            }
+          }
+
+          if (!setupDone) {
+            goTo(isAdmin ? '/views/welcome.html' : '/views/dashboard.html');
+            return;
+          }
+
+          goTo('/views/dashboard.html');
         });
       });
     } else {
