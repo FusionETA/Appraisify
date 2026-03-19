@@ -3,14 +3,15 @@
  *
  * Maps a Bitrix24 deal ID to an appraisal template ID, per portal.
  *
- * Blob path: portals/{domain}/appraisal-templates/{dealId}.json
+ * Redis keys:
+ *   portals/{domain}/appraisal-templates/{dealId}.json  — template mapping
+ *   portals/{domain}/user_deals/{userId}                — per-user deal index
  *
  * Env vars required:
 
  */
 
 import { blobPut, blobGet, blobFind } from './_lib/kv.js';
-import { callBitrix } from './_lib/bitrix.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 
 function mappingPath(domain, dealId) {
@@ -34,53 +35,15 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const userId = String(req.query?.userId || '').trim();
 
-      // userId branch: return all active deals for a user across all 3 roles.
-      // Uses the stored admin OAuth token so reviewers/partners can see deals
-      // they are not assigned to (bypasses "See Own" CRM restriction).
+      // userId branch: return all active deals for a user from Upstash.
+      // Bypasses CRM entirely — the installer's stored token only has "See Own"
+      // access so crm.deal.list returns nothing for deals assigned to employees.
+      // Role assignments are written to Upstash at launch time (POST handler below).
       if (userId) {
-        const categoryId = String(req.query?.categoryId || '').trim();
-        if (!categoryId) {
-          return res.status(400).json({ error: 'missing_category_id' });
-        }
-
-        const select = ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE'];
-        const baseFilter = { CATEGORY_ID: categoryId };
-
-        const [revieweeRes, reviewerRes, partnerRes] = await Promise.allSettled([
-          callBitrix(domain, 'crm.deal.list', {
-            filter: { ...baseFilter, ASSIGNED_BY_ID: userId }, select,
-          }),
-          callBitrix(domain, 'crm.deal.list', {
-            filter: { ...baseFilter, UF_CRM_APR_REVIEWER: userId }, select,
-          }),
-          callBitrix(domain, 'crm.deal.list', {
-            filter: { ...baseFilter, UF_CRM_APR_PARTNER: userId }, select,
-          }),
-        ]);
-
-        const toDeals = (result, role) => {
-          if (result.status !== 'fulfilled') return [];
-          return (result.value || []).map(d => {
-            const raw   = d.STAGE_ID || '';
-            const stage = raw.includes(':') ? raw.split(':')[1] : raw;
-            return { dealId: String(d.ID), role, stage, title: d.TITLE || '', closeDate: d.CLOSEDATE || '' };
-          });
-        };
-
-        // Merge; deduplicate by dealId (self > reviewer > partner); exclude completed
-        const seen  = new Set();
-        const deals = [];
-        for (const d of [
-          ...toDeals(revieweeRes, 'self'),
-          ...toDeals(reviewerRes, 'reviewer'),
-          ...toDeals(partnerRes,  'partner'),
-        ]) {
-          if (!seen.has(d.dealId) && d.stage !== 'APPRAISIFY_DONE') {
-            seen.add(d.dealId);
-            deals.push(d);
-          }
-        }
-
+        const data  = await blobGet(`portals/${domain}/user_deals/${userId}`) || {};
+        const deals = Object.entries(data)
+          .filter(([, d]) => d && d.stage !== 'APPRAISIFY_DONE')
+          .map(([dealId, d]) => ({ dealId, ...d }));
         return res.status(200).json({ ok: true, deals });
       }
 
@@ -124,6 +87,22 @@ export default async function handler(req, res) {
         templateId, title, revieweeId, reviewerId, partnerId, categoryId,
         closeDate, updatedAt: new Date().toISOString(),
       });
+
+      // Write per-user role entries so the dashboard can find deals without
+      // needing CRM access (installer token has "See Own" restriction).
+      const roleEntries = [
+        [revieweeId, 'self'],
+        [reviewerId, 'reviewer'],
+        [partnerId,  'partner'],
+      ];
+      await Promise.all(roleEntries
+        .filter(([uid]) => uid)
+        .map(async ([uid, role]) => {
+          const key      = `portals/${domain}/user_deals/${uid}`;
+          const existing = await blobGet(key) || {};
+          existing[dealId] = { role, stage: 'APPRAISIFY_RVWEE', title, closeDate };
+          await blobPut(key, existing);
+        }));
 
       return res.status(200).json({ ok: true });
     }

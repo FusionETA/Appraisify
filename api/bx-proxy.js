@@ -97,7 +97,7 @@ export default async function handler(req, res) {
       // Guard against concurrent refresh race: multiple parallel requests can all
       // see 'expired_token' at the same time and each try to use the same
       // refresh_token. Bitrix24 only allows a refresh token to be used once —
-      // subsequent uses fail. Re-read Blob first: if another in-flight request
+      // subsequent uses fail. Re-read Redis first: if another in-flight request
       // already refreshed the token, reuse it instead of refreshing again.
       const latestTokens = await loadTokens(domain);
       if (latestTokens && latestTokens.access_token !== tokens.access_token) {

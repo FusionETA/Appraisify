@@ -1,7 +1,7 @@
 /**
  * Per-tenant OAuth token storage and refresh.
  *
- * Tokens are stored in Vercel Blob at: portals/{domain}/auth.json
+ * Tokens are stored in Upstash Redis at key: portals/{domain}/auth.json
  *
  * Env vars required for token refresh:
  *   BX24_CLIENT_ID     — Bitrix24 app client ID (from Bitrix24 developer portal)

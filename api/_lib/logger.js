@@ -1,5 +1,5 @@
 /**
- * Appraisify – Persistent activity logger (Vercel Blob backed)
+ * Appraisify – Persistent activity logger (Upstash Redis backed)
  *
  * Two log streams:
  *   portals/{domain}/logs/YYYY-MM-DD.json  — appraisal events per portal

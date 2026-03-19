@@ -3,7 +3,7 @@
  *
  * GET /api/logs?domain=fusion.bitrix24.com&days=3
  *
- * Returns recent error logs and portal-specific appraisal logs from Vercel Blob.
+ * Returns recent error logs and portal-specific appraisal logs from Upstash Redis.
  * Useful for debugging notification and submission issues.
  *
  * Query params:

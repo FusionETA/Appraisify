@@ -2,7 +2,7 @@
  * Appraisify – PDF Report Generator (Vercel Serverless Function)
  *
  * Fetches deal data from Bitrix24 using per-tenant OAuth tokens,
- * loads the associated template from Vercel Blob, and generates a PDF report.
+ * loads the associated template from Upstash Redis, and generates a PDF report.
  *
  * Env vars required:
 
@@ -175,7 +175,7 @@ async function loadTemplateForDeal(domain, deal) {
     throw err;
   }
 
-  // Try the blob-stored deal-to-template mapping first
+  // Try the Redis-stored deal-to-template mapping first
   let templateId = null;
   const mappingBlob = await blobFind(`portals/${domain}/appraisal-templates/${dealId}.json`);
   if (mappingBlob) {

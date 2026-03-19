@@ -505,6 +505,7 @@
           reviewerId: fields.UF_CRM_APR_REVIEWER || null,
           partnerId:  fields.UF_CRM_APR_PARTNER  || null,
           categoryId: fields.CATEGORY_ID,
+          closeDate:  fields.CLOSEDATE || '',
         });
         notifyLaunch(dealId);
         console.log('[Appraisify] createDeal OK → ID:', dealId);

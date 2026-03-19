@@ -3,7 +3,7 @@
  *
  * Multi-tenant: all data is scoped per portal under portals/{domain}/templates/
  *
- * Blob paths:
+ * Redis keys:
  *   portals/{domain}/templates/{id}.json  — individual template
  *
  * Env vars required:

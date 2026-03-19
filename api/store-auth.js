@@ -1,5 +1,5 @@
 /**
- * Appraisify – Store installer OAuth tokens in Vercel Blob (Vercel Serverless Function)
+ * Appraisify – Store installer OAuth tokens in Upstash Redis (Vercel Serverless Function)
  *
  * Called from the install page right after BX24.init() fires.
  * Stores the installer's OAuth tokens per portal so any user of that portal
