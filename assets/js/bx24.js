@@ -495,8 +495,8 @@ const BX24App = (() => {
 
   /**
    * Updates a CRM deal's fields (e.g. advance STAGE_ID).
-   * Runs as the system user (installer) so employees/reviewers/partners can advance
-   * deal stages without needing CRM edit permissions in Bitrix24.
+   * Uses the current user's BX24 session — employees always have implicit edit
+   * rights on deals where they are the responsible person (ASSIGNED_BY_ID).
    * @param {string|number} id - deal ID
    * @param {object} fields    - fields to update
    */
@@ -505,14 +505,15 @@ const BX24App = (() => {
       console.log('[BX24App DEV] updateDeal:', id, fields);
       return true;
     }
-    // Use the stored installer OAuth token via the server-side proxy.
-    // This token has admin CRM access regardless of who the current user is.
-    return callAsSystem('crm.deal.update', { id: Number(id), fields });
+    // Use the current user's BX24 session token so employees can update their
+    // own deal without needing CRM edit-all permissions.
+    return call('crm.deal.update', { id: Number(id), fields });
   }
 
   /**
    * Fetches a single CRM deal by ID, including all custom UF_CRM_* fields.
-   * Runs through the system proxy so non-admin users can read deal data.
+   * Uses the current user's BX24 session — they always have read access to
+   * deals they are assigned to.
    * @param {string|number} id - deal ID
    * @returns {Promise<object|null>}
    */
@@ -520,12 +521,14 @@ const BX24App = (() => {
     if (DEV_MODE) {
       return MOCK_DEALS.find(d => String(d.ID) === String(id)) || null;
     }
-    const result = await callAsSystem('crm.deal.get', { id: Number(id) });
+    const result = await call('crm.deal.get', { id: Number(id) });
     return result || null;
   }
 
   /**
    * Lists CRM deals with optional filter and field selection (all pages).
+   * Uses the current user's BX24 session so employees can see their own deals
+   * (where they are ASSIGNED_BY_ID) without needing CRM "See All" permissions.
    * In DEV_MODE, returns filtered MOCK_DEALS matching ASSIGNED_BY_ID / STAGE_ID /
    * UF_CRM_APR_REVIEWER / UF_CRM_APR_PARTNER from the filter object.
    * @param {object} filter  - crm.deal.list filter params
@@ -542,8 +545,8 @@ const BX24App = (() => {
         return true;
       });
     }
-    const result = await callAsSystem('crm.deal.list', { filter, select });
-    return Array.isArray(result) ? result : [];
+    // Use the current user's BX24 session (callAll handles pagination via BX24.callMethod).
+    return callAll('crm.deal.list', { filter, select });
   }
 
   function getDomain() {
