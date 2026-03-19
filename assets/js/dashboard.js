@@ -78,17 +78,10 @@ async function loadMyAppraisal(name) {
     const categoryId = await BX24App.getCategoryId();
     if (!categoryId) throw new Error('No pipeline');
 
-    const domain  = BX24App.getDomain();
-    const myResp  = await fetch(`/api/appraisal-template?domain=${encodeURIComponent(domain)}&userId=${encodeURIComponent(currentUser.ID)}&categoryId=${encodeURIComponent(categoryId)}`);
-    const myJson  = await myResp.json();
-    const selfEntries = (myJson.deals || []).filter(d => d.role === 'self');
-    // Map Upstash entry to CRM-like deal shape expected by the rest of this function
-    const deals = selfEntries.map(d => ({
-      ID:       d.dealId,
-      TITLE:    d.title,
-      STAGE_ID: `C${categoryId}:${d.stage}`,
-      CLOSEDATE: d.closeDate || '',
-    }));
+    const deals = await BX24App.listDeals(
+      { CATEGORY_ID: categoryId, ASSIGNED_BY_ID: currentUser.ID },
+      ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE'],
+    );
     if (!deals.length) {
       badge.textContent = 'No active appraisal';
       badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500';
@@ -168,18 +161,29 @@ async function loadPendingTasks() {
 
   try {
     const categoryId = await BX24App.getCategoryId();
-    const domain = BX24App.getDomain();
-    const resp   = await fetch(`/api/appraisal-template?domain=${encodeURIComponent(domain)}&userId=${encodeURIComponent(currentUser.ID)}&categoryId=${encodeURIComponent(categoryId)}`);
-    const json   = await resp.json();
+    const select = ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE'];
 
-    if (!resp.ok || !json.ok) throw new Error(json.error_description || json.error || 'Failed to load deals');
+    // Fetch deals where this user is reviewee, reviewer, or partner in parallel.
+    // Uses the installer's stored admin token via the server-side proxy so all
+    // three role queries work regardless of the current user's CRM permissions.
+    const [selfDeals, reviewerDeals, partnerDeals] = await Promise.all([
+      BX24App.listDeals({ CATEGORY_ID: categoryId, ASSIGNED_BY_ID:       currentUser.ID }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_APR_REVIEWER:  currentUser.ID }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_APR_PARTNER:   currentUser.ID }, select),
+    ]);
 
-    const tasks = (json.deals || [])
-      .filter(d => d.stage === PENDING_STAGE[d.role])
-      .map(d => normalizeTask(
-        { ID: d.dealId, TITLE: d.title, STAGE_ID: d.stage, CLOSEDATE: d.closeDate || '' },
-        d.role,
-      ));
+    const seen = new Set();
+    const tasks = [];
+    for (const [deals, role] of [[selfDeals, 'self'], [reviewerDeals, 'reviewer'], [partnerDeals, 'partner']]) {
+      for (const deal of deals) {
+        if (seen.has(deal.ID)) continue;
+        seen.add(deal.ID);
+        const stage = shortStageId(deal.STAGE_ID);
+        if (stage !== 'APPRAISIFY_DONE' && stage === PENDING_STAGE[role]) {
+          tasks.push(normalizeTask(deal, role));
+        }
+      }
+    }
 
     tasks.sort((a, b) => {
       if (a.priority !== b.priority) return a.priority - b.priority;
