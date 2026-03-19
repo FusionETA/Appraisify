@@ -539,14 +539,16 @@ const BX24App = (() => {
   }
 
   /**
-   * Lists CRM deals using the CURRENT USER's BX24 session (all pages).
-   * Use this when filtering by ASSIGNED_BY_ID — employees always have implicit
-   * access to their own deals even without a CRM "See All" permission.
+   * Lists CRM deals with optional filter and field selection (all pages).
+   * Always uses the installer's stored OAuth token so that any user — employee,
+   * reviewer, or partner — can query deals regardless of their personal CRM
+   * permissions. This works for ASSIGNED_BY_ID, UF_CRM_APR_REVIEWER,
+   * UF_CRM_APR_PARTNER, and any other filter equally.
    *
-   * ⚠️  Do NOT use this for UF_CRM_APR_REVIEWER / UF_CRM_APR_PARTNER filters:
-   *     Bitrix24 only grants deal visibility based on ASSIGNED_BY_ID (or "See All"
-   *     permission), NOT based on custom user fields. Use listDealsAsSystem() for
-   *     cross-user queries.
+   * ⚠️  Requires the Bitrix24 account used to install the app to have
+   *     CRM "See All" permission on the Appraisify pipeline.
+   *
+   * Paginates automatically via the server-side proxy.
    *
    * @param {object} filter  - crm.deal.list filter params
    * @param {Array}  select  - fields to return (ignored in DEV_MODE)
@@ -562,43 +564,13 @@ const BX24App = (() => {
         return true;
       });
     }
-    // Use the current user's BX24 session (callAll handles pagination via BX24.callMethod).
-    return callAll('crm.deal.list', { filter, select });
-  }
-
-  /**
-   * Lists CRM deals using the INSTALLER's stored OAuth token (system account).
-   * Use this for cross-user queries such as filtering by UF_CRM_APR_REVIEWER or
-   * UF_CRM_APR_PARTNER, where the current user doesn't have direct deal access.
-   *
-   * ⚠️  Requires the Bitrix24 account used to install the app to have
-   *     CRM "See All" (or "Edit All") permission on the Appraisify pipeline.
-   *     Without that, this will still return an empty list.
-   *
-   * Paginates automatically: repeats the proxy call with increasing `start` until
-   * fewer than 50 results are returned (Bitrix24 page size = 50).
-   *
-   * @param {object} filter  - crm.deal.list filter params
-   * @param {Array}  select  - fields to return (ignored in DEV_MODE)
-   * @returns {Promise<Array>}
-   */
-  async function listDealsAsSystem(filter = {}, select = []) {
-    if (DEV_MODE) {
-      return MOCK_DEALS.filter(d => {
-        if (filter.ASSIGNED_BY_ID && String(d.ASSIGNED_BY_ID) !== String(filter.ASSIGNED_BY_ID)) return false;
-        if (filter.STAGE_ID && d.STAGE_ID !== filter.STAGE_ID) return false;
-        if (filter.UF_CRM_APR_REVIEWER && String(d.UF_CRM_APR_REVIEWER) !== String(filter.UF_CRM_APR_REVIEWER)) return false;
-        if (filter.UF_CRM_APR_PARTNER && String(d.UF_CRM_APR_PARTNER) !== String(filter.UF_CRM_APR_PARTNER)) return false;
-        return true;
-      });
-    }
     const all = [];
     let start = 0;
     for (;;) {
       const result = await callAsSystem('crm.deal.list', { filter, select, start });
       const page = Array.isArray(result) ? result : [];
       all.push(...page);
-      if (page.length < 50) break; // last page
+      if (page.length < 50) break; // last page — Bitrix24 page size is 50
       start += 50;
     }
     return all;
@@ -627,7 +599,7 @@ const BX24App = (() => {
   return {
     init, call, callAll, callAsSystem,
     getUser, getUsers, getDepartments,
-    getCategoryId, createDeal, updateDeal, listDeals, listDealsAsSystem, getDeal,
+    getCategoryId, createDeal, updateDeal, listDeals, getDeal,
     listDealUserFields, addDealUserField, ensureAppraisalResponseFields, ensureDealCardConfig,
     resizeFrame, openPath, getDomain, DEV_MODE,
   };

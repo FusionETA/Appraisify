@@ -164,19 +164,12 @@ async function loadPendingTasks() {
     const select = ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE'];
 
     // Fetch deals where this user is reviewee, reviewer, or partner in parallel.
-    //
-    // ASSIGNED_BY_ID query → current user's BX24 session (listDeals):
-    //   Employees always have implicit access to deals where they are responsible.
-    //
-    // UF_CRM_APR_REVIEWER / UF_CRM_APR_PARTNER queries → installer's system token (listDealsAsSystem):
-    //   Bitrix24 does NOT grant deal visibility based on custom fields — only based
-    //   on ASSIGNED_BY_ID or a CRM "See All" permission. The system token (installer's
-    //   stored OAuth token) must have CRM "See All" access on the Appraisify pipeline
-    //   for these queries to return results.
+    // All three queries use the installer's system token via listDeals(), which
+    // works uniformly for any filter as long as the installer has CRM "See All".
     const [selfDeals, reviewerDeals, partnerDeals] = await Promise.all([
-      BX24App.listDeals(         { CATEGORY_ID: categoryId, ASSIGNED_BY_ID:       currentUser.ID }, select),
-      BX24App.listDealsAsSystem( { CATEGORY_ID: categoryId, UF_CRM_APR_REVIEWER:  currentUser.ID }, select),
-      BX24App.listDealsAsSystem( { CATEGORY_ID: categoryId, UF_CRM_APR_PARTNER:   currentUser.ID }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, ASSIGNED_BY_ID:      currentUser.ID }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_APR_REVIEWER: currentUser.ID }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_APR_PARTNER:  currentUser.ID }, select),
     ]);
 
     const seen = new Set();
@@ -477,7 +470,7 @@ async function loadEmployeeTable() {
       BX24App.getUsers(),
       BX24App.getDepartments(),
       categoryId
-        ? BX24App.listDealsAsSystem({ CATEGORY_ID: categoryId }, ['ID', 'STAGE_ID', 'ASSIGNED_BY_ID'])
+        ? BX24App.listDeals({ CATEGORY_ID: categoryId }, ['ID', 'STAGE_ID', 'ASSIGNED_BY_ID'])
         : Promise.resolve([]),
     ]);
 
