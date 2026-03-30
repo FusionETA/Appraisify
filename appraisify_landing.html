@@ -223,6 +223,30 @@
     .phase-pill h4 { font-size: 15px; font-weight: 700; color: var(--gray-900); margin-bottom: 6px; }
     .phase-pill p  { font-size: 13px; color: var(--gray-600); }
 
+    /* ── SPA BANNER ── */
+    .spa-banner {
+      background: white; border-top: 1px solid var(--gray-200);
+      padding: 60px 40px; text-align: center;
+    }
+    .spa-banner .spa-inner {
+      max-width: 680px; margin: 0 auto;
+      background: var(--gray-50); border: 2px solid var(--purple-light);
+      border-radius: 20px; padding: 40px 40px;
+    }
+    .spa-banner .spa-tag {
+      display: inline-block; background: #dbeafe; color: #1e40af;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 4px 14px; border-radius: 999px; margin-bottom: 16px;
+    }
+    .spa-banner h3 { font-size: 22px; font-weight: 800; color: var(--gray-900); margin-bottom: 10px; }
+    .spa-banner p  { font-size: 15px; color: var(--gray-600); line-height: 1.65; margin-bottom: 24px; }
+    .spa-banner a.spa-link {
+      display: inline-block; background: var(--purple-light); color: var(--purple-dark);
+      padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .spa-banner a.spa-link:hover { background: #ddd6fe; transform: translateY(-1px); }
+
     /* ── CTA ── */
     .cta-banner {
       background: linear-gradient(135deg, var(--purple-deep) 0%, var(--purple) 100%);
@@ -279,7 +303,7 @@
   <h1>Performance Appraisals,<br/><span>done right</span> — inside Bitrix24</h1>
   <p>Turn annual reviews into a structured, trackable workflow. Launch appraisal cycles, collect multi-phase feedback, and download PDF reports — all without leaving Bitrix24.</p>
   <div class="hero-actions">
-    <a href="https://www.bitrix24.com/apps/" class="btn-primary">Install on Bitrix24 — Free</a>
+    <a href="https://www.bitrix24.com/apps/app/fusion_eta.appraisify_v2/?skip_server_ip_redirect=Y" class="btn-primary">Install on Bitrix24 — Free</a>
     <a href="mailto:rachel@fusioneta.com?subject=Book a Demo" class="btn-secondary">Book a Demo</a>
   </div>
   <p class="hero-sub">Free to install · No credit card required · Standard plan and above</p>
@@ -720,12 +744,31 @@
   </div>
 </section>
 
+<!-- ══════════════════════ SPA ALTERNATIVE ══════════════════════ -->
+<section class="spa-banner">
+  <div class="spa-inner">
+    <div class="spa-tag">💡 Also on Bitrix24</div>
+    <h3>On a Professional plan or above? Try Appraizzie.</h3>
+    <p>
+      Both Appraisify and <strong>Appraizzie</strong> are powered by Bitrix24 — the difference is how
+      they integrate. Appraisify uses CRM deals, which makes it accessible to <strong>Standard plan users
+      and above</strong>. Appraizzie uses Bitrix24's SPA framework for a more embedded experience, but
+      requires a <strong>Professional plan or above</strong>. We're continuing to improve Appraisify
+      to support all workflows — but if you're on Professional and prefer the SPA approach, Appraizzie
+      is available now.
+    </p>
+    <a href="https://fusioneta.com/appraizzie/performance-appraisal-app/" class="spa-link" target="_blank" rel="noopener noreferrer">
+      Explore Appraizzie →
+    </a>
+  </div>
+</section>
+
 <!-- ══════════════════════ CTA ══════════════════════ -->
 <section class="cta-banner">
   <h2>Ready to modernise your appraisal process?</h2>
   <p>Install Appraisify for free from the Bitrix24 marketplace — or book a live walkthrough with our team.</p>
   <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
-    <a href="https://www.bitrix24.com/apps/" class="btn-white">Install on Bitrix24</a>
+    <a href="https://www.bitrix24.com/apps/app/fusion_eta.appraisify_v2/?skip_server_ip_redirect=Y" class="btn-white">Install on Bitrix24</a>
     <a href="mailto:rachel@fusioneta.com?subject=Book a Demo" class="btn-outline-white">Book a Demo</a>
   </div>
 </section>
