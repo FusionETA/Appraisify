@@ -175,7 +175,7 @@ export default async function handler(req, res) {
           function createPipeline() {
             log('Creating CRM pipeline...', 'info');
             BX24.callMethod('crm.dealcategory.add', {
-              fields: { NAME: 'Appraisify Appraisals', SORT: 100, IS_LOCKED: 'N' }
+              fields: { NAME: 'Appraisify Testing', SORT: 100, IS_LOCKED: 'N' }
             }, function (catResult) {
               if (catResult.error()) {
                 log('Failed to create pipeline: ' + catResult.error(), 'err');
@@ -356,7 +356,7 @@ export default async function handler(req, res) {
               // crm.category.list (entityTypeId:2) returns lowercase keys via the new CRM API;
               // legacy crm.dealcategory.list returned uppercase. Handle both.
               var catName = categories[i].NAME || categories[i].name || '';
-              if (catName === 'Appraisify Appraisals') {
+              if (catName === 'Appraisify Testing') {
                 existing = categories[i];
                 break;
               }
