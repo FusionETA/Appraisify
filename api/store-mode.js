@@ -58,8 +58,10 @@ export default async function handler(req, res) {
 
     if (crm_mode === 'spa') {
       const entity_type_id  = String(body.entity_type_id  || '').trim();
+      const spa_type_id     = String(body.spa_type_id     || '').trim();
       const spa_category_id = String(body.spa_category_id || '').trim();
       if (entity_type_id)  updated.entity_type_id  = entity_type_id;
+      if (spa_type_id)     updated.spa_type_id     = spa_type_id;
       if (spa_category_id) updated.spa_category_id = spa_category_id;
       // Clear any stale Deal fields from a previous install
       delete updated.category_id;

@@ -477,16 +477,17 @@ export default async function handler(req, res) {
         }
 
         if (existing) {
-          var existingId = String(existing.entityTypeId || existing.ENTITY_TYPE_ID || '');
+          var existingId  = String(existing.entityTypeId || existing.ENTITY_TYPE_ID || '');
+          var existingTId = String(existing.id || existing.ID || '');
           if (!existingId) {
             log('SPA entity found but entityTypeId could not be resolved \u2014 recreating...', 'err');
             doCreateSpaEntity();
             return;
           }
-          log('SPA entity found (entityTypeId: ' + existingId + ') \u2014 checking stages...', 'info');
+          log('SPA entity found (entityTypeId: ' + existingId + ', typeId: ' + existingTId + ') \u2014 checking stages...', 'info');
           fetchSpaCategoryAndContinue(existingId, function(categoryId) {
-            storeSpaIds(existingId, categoryId);
-            checkSpaStagesAndContinue(existingId, categoryId);
+            storeSpaIds(existingId, existingTId, categoryId);
+            checkSpaStagesAndContinue(existingId, existingTId, categoryId);
           });
           return;
         }
@@ -515,28 +516,33 @@ export default async function handler(req, res) {
         var result = r.data() || {};
         var type   = result.type || result;
         var entityTypeId = String(type.entityTypeId || type.ENTITY_TYPE_ID || '');
+        var typeId       = String(type.id || type.ID || '');
         if (!entityTypeId) {
           log('SPA entity created but entityTypeId missing in response', 'err');
           finish();
           return;
         }
-        log('SPA entity created, entityTypeId: ' + entityTypeId, 'ok');
+        log('SPA entity created, entityTypeId: ' + entityTypeId + ', typeId: ' + typeId, 'ok');
         fetchSpaCategoryAndContinue(entityTypeId, function(categoryId) {
-          storeSpaIds(entityTypeId, categoryId);
-          addSpaStages(entityTypeId, categoryId);
+          storeSpaIds(entityTypeId, typeId, categoryId);
+          addSpaStages(entityTypeId, typeId, categoryId);
         });
       });
     }
 
-    function storeSpaIds(entityTypeId, categoryId) {
+    function storeSpaIds(entityTypeId, typeId, categoryId) {
       try { localStorage.setItem('appraisify_entity_type_id', entityTypeId); } catch(e) {}
       try { BX24.appOption.set('entity_type_id', entityTypeId); } catch(e) { log('appOption.set entity_type_id failed: ' + e, 'err'); }
       try { BX24.appOption.set('crm_mode', 'spa'); } catch(e) { log('appOption.set crm_mode failed: ' + e, 'err'); }
+      if (typeId) {
+        try { localStorage.setItem('appraisify_spa_type_id', typeId); } catch(e) {}
+        try { BX24.appOption.set('spa_type_id', typeId); } catch(e) { log('appOption.set spa_type_id failed: ' + e, 'err'); }
+      }
       if (categoryId) {
         try { localStorage.setItem('appraisify_spa_category_id', categoryId); } catch(e) {}
         try { BX24.appOption.set('spa_category_id', String(categoryId)); } catch(e) { log('appOption.set spa_category_id failed: ' + e, 'err'); }
       }
-      storeModeInKV('spa', { entity_type_id: entityTypeId, spa_category_id: categoryId || '' });
+      storeModeInKV('spa', { entity_type_id: entityTypeId, spa_type_id: typeId || '', spa_category_id: categoryId || '' });
     }
 
     /**
@@ -560,28 +566,28 @@ export default async function handler(req, res) {
       });
     }
 
-    function checkSpaStagesAndContinue(entityTypeId, categoryId) {
+    function checkSpaStagesAndContinue(entityTypeId, typeId, categoryId) {
       BX24.callMethod('crm.status.list', {
         filter: { ENTITY_ID: 'DYNAMIC_' + entityTypeId + '_STAGE_' + categoryId }
       }, function (r) {
         var count = r.error() ? 0 : (r.data() || []).length;
         if (count >= STAGES.length) {
           log('SPA stages already present (' + count + ') \u2014 checking fields...', 'info');
-          createSpaFields(entityTypeId);
+          createSpaFields(entityTypeId, typeId);
         } else {
           log('SPA stages incomplete (' + count + '/' + STAGES.length + ') \u2014 creating...', 'info');
-          addSpaStages(entityTypeId, categoryId);
+          addSpaStages(entityTypeId, typeId, categoryId);
         }
       });
     }
 
-    function addSpaStages(entityTypeId, categoryId) {
+    function addSpaStages(entityTypeId, typeId, categoryId) {
       setStatus('Setting up stages\u2026', 'Creating SPA appraisal stages\u2026');
       var stageIndex = 0;
       function createNextStage() {
         if (stageIndex >= STAGES.length) {
           log('All ' + STAGES.length + ' SPA stages created', 'ok');
-          createSpaFields(entityTypeId);
+          createSpaFields(entityTypeId, typeId);
           return;
         }
         var s = STAGES[stageIndex++];
@@ -603,7 +609,7 @@ export default async function handler(req, res) {
       createNextStage();
     }
 
-    function createSpaFields(entityTypeId) {
+    function createSpaFields(entityTypeId, typeId) {
       setStatus('Setting up custom fields\u2026', 'Creating SPA appraisal fields\u2026');
       var fi = 0;
       function nextField() {
@@ -614,19 +620,20 @@ export default async function handler(req, res) {
           return;
         }
         var f = ALL_FIELDS[fi++];
-        // SPA fields use userfieldconfig.add (crm.userfield.add does not exist for SPA)
+        // SPA fields use userfieldconfig.add with the small type id (type.id, NOT entityTypeId)
+        // entityId must be 'CRM_{typeId}' per Bitrix24 docs (the "SPA identifier")
         BX24.callMethod('userfieldconfig.add', {
           moduleId: 'crm',
           field: {
-            entityId:      'CRM_' + entityTypeId,
-            fieldName:     'UF_CRM_' + entityTypeId + '_' + f.FIELD_NAME,
+            entityId:      'CRM_' + typeId,
+            fieldName:     'UF_CRM_' + typeId + '_' + f.FIELD_NAME,
             userTypeId:    f.USER_TYPE_ID,
             editFormLabel: { en: f.LABEL || f.FIELD_NAME },
             settings:      f.SETTINGS || {},
           }
         }, function (r) {
           if (r.error()) { log('SPA field ' + f.FIELD_NAME + ' skipped: ' + r.error(), 'info'); }
-          else            { log('SPA field created: UF_CRM_' + entityTypeId + '_' + f.FIELD_NAME, 'ok'); }
+          else            { log('SPA field created: UF_CRM_' + typeId + '_' + f.FIELD_NAME, 'ok'); }
           nextField();
         });
       }

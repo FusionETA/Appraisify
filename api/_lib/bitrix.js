@@ -89,11 +89,12 @@ async function loadPortalConfig(domain) {
  * NOTE: client-side counterpart is _spaRecordToDealFormat() in
  * assets/js/bx24.js. Keep mappings in sync when adding new custom fields.
  *
- * @param {object} item          - raw crm.item response object
- * @param {string|number} entityTypeId
+ * @param {object} item        - raw crm.item response object
+ * @param {string|number} typeId - small SPA type ID (type.id from crm.type.add, e.g. 16)
+ *                                 used as prefix in field names: ufCrm{typeId}AprReviewer
  * @returns {object}
  */
-function normalizeSpaItemToDeal(item, entityTypeId) {
+function normalizeSpaItemToDeal(item, typeId) {
   if (!item) return null;
 
   const STATIC_MAP = {
@@ -106,7 +107,7 @@ function normalizeSpaItemToDeal(item, entityTypeId) {
   };
 
   const out = {};
-  const ufPrefix = `ufCrm${entityTypeId}`;
+  const ufPrefix = `ufCrm${typeId}`;
 
   for (const [key, val] of Object.entries(item)) {
     if (STATIC_MAP[key]) {
@@ -114,7 +115,7 @@ function normalizeSpaItemToDeal(item, entityTypeId) {
       continue;
     }
     if (key.startsWith(ufPrefix)) {
-      // 'ufCrm1052AprReviewer' → 'UF_CRM_APR_REVIEWER'
+      // 'ufCrm16AprReviewer' → 'UF_CRM_APR_REVIEWER'
       const suffix = key.slice(ufPrefix.length); // 'AprReviewer'
       const snake  = suffix
         .replace(/([A-Z])/g, '_$1')
@@ -150,12 +151,15 @@ export async function fetchDeal(domain, dealId) {
       err.code = 'spa_config_missing';
       throw err;
     }
+    // typeId is the small sequential ID (type.id from crm.type.add) used as field name prefix.
+    // Fall back to entityTypeId for portals installed before spa_type_id was captured.
+    const typeId = config.spa_type_id || config.entity_type_id;
 
-    console.log(`[bitrix] fetchDeal (SPA) entityTypeId=${entityTypeId} id=${id} domain=${domain}`);
+    console.log(`[bitrix] fetchDeal (SPA) entityTypeId=${entityTypeId} typeId=${typeId} id=${id} domain=${domain}`);
     const result = await callBitrix(domain, 'crm.item.get', { entityTypeId, id });
     // crm.item.get returns { item: { ... } }
     const item = result && result.item ? result.item : result;
-    return normalizeSpaItemToDeal(item, entityTypeId);
+    return normalizeSpaItemToDeal(item, typeId);
   }
 
   // Deal mode — try crm.deal.get, fall back to crm.deal.list

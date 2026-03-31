@@ -266,16 +266,38 @@ const BX24App = (() => {
   }
 
   /**
+   * Returns the SPA small type ID (type.id from crm.type.add) stored during install, or null.
+   * This is the ID used as the entityId prefix in userfieldconfig.*:
+   *   entityId: 'CRM_{typeId}', fieldName: 'UF_CRM_{typeId}_...'
+   * Distinct from entityTypeId (large number) which is used for crm.item.* routing.
+   */
+  async function getSpaTypeId() {
+    if (DEV_MODE) return null;
+    const fromOptions = BX24.appOption.get('spa_type_id');
+    if (fromOptions) {
+      const id = String(fromOptions);
+      try { localStorage.setItem('appraisify_spa_type_id', id); } catch (_) {}
+      return id;
+    }
+    const cached = localStorage.getItem('appraisify_spa_type_id');
+    if (cached) return cached;
+    return null;
+  }
+
+  /**
    * Returns entity context for the current mode.
    * Deal mode: { mode: 'deal', categoryId }
-   * SPA mode:  { mode: 'spa',  entityTypeId, categoryId }
+   * SPA mode:  { mode: 'spa',  entityTypeId, typeId, categoryId }
+   *   entityTypeId — large number used for crm.item.* routing and stage IDs
+   *   typeId       — small number used for userfieldconfig entityId and field name prefix
    */
   async function _getEntityContext() {
     const mode = getMode();
     if (mode === 'spa') {
       const entityTypeId = await getEntityTypeId();
+      const typeId       = await getSpaTypeId();
       const categoryId   = await getSpaCategoryId();
-      return { mode: 'spa', entityTypeId, categoryId };
+      return { mode: 'spa', entityTypeId, typeId, categoryId };
     }
     const categoryId = await getCategoryId();
     return { mode: 'deal', categoryId };
@@ -292,14 +314,19 @@ const BX24App = (() => {
    *   COMMENTS         → comments
    *   STAGE_ID         → stageId  (strips C{n}: prefix if present)
    *   CATEGORY_ID      → (omitted — scoping is via entityTypeId param)
-   *   UF_CRM_APR_*     → ufCrm{entityTypeId}Apr* (lowercase remainder)
+   *   UF_CRM_APR_*     → ufCrm{typeId}Apr* (lowercase remainder)
    *
    * Any unrecognised key is passed through as-is.
    *
    * NOTE: server-side counterpart is normalizeSpaItemToDeal() in
    * api/_lib/bitrix.js. Keep mappings in sync.
+   *
+   * @param {object} fields        - UPPERCASE Deal-format fields
+   * @param {string} entityTypeId  - large SPA type ID (e.g. '1242'), used for stage IDs
+   * @param {string} typeId        - small SPA type ID (e.g. '16'), used for field name prefix
+   * @param {string} categoryId    - SPA default category ID, used for stage IDs
    */
-  function _dealToSpaFields(fields, entityTypeId, categoryId) {
+  function _dealToSpaFields(fields, entityTypeId, typeId, categoryId) {
     const STATIC_MAP = {
       TITLE:          'title',
       ASSIGNED_BY_ID: 'assignedById',
@@ -318,23 +345,23 @@ const BX24App = (() => {
       if (key === 'STAGE_ID') {
         // Strip deal pipeline prefix: 'C47:APPRAISIFY_RVWEE' → 'APPRAISIFY_RVWEE'
         const bare = String(val).includes(':') ? String(val).split(':')[1] : String(val);
-        // Prepend full SPA stage prefix: 'DT1242_30:APPRAISIFY_RVWEE'
+        // Prepend full SPA stage prefix: 'DT1242_194:APPRAISIFY_RVWEE'
         out.stageId = categoryId ? `DT${entityTypeId}_${categoryId}:${bare}` : bare;
         continue;
       }
 
       if (key.startsWith('UF_CRM_')) {
-        // 'UF_CRM_APR_REVIEWER' with entityTypeId=1052
+        // 'UF_CRM_APR_REVIEWER' with typeId=16
         //   → strip 'UF_CRM_' → 'APR_REVIEWER'
         //   → lowercase        → 'apr_reviewer'
         //   → remove underscores, camelCase → 'aprReviewer'
-        //   → prefix           → 'ufCrm1052AprReviewer'
+        //   → prefix with typeId → 'ufCrm16AprReviewer'
         const suffix = key.slice('UF_CRM_'.length); // e.g. 'APR_REVIEWER'
         const camel  = suffix
           .toLowerCase()
           .replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase()); // 'aprReviewer'
-        out[`ufCrm${entityTypeId}${camel.charAt(0).toUpperCase()}${camel.slice(1)}`] = val;
-        // → 'ufCrm1052AprReviewer'
+        out[`ufCrm${typeId}${camel.charAt(0).toUpperCase()}${camel.slice(1)}`] = val;
+        // → 'ufCrm16AprReviewer'
         continue;
       }
 
@@ -350,8 +377,11 @@ const BX24App = (() => {
    *
    * NOTE: server-side counterpart is normalizeSpaItemToDeal() in
    * api/_lib/bitrix.js. Keep mappings in sync.
+   *
+   * @param {object} item    - raw crm.item response object
+   * @param {string} typeId  - small SPA type ID (e.g. '16'), used for field name prefix
    */
-  function _spaRecordToDealFormat(item, entityTypeId) {
+  function _spaRecordToDealFormat(item, typeId) {
     if (!item) return null;
     const STATIC_MAP = {
       id:           'ID',
@@ -362,7 +392,7 @@ const BX24App = (() => {
       comments:     'COMMENTS',
     };
     const out = {};
-    const ufPrefix = `ufCrm${entityTypeId}`;
+    const ufPrefix = `ufCrm${typeId}`;
 
     for (const [key, val] of Object.entries(item)) {
       if (STATIC_MAP[key]) {
@@ -370,7 +400,7 @@ const BX24App = (() => {
         continue;
       }
       if (key.startsWith(ufPrefix)) {
-        // 'ufCrm1052AprReviewer' → 'APR_REVIEWER' → 'UF_CRM_APR_REVIEWER'
+        // 'ufCrm16AprReviewer' → 'APR_REVIEWER' → 'UF_CRM_APR_REVIEWER'
         const suffix = key.slice(ufPrefix.length); // 'AprReviewer'
         const snake  = suffix
           .replace(/([A-Z])/g, '_$1')
@@ -472,20 +502,20 @@ const BX24App = (() => {
     return Array.isArray(data) ? data : [];
   }
 
-  async function listSpaUserFields(entityTypeId) {
+  async function listSpaUserFields(entityTypeId, typeId) {
     if (DEV_MODE) return [];
     const data = await callAsSystem('userfieldconfig.list', {
       moduleId: 'crm',
-      filter: { entityId: `CRM_${entityTypeId}` },
+      filter: { entityId: `CRM_${typeId}` },
     });
     const raw = Array.isArray(data) ? data : [];
     // Normalize FIELD_NAME to match spec keys (e.g. 'APR_S_S01').
-    // Bitrix24 stores SPA fields as 'UF_CRM_{entityTypeId}_{FIELD_NAME}'.
+    // Bitrix24 stores SPA fields as 'UF_CRM_{typeId}_{FIELD_NAME}'.
     return raw.map(f => ({
       ...f,
       FIELD_NAME: (f.fieldName || f.FIELD_NAME || '')
         .toUpperCase()
-        .replace(new RegExp(`^UF_CRM_${entityTypeId}_`), '')
+        .replace(new RegExp(`^UF_CRM_${typeId}_`), '')
         .replace(/^UF_CRM_/, ''),
     }));
   }
@@ -495,13 +525,13 @@ const BX24App = (() => {
     return callAsSystem('crm.deal.userfield.add', { fields });
   }
 
-  async function addSpaUserField(spec, entityTypeId) {
+  async function addSpaUserField(spec, entityTypeId, typeId) {
     if (DEV_MODE) return true;
     return callAsSystem('userfieldconfig.add', {
       moduleId: 'crm',
       field: {
-        entityId:      `CRM_${entityTypeId}`,
-        fieldName:     `UF_CRM_${entityTypeId}_${spec.FIELD_NAME}`,
+        entityId:      `CRM_${typeId}`,
+        fieldName:     `UF_CRM_${typeId}_${spec.FIELD_NAME}`,
         userTypeId:    spec.USER_TYPE_ID,
         editFormLabel: { en: spec.LABEL || spec.FIELD_NAME },
         settings:      spec.SETTINGS || {},
@@ -535,7 +565,7 @@ const BX24App = (() => {
     // Fetch existing fields for the relevant entity
     let existing;
     if (ctx.mode === 'spa') {
-      existing = await listSpaUserFields(ctx.entityTypeId);
+      existing = await listSpaUserFields(ctx.entityTypeId, ctx.typeId);
     } else {
       existing = await listDealUserFields();
     }
@@ -563,7 +593,7 @@ const BX24App = (() => {
         }
         try {
           if (ctx.mode === 'spa') {
-            await addSpaUserField(spec, ctx.entityTypeId);
+            await addSpaUserField(spec, ctx.entityTypeId, ctx.typeId);
           } else {
             await addDealUserField(spec);
           }
@@ -638,8 +668,8 @@ const BX24App = (() => {
     const ctx = await _getEntityContext();
 
     if (ctx.mode === 'spa') {
-      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId, ctx.categoryId);
-      console.log('[BX24App] createDeal (SPA) entityTypeId:', ctx.entityTypeId, 'fields:', spaFields);
+      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId, ctx.typeId, ctx.categoryId);
+      console.log('[BX24App] createDeal (SPA) entityTypeId:', ctx.entityTypeId, 'typeId:', ctx.typeId, 'fields:', spaFields);
       // Use current user's token — admins always have rights on items they create
       const result = await callAsCurrentUser('crm.item.add', {
         entityTypeId: Number(ctx.entityTypeId),
@@ -676,8 +706,8 @@ const BX24App = (() => {
     const ctx = await _getEntityContext();
 
     if (ctx.mode === 'spa') {
-      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId, ctx.categoryId);
-      console.log('[BX24App] updateDeal (SPA) id:', id, 'entityTypeId:', ctx.entityTypeId, 'fields:', spaFields);
+      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId, ctx.typeId, ctx.categoryId);
+      console.log('[BX24App] updateDeal (SPA) id:', id, 'entityTypeId:', ctx.entityTypeId, 'typeId:', ctx.typeId, 'fields:', spaFields);
       return callAsSystem('crm.item.update', {
         entityTypeId: Number(ctx.entityTypeId),
         id: Number(id),
@@ -709,7 +739,7 @@ const BX24App = (() => {
       });
       // crm.item.get returns { item: { ... } }
       const item = result && result.item ? result.item : result;
-      return _spaRecordToDealFormat(item, ctx.entityTypeId);
+      return _spaRecordToDealFormat(item, ctx.typeId);
     }
 
     const result = await callAsSystem('crm.deal.get', { id: Number(id) });
@@ -738,7 +768,7 @@ const BX24App = (() => {
 
     if (ctx.mode === 'spa') {
       // Translate filter keys to camelCase; CATEGORY_ID is dropped by _dealToSpaFields
-      const spaFilter = _dealToSpaFields(filter, ctx.entityTypeId, ctx.categoryId);
+      const spaFilter = _dealToSpaFields(filter, ctx.entityTypeId, ctx.typeId, ctx.categoryId);
       const all = [];
       let start = 0;
       for (;;) {
@@ -749,7 +779,7 @@ const BX24App = (() => {
         });
         // crm.item.list returns { items: [...] }
         const items = result && Array.isArray(result.items) ? result.items : [];
-        all.push(...items.map(item => _spaRecordToDealFormat(item, ctx.entityTypeId)));
+        all.push(...items.map(item => _spaRecordToDealFormat(item, ctx.typeId)));
         if (items.length < 50) break;
         start += 50;
       }
@@ -792,7 +822,7 @@ const BX24App = (() => {
   return {
     init, call, callAll, callAsSystem,
     getUser, getUsers, getDepartments,
-    getMode, getEntityTypeId, getSpaCategoryId,
+    getMode, getEntityTypeId, getSpaTypeId, getSpaCategoryId,
     getCategoryId, createDeal, updateDeal, listDeals, getDeal,
     listDealUserFields, addDealUserField, ensureAppraisalResponseFields, ensureDealCardConfig,
     resizeFrame, openPath, getDomain, DEV_MODE,
