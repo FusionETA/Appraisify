@@ -484,8 +484,10 @@ export default async function handler(req, res) {
             return;
           }
           log('SPA entity found (entityTypeId: ' + existingId + ') \u2014 checking stages...', 'info');
-          storeSpaIds(existingId);
-          checkSpaStagesAndContinue(existingId);
+          fetchSpaCategoryAndContinue(existingId, function(categoryId) {
+            storeSpaIds(existingId, categoryId);
+            checkSpaStagesAndContinue(existingId, categoryId);
+          });
           return;
         }
 
@@ -519,21 +521,48 @@ export default async function handler(req, res) {
           return;
         }
         log('SPA entity created, entityTypeId: ' + entityTypeId, 'ok');
-        storeSpaIds(entityTypeId);
-        addSpaStages(entityTypeId);
+        fetchSpaCategoryAndContinue(entityTypeId, function(categoryId) {
+          storeSpaIds(entityTypeId, categoryId);
+          addSpaStages(entityTypeId, categoryId);
+        });
       });
     }
 
-    function storeSpaIds(entityTypeId) {
+    function storeSpaIds(entityTypeId, categoryId) {
       try { localStorage.setItem('appraisify_entity_type_id', entityTypeId); } catch(e) {}
       try { BX24.appOption.set('entity_type_id', entityTypeId); } catch(e) { log('appOption.set entity_type_id failed: ' + e, 'err'); }
       try { BX24.appOption.set('crm_mode', 'spa'); } catch(e) { log('appOption.set crm_mode failed: ' + e, 'err'); }
-      storeModeInKV('spa', { entity_type_id: entityTypeId });
+      if (categoryId) {
+        try { localStorage.setItem('appraisify_spa_category_id', categoryId); } catch(e) {}
+        try { BX24.appOption.set('spa_category_id', String(categoryId)); } catch(e) { log('appOption.set spa_category_id failed: ' + e, 'err'); }
+      }
+      storeModeInKV('spa', { entity_type_id: entityTypeId, spa_category_id: categoryId || '' });
     }
 
-    function checkSpaStagesAndContinue(entityTypeId) {
+    /**
+     * Fetches the default SPA category ID for the given entityTypeId via crm.category.list,
+     * then calls back with the resolved categoryId string (falls back to '0' on error).
+     */
+    function fetchSpaCategoryAndContinue(entityTypeId, callback) {
+      BX24.callMethod('crm.category.list', { entityTypeId: Number(entityTypeId) }, function(catResult) {
+        if (catResult.error()) {
+          log('crm.category.list failed: ' + catResult.error() + ' \u2014 using fallback categoryId 0', 'err');
+          callback('0');
+          return;
+        }
+        var catData = catResult.data() || {};
+        var categories = Array.isArray(catData.categories) ? catData.categories
+                       : (Array.isArray(catData) ? catData : []);
+        var defaultCat = categories.length ? categories[0] : null;
+        var categoryId = defaultCat ? String(defaultCat.id || defaultCat.ID || '0') : '0';
+        log('SPA default category ID: ' + categoryId, 'ok');
+        callback(categoryId);
+      });
+    }
+
+    function checkSpaStagesAndContinue(entityTypeId, categoryId) {
       BX24.callMethod('crm.status.list', {
-        filter: { ENTITY_ID: 'DYNAMIC_' + entityTypeId }
+        filter: { ENTITY_ID: 'DT' + entityTypeId + '_' + categoryId }
       }, function (r) {
         var count = r.error() ? 0 : (r.data() || []).length;
         if (count >= STAGES.length) {
@@ -541,12 +570,12 @@ export default async function handler(req, res) {
           createSpaFields(entityTypeId);
         } else {
           log('SPA stages incomplete (' + count + '/' + STAGES.length + ') \u2014 creating...', 'info');
-          addSpaStages(entityTypeId);
+          addSpaStages(entityTypeId, categoryId);
         }
       });
     }
 
-    function addSpaStages(entityTypeId) {
+    function addSpaStages(entityTypeId, categoryId) {
       setStatus('Setting up stages\u2026', 'Creating SPA appraisal stages\u2026');
       var stageIndex = 0;
       function createNextStage() {
@@ -558,7 +587,7 @@ export default async function handler(req, res) {
         var s = STAGES[stageIndex++];
         BX24.callMethod('crm.status.add', {
           fields: {
-            ENTITY_ID: 'DYNAMIC_' + entityTypeId,
+            ENTITY_ID: 'DT' + entityTypeId + '_' + categoryId,
             STATUS_ID: s.STATUS_ID,
             NAME:      s.NAME,
             SORT:      s.SORT,
@@ -585,12 +614,19 @@ export default async function handler(req, res) {
           return;
         }
         var f = ALL_FIELDS[fi++];
-        // SPA fields use crm.userfield.add with ENTITY_ID: 'CRM_{entityTypeId}'
-        BX24.callMethod('crm.userfield.add', {
-          fields: Object.assign({}, f, { ENTITY_ID: 'CRM_' + entityTypeId })
+        // SPA fields use userfieldconfig.add (crm.userfield.add does not exist for SPA)
+        BX24.callMethod('userfieldconfig.add', {
+          moduleId: 'crm',
+          field: {
+            entityId:      'CRM_' + entityTypeId,
+            fieldName:     'UF_CRM_' + entityTypeId + '_' + f.FIELD_NAME,
+            userTypeId:    f.USER_TYPE_ID,
+            editFormLabel: { en: f.LABEL || f.FIELD_NAME },
+            settings:      f.SETTINGS || {},
+          }
         }, function (r) {
           if (r.error()) { log('SPA field ' + f.FIELD_NAME + ' skipped: ' + r.error(), 'info'); }
-          else            { log('SPA field created: ' + f.FIELD_NAME, 'ok'); }
+          else            { log('SPA field created: UF_CRM_' + entityTypeId + '_' + f.FIELD_NAME, 'ok'); }
           nextField();
         });
       }

@@ -249,15 +249,33 @@ const BX24App = (() => {
   }
 
   /**
+   * Returns the SPA default category ID stored during install, or null.
+   * Needed to build the full stage ID format: DT{entityTypeId}_{categoryId}:{STATUS_ID}
+   */
+  async function getSpaCategoryId() {
+    if (DEV_MODE) return null;
+    const fromOptions = BX24.appOption.get('spa_category_id');
+    if (fromOptions) {
+      const id = String(fromOptions);
+      try { localStorage.setItem('appraisify_spa_category_id', id); } catch (_) {}
+      return id;
+    }
+    const cached = localStorage.getItem('appraisify_spa_category_id');
+    if (cached) return cached;
+    return null;
+  }
+
+  /**
    * Returns entity context for the current mode.
    * Deal mode: { mode: 'deal', categoryId }
-   * SPA mode:  { mode: 'spa',  entityTypeId }
+   * SPA mode:  { mode: 'spa',  entityTypeId, categoryId }
    */
   async function _getEntityContext() {
     const mode = getMode();
     if (mode === 'spa') {
       const entityTypeId = await getEntityTypeId();
-      return { mode: 'spa', entityTypeId };
+      const categoryId   = await getSpaCategoryId();
+      return { mode: 'spa', entityTypeId, categoryId };
     }
     const categoryId = await getCategoryId();
     return { mode: 'deal', categoryId };
@@ -281,7 +299,7 @@ const BX24App = (() => {
    * NOTE: server-side counterpart is normalizeSpaItemToDeal() in
    * api/_lib/bitrix.js. Keep mappings in sync.
    */
-  function _dealToSpaFields(fields, entityTypeId) {
+  function _dealToSpaFields(fields, entityTypeId, categoryId) {
     const STATIC_MAP = {
       TITLE:          'title',
       ASSIGNED_BY_ID: 'assignedById',
@@ -299,7 +317,9 @@ const BX24App = (() => {
 
       if (key === 'STAGE_ID') {
         // Strip deal pipeline prefix: 'C47:APPRAISIFY_RVWEE' → 'APPRAISIFY_RVWEE'
-        out.stageId = String(val).includes(':') ? String(val).split(':')[1] : String(val);
+        const bare = String(val).includes(':') ? String(val).split(':')[1] : String(val);
+        // Prepend full SPA stage prefix: 'DT1242_30:APPRAISIFY_RVWEE'
+        out.stageId = categoryId ? `DT${entityTypeId}_${categoryId}:${bare}` : bare;
         continue;
       }
 
@@ -454,8 +474,20 @@ const BX24App = (() => {
 
   async function listSpaUserFields(entityTypeId) {
     if (DEV_MODE) return [];
-    const data = await callAsSystem('crm.userfield.list', { filter: { ENTITY_ID: `CRM_${entityTypeId}` } });
-    return Array.isArray(data) ? data : [];
+    const data = await callAsSystem('userfieldconfig.list', {
+      moduleId: 'crm',
+      filter: { entityId: `CRM_${entityTypeId}` },
+    });
+    const raw = Array.isArray(data) ? data : [];
+    // Normalize FIELD_NAME to match spec keys (e.g. 'APR_S_S01').
+    // Bitrix24 stores SPA fields as 'UF_CRM_{entityTypeId}_{FIELD_NAME}'.
+    return raw.map(f => ({
+      ...f,
+      FIELD_NAME: (f.fieldName || f.FIELD_NAME || '')
+        .toUpperCase()
+        .replace(new RegExp(`^UF_CRM_${entityTypeId}_`), '')
+        .replace(/^UF_CRM_/, ''),
+    }));
   }
 
   async function addDealUserField(fields) {
@@ -463,10 +495,17 @@ const BX24App = (() => {
     return callAsSystem('crm.deal.userfield.add', { fields });
   }
 
-  async function addSpaUserField(fields, entityTypeId) {
+  async function addSpaUserField(spec, entityTypeId) {
     if (DEV_MODE) return true;
-    return callAsSystem('crm.userfield.add', {
-      fields: Object.assign({}, fields, { ENTITY_ID: `CRM_${entityTypeId}` }),
+    return callAsSystem('userfieldconfig.add', {
+      moduleId: 'crm',
+      field: {
+        entityId:      `CRM_${entityTypeId}`,
+        fieldName:     `UF_CRM_${entityTypeId}_${spec.FIELD_NAME}`,
+        userTypeId:    spec.USER_TYPE_ID,
+        editFormLabel: { en: spec.LABEL || spec.FIELD_NAME },
+        settings:      spec.SETTINGS || {},
+      },
     });
   }
 
@@ -507,7 +546,8 @@ const BX24App = (() => {
     try {
       for (const spec of required) {
         if (existingNames.has(spec.FIELD_NAME)) {
-          if (spec.USER_TYPE_ID === 'double') {
+          // Only attempt precision update for Deal mode — SPA fields are set correctly at install time
+          if (spec.USER_TYPE_ID === 'double' && ctx.mode !== 'spa') {
             const existingField    = existingByName.get(spec.FIELD_NAME);
             const currentPrecision = getFieldPrecision(existingField);
             if (currentPrecision !== 2) {
@@ -598,7 +638,7 @@ const BX24App = (() => {
     const ctx = await _getEntityContext();
 
     if (ctx.mode === 'spa') {
-      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId);
+      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId, ctx.categoryId);
       console.log('[BX24App] createDeal (SPA) entityTypeId:', ctx.entityTypeId, 'fields:', spaFields);
       // Use current user's token — admins always have rights on items they create
       const result = await callAsCurrentUser('crm.item.add', {
@@ -636,7 +676,7 @@ const BX24App = (() => {
     const ctx = await _getEntityContext();
 
     if (ctx.mode === 'spa') {
-      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId);
+      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId, ctx.categoryId);
       console.log('[BX24App] updateDeal (SPA) id:', id, 'entityTypeId:', ctx.entityTypeId, 'fields:', spaFields);
       return callAsSystem('crm.item.update', {
         entityTypeId: Number(ctx.entityTypeId),
@@ -698,7 +738,7 @@ const BX24App = (() => {
 
     if (ctx.mode === 'spa') {
       // Translate filter keys to camelCase; CATEGORY_ID is dropped by _dealToSpaFields
-      const spaFilter = _dealToSpaFields(filter, ctx.entityTypeId);
+      const spaFilter = _dealToSpaFields(filter, ctx.entityTypeId, ctx.categoryId);
       const all = [];
       let start = 0;
       for (;;) {
@@ -752,7 +792,7 @@ const BX24App = (() => {
   return {
     init, call, callAll, callAsSystem,
     getUser, getUsers, getDepartments,
-    getMode, getEntityTypeId,
+    getMode, getEntityTypeId, getSpaCategoryId,
     getCategoryId, createDeal, updateDeal, listDeals, getDeal,
     listDealUserFields, addDealUserField, ensureAppraisalResponseFields, ensureDealCardConfig,
     resizeFrame, openPath, getDomain, DEV_MODE,

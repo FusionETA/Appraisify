@@ -35,9 +35,11 @@ const ALLOWED_METHODS = new Set([
   'crm.item.get',
   'crm.item.update',
   'crm.item.list',
-  'crm.userfield.add',
-  'crm.userfield.list',
-  'crm.userfield.update',
+  'crm.item.fields',
+  // SPA user fields — correct API is userfieldconfig.* (crm.userfield.* does not exist for SPA)
+  'userfieldconfig.add',
+  'userfieldconfig.list',
+  'userfieldconfig.update',
 ]);
 
 async function callBitrixWithToken(domain, tokens, method, params) {
