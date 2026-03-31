@@ -2,6 +2,19 @@
  * Appraisify – BX24 SDK Wrapper
  * Provides a promise-based API around the Bitrix24 JS SDK.
  * Falls back to mock data when running outside of a Bitrix24 frame (local dev).
+ *
+ * Supports two CRM storage modes, selected at install time:
+ *   'deal' — standard CRM Deal pipeline (crm.deal.*)
+ *   'spa'  — Smart Process Automation entity (crm.item.*, crm.type.*)
+ *
+ * All public functions (createDeal, updateDeal, getDeal, listDeals) work
+ * identically in both modes — callers never need to know which is active.
+ * Field translation between UPPERCASE Deal format and camelCase SPA format
+ * is handled internally by _dealToSpaFields() and _spaRecordToDealFormat().
+ *
+ * NOTE: _spaRecordToDealFormat() has a server-side counterpart in
+ * api/_lib/bitrix.js (normalizeSpaItemToDeal). Keep the field mappings
+ * in both files in sync when adding new custom fields.
  */
 
 const BX24App = (() => {
@@ -18,13 +31,9 @@ const BX24App = (() => {
     LAST_NAME: '',
     EMAIL: 'alex@example.com',
     PERSONAL_PHOTO: '',
-    // Role reads from localStorage first (set by dev role switcher), then page-level override
     APP_ROLE: localStorage.getItem('__appraisify_dev_role__') || window.__DEV_ROLE__ || 'admin',
   };
 
-  // Mock data matches real Bitrix24 API structure:
-  // - NAME / LAST_NAME are separate fields
-  // - UF_DEPARTMENT is an array of integer IDs (resolved via department.get)
   const MOCK_DEPARTMENTS = [
     { ID: '1', NAME: 'Engineering' },
     { ID: '2', NAME: 'Marketing' },
@@ -39,8 +48,6 @@ const BX24App = (() => {
     { ID: '6', NAME: 'Casey', LAST_NAME: 'Wong', WORK_POSITION: 'DevOps Lead', UF_DEPARTMENT: [1, 3], PERSONAL_PHOTO: '' },
   ];
 
-  // Mock deals – simulate a launched appraisal cycle
-  // ASSIGNED_BY_ID = employee, UF_CRM_APR_REVIEWER = reviewer, UF_CRM_APR_PARTNER = partner
   const MOCK_DEALS = [
     { ID: 'dev-1', TITLE: 'Alex Rivera – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_RVWEE', ASSIGNED_BY_ID: '1', UF_CRM_APR_REVIEWER: '2', UF_CRM_APR_PARTNER: '3', CLOSEDATE: '2025-01-31' },
     { ID: 'dev-2', TITLE: 'Jordan Lee – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_RVWR', ASSIGNED_BY_ID: '2', UF_CRM_APR_REVIEWER: '1', UF_CRM_APR_PARTNER: '3', CLOSEDATE: '2025-01-31' },
@@ -99,7 +106,6 @@ const BX24App = (() => {
       BX24.callMethod(method, params, (result) => {
         if (result.error()) {
           const e = result.error();
-          // Log full error details so we can diagnose 400s
           console.error('[BX24App] Error in', method,
             '| code:', e && e.ex && e.ex.error,
             '| desc:', e && e.ex && e.ex.error_description,
@@ -110,13 +116,6 @@ const BX24App = (() => {
     });
   }
 
-  /**
-   * Fetches ALL pages of a paginated BX24 REST method.
-   * Uses result.more() + result.next() to iterate through 50-record pages.
-   * @param {string} method  - e.g. 'user.get', 'department.get'
-   * @param {object} params  - filter/select params passed to BX24.callMethod
-   * @returns {Promise<Array>} - all records concatenated across all pages
-   */
   function callAll(method, params = {}) {
     return new Promise((resolve, reject) => {
       if (DEV_MODE) { resolve([]); return; }
@@ -125,7 +124,7 @@ const BX24App = (() => {
         if (result.error()) { reject(result.error()); return; }
         allData.push(...result.data());
         if (result.more()) {
-          result.next(); // same handler fires again for next page
+          result.next();
         } else {
           resolve(allData);
         }
@@ -133,12 +132,6 @@ const BX24App = (() => {
     });
   }
 
-  /**
-   * Serialises a nested params object into a URLSearchParams instance.
-   * Handles nested objects and arrays using bracket notation, e.g.
-   *   { filter: { ID: 1 }, select: ['ID'] }
-   *   → filter[ID]=1&select[0]=ID
-   */
   function _appendParams(fd, obj, prefix) {
     if (Array.isArray(obj)) {
       obj.forEach((v, i) => _appendParams(fd, v, `${prefix}[${i}]`));
@@ -149,25 +142,11 @@ const BX24App = (() => {
     }
   }
 
-  /**
-   * Makes a single Bitrix24 REST call using the CURRENT USER's session token
-   * obtained from BX24.getAuth(). This bypasses both the system proxy (which
-   * uses the installer's OAuth token and may have restricted CRM access) and
-   * BX24.callMethod (which is subject to the app's declared client-side scopes).
-   *
-   * The user's own access_token is always valid for deals they are assigned to
-   * (employees) or all CRM deals (admins).
-   *
-   * @param {string} method - Bitrix24 REST method name
-   * @param {object} params - method parameters
-   * @returns {Promise<any>} - raw Bitrix24 result value
-   */
   async function callAsCurrentUser(method, params = {}) {
     const auth = BX24.getAuth();
     const domain = String(auth.domain || '').split('/')[0].toLowerCase();
     const fd = new URLSearchParams();
     fd.append('auth', auth.access_token);
-    // Append all nested params in bracket notation
     Object.entries(params).forEach(([k, v]) => _appendParams(fd, v, k));
 
     const resp = await fetch(`https://${domain}/rest/${method}`, {
@@ -184,15 +163,6 @@ const BX24App = (() => {
     return json.result;
   }
 
-  /**
-   * Fetches ALL pages of a paginated Bitrix24 REST method using the current
-   * user's session token (callAsCurrentUser). Handles the REST API's cursor-
-   * based pagination via the `next` field in the response.
-   *
-   * @param {string} method - Bitrix24 REST method name
-   * @param {object} params - method parameters (filter, select, order, etc.)
-   * @returns {Promise<Array>}
-   */
   async function callAllAsCurrentUser(method, params = {}) {
     if (DEV_MODE) return [];
     const all = [];
@@ -228,52 +198,188 @@ const BX24App = (() => {
 
   async function getUser() {
     if (DEV_MODE) return MOCK_USER;
-    // Call both in parallel: user.current for profile data, user.admin for role
     const [data, isAdmin] = await Promise.all([
       call('user.current'),
-      call('user.admin'),   // returns boolean – true if portal admin
+      call('user.admin'),
     ]);
     data.APP_ROLE = isAdmin ? 'admin' : 'employee';
     return data;
   }
 
-  /**
-   * Retrieves ALL active employees from the Bitrix24 instance (all pages).
-   * Scope required: user
-   * Returns: [{ ID, NAME, LAST_NAME, WORK_POSITION, UF_DEPARTMENT: [int], PERSONAL_PHOTO }]
-   */
   async function getUsers() {
     if (DEV_MODE) return MOCK_USERS;
     return callAll('user.get', {
       ACTIVE: true,
-      USER_TYPE: 'employee', // excludes bots, extranet, email, Open Channel users
+      USER_TYPE: 'employee',
       select: ['ID', 'NAME', 'LAST_NAME', 'WORK_POSITION', 'UF_DEPARTMENT', 'PERSONAL_PHOTO'],
     });
   }
 
-  /**
-   * Retrieves ALL departments from the Bitrix24 instance (all pages).
-   * Scope required: department
-   * Returns: [{ ID: string, NAME: string, ... }]
-   */
   async function getDepartments() {
     if (DEV_MODE) return MOCK_DEPARTMENTS;
     return callAll('department.get');
   }
 
+  // ── Mode helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Returns the current CRM storage mode: 'deal' or 'spa'.
+   * Reads from BX24 appOption (set during install). Defaults to 'deal'.
+   */
+  function getMode() {
+    if (DEV_MODE) return 'deal';
+    return BX24.appOption.get('crm_mode') || 'deal';
+  }
+
+  /**
+   * Returns the SPA entity type ID stored during install, or null.
+   * Checks appOption first, then localStorage as fallback.
+   */
+  async function getEntityTypeId() {
+    if (DEV_MODE) return null;
+    const fromOptions = BX24.appOption.get('entity_type_id');
+    if (fromOptions) {
+      const id = String(fromOptions);
+      try { localStorage.setItem('appraisify_entity_type_id', id); } catch (_) {}
+      return id;
+    }
+    const cached = localStorage.getItem('appraisify_entity_type_id');
+    if (cached) return cached;
+    return null;
+  }
+
+  /**
+   * Returns entity context for the current mode.
+   * Deal mode: { mode: 'deal', categoryId }
+   * SPA mode:  { mode: 'spa',  entityTypeId }
+   */
+  async function _getEntityContext() {
+    const mode = getMode();
+    if (mode === 'spa') {
+      const entityTypeId = await getEntityTypeId();
+      return { mode: 'spa', entityTypeId };
+    }
+    const categoryId = await getCategoryId();
+    return { mode: 'deal', categoryId };
+  }
+
+  /**
+   * Translates a Deal-format fields object (UPPERCASE keys) into the
+   * camelCase SPA format expected by crm.item.add / crm.item.update / crm.item.list.
+   *
+   * Mapping:
+   *   TITLE            → title
+   *   ASSIGNED_BY_ID   → assignedById
+   *   CLOSEDATE        → closeDate
+   *   COMMENTS         → comments
+   *   STAGE_ID         → stageId  (strips C{n}: prefix if present)
+   *   CATEGORY_ID      → (omitted — scoping is via entityTypeId param)
+   *   UF_CRM_APR_*     → ufCrm{entityTypeId}Apr* (lowercase remainder)
+   *
+   * Any unrecognised key is passed through as-is.
+   *
+   * NOTE: server-side counterpart is normalizeSpaItemToDeal() in
+   * api/_lib/bitrix.js. Keep mappings in sync.
+   */
+  function _dealToSpaFields(fields, entityTypeId) {
+    const STATIC_MAP = {
+      TITLE:          'title',
+      ASSIGNED_BY_ID: 'assignedById',
+      CLOSEDATE:      'closeDate',
+      COMMENTS:       'comments',
+    };
+    const out = {};
+    for (const [key, val] of Object.entries(fields)) {
+      if (key === 'CATEGORY_ID') continue; // scoped by entityTypeId, not a field
+
+      if (STATIC_MAP[key]) {
+        out[STATIC_MAP[key]] = val;
+        continue;
+      }
+
+      if (key === 'STAGE_ID') {
+        // Strip deal pipeline prefix: 'C47:APPRAISIFY_RVWEE' → 'APPRAISIFY_RVWEE'
+        out.stageId = String(val).includes(':') ? String(val).split(':')[1] : String(val);
+        continue;
+      }
+
+      if (key.startsWith('UF_CRM_')) {
+        // 'UF_CRM_APR_REVIEWER' with entityTypeId=1052
+        //   → strip 'UF_CRM_' → 'APR_REVIEWER'
+        //   → lowercase        → 'apr_reviewer'
+        //   → remove underscores, camelCase → 'aprReviewer'
+        //   → prefix           → 'ufCrm1052AprReviewer'
+        const suffix = key.slice('UF_CRM_'.length); // e.g. 'APR_REVIEWER'
+        const camel  = suffix
+          .toLowerCase()
+          .replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase()); // 'aprReviewer'
+        out[`ufCrm${entityTypeId}${camel.charAt(0).toUpperCase()}${camel.slice(1)}`] = val;
+        // → 'ufCrm1052AprReviewer'
+        continue;
+      }
+
+      out[key] = val; // pass unknown keys through unchanged
+    }
+    return out;
+  }
+
+  /**
+   * Normalises a crm.item.* response record back to UPPERCASE Deal format
+   * so all callers (dashboard.js, appraisal.js, appraisal-pdf.js) work
+   * without modification regardless of CRM mode.
+   *
+   * NOTE: server-side counterpart is normalizeSpaItemToDeal() in
+   * api/_lib/bitrix.js. Keep mappings in sync.
+   */
+  function _spaRecordToDealFormat(item, entityTypeId) {
+    if (!item) return null;
+    const STATIC_MAP = {
+      id:           'ID',
+      title:        'TITLE',
+      stageId:      'STAGE_ID',
+      assignedById: 'ASSIGNED_BY_ID',
+      closeDate:    'CLOSEDATE',
+      comments:     'COMMENTS',
+    };
+    const out = {};
+    const ufPrefix = `ufCrm${entityTypeId}`;
+
+    for (const [key, val] of Object.entries(item)) {
+      if (STATIC_MAP[key]) {
+        out[STATIC_MAP[key]] = val;
+        continue;
+      }
+      if (key.startsWith(ufPrefix)) {
+        // 'ufCrm1052AprReviewer' → 'APR_REVIEWER' → 'UF_CRM_APR_REVIEWER'
+        const suffix = key.slice(ufPrefix.length); // 'AprReviewer'
+        const snake  = suffix
+          .replace(/([A-Z])/g, '_$1')
+          .toUpperCase()
+          .replace(/^_/, ''); // 'APR_REVIEWER'
+        out[`UF_CRM_${snake}`] = val;
+        continue;
+      }
+      out[key] = val; // preserve any other keys
+    }
+    return out;
+  }
+
   // ── CRM Deal helpers ──────────────────────────────────────────────────
 
   /**
-   * Returns the Appraisify pipeline category ID.
-   * Checks localStorage cache first; otherwise queries crm.category.list.
+   * Returns the Appraisify pipeline category ID (Deal mode).
+   * In SPA mode returns the sentinel string 'spa' so callers that build
+   * stage prefixes (C{n}:STAGE) still work — _dealToSpaFields strips the prefix.
    * @returns {Promise<string|null>}
    */
   async function getCategoryId() {
     if (DEV_MODE) return 'dev';
 
-    // 1. BX24 app options — shared across ALL users, updated by every install/reinstall.
-    //    Must be checked FIRST so stale localStorage values from old pipelines are overwritten.
-    //    BX24.appOption.get() is synchronous after BX24.init() has run.
+    // Return sentinel when in SPA mode so stage-prefix logic still runs
+    // in callers without needing changes there.
+    if (getMode() === 'spa') return 'spa';
+
+    // 1. BX24 app options — shared across ALL users, updated by every install.
     const fromOptions = BX24.appOption.get('category_id');
     if (fromOptions) {
       const id = String(fromOptions);
@@ -282,21 +388,18 @@ const BX24App = (() => {
       return id;
     }
 
-    // 2. localStorage cache — fallback if appOption was not set (e.g. install failed partway)
+    // 2. localStorage cache
     const cached = localStorage.getItem('appraisify_category_id');
     if (cached) {
       console.log('[BX24App] getCategoryId: from localStorage →', cached);
       return cached;
     }
 
-    // 3. System proxy fallback — works for ALL users regardless of CRM permissions.
-    //    Routes through /api/bx-proxy using the webhook so non-admin users can look
-    //    up the pipeline ID without needing CRM admin rights.
+    // 3. System proxy fallback
     try {
       const result = await callAsSystem('crm.category.list', { entityTypeId: 2 });
       const categories = (result && result.categories) ? result.categories : [];
-      // Webhook returns lowercase keys (id, name); BX24 SDK returns uppercase (ID, NAME)
-      const found = categories.find(c => (c.NAME || c.name) === 'Appraisify Appraisals');
+      const found = categories.find(c => (c.NAME || c.name) === 'Appraisify Testing');
       if (found) {
         const id = String(found.ID || found.id);
         localStorage.setItem('appraisify_category_id', id);
@@ -309,24 +412,12 @@ const BX24App = (() => {
     return null;
   }
 
-  /**
-   * Makes a privileged Bitrix24 API call through the server-side proxy (/api/bx-proxy).
-   * Uses the installer's stored OAuth tokens (system user) instead of the current user's
-   * session, so operations succeed regardless of the current user's CRM permissions.
-   *
-   * Allowed methods: crm.deal.add, crm.deal.update, crm.timeline.comment.add
-   *
-   * @param {string} method - Bitrix24 REST method name
-   * @param {object} params - method parameters
-   */
   async function callAsSystem(method, params = {}) {
     if (DEV_MODE) {
       console.log('[BX24App DEV] callAsSystem:', method, params);
       return {};
     }
 
-    // Resolve domain and member_id for multi-tenant routing.
-    // Bitrix24 passes DOMAIN in the iframe URL query string.
     const urlParams = new URLSearchParams(window.location.search);
     let domain = (urlParams.get('DOMAIN') || urlParams.get('domain') || '').split('/')[0].toLowerCase().trim();
     let member_id = '';
@@ -361,9 +452,22 @@ const BX24App = (() => {
     return Array.isArray(data) ? data : [];
   }
 
+  async function listSpaUserFields(entityTypeId) {
+    if (DEV_MODE) return [];
+    const data = await callAsSystem('crm.userfield.list', { filter: { ENTITY_ID: `CRM_${entityTypeId}` } });
+    return Array.isArray(data) ? data : [];
+  }
+
   async function addDealUserField(fields) {
     if (DEV_MODE) return true;
     return callAsSystem('crm.deal.userfield.add', { fields });
+  }
+
+  async function addSpaUserField(fields, entityTypeId) {
+    if (DEV_MODE) return true;
+    return callAsSystem('crm.userfield.add', {
+      fields: Object.assign({}, fields, { ENTITY_ID: `CRM_${entityTypeId}` }),
+    });
   }
 
   async function updateDealUserField(id, fields) {
@@ -386,19 +490,25 @@ const BX24App = (() => {
     if (DEV_MODE) return true;
     if (sessionStorage.getItem(RESPONSE_FIELDS_CACHE_KEY) === '1') return true;
 
-    const existing = await listDealUserFields();
-    // crm.deal.userfield.list returns FIELD_NAME with the UF_CRM_ prefix (e.g. "UF_CRM_APR_S_S01"),
-    // but getResponseFieldSpecs() uses bare names (e.g. "APR_S_S01"). Strip the prefix so the
-    // has() check correctly identifies fields that already exist.
-    const existingNames = new Set(existing.map(f => normalizedFieldName(f.FIELD_NAME)));
-    const existingByName = new Map(existing.map(f => [normalizedFieldName(f.FIELD_NAME), f]));
+    const ctx = await _getEntityContext();
     const required = getResponseFieldSpecs();
+
+    // Fetch existing fields for the relevant entity
+    let existing;
+    if (ctx.mode === 'spa') {
+      existing = await listSpaUserFields(ctx.entityTypeId);
+    } else {
+      existing = await listDealUserFields();
+    }
+
+    const existingNames   = new Set(existing.map(f => normalizedFieldName(f.FIELD_NAME)));
+    const existingByName  = new Map(existing.map(f => [normalizedFieldName(f.FIELD_NAME), f]));
 
     try {
       for (const spec of required) {
         if (existingNames.has(spec.FIELD_NAME)) {
           if (spec.USER_TYPE_ID === 'double') {
-            const existingField = existingByName.get(spec.FIELD_NAME);
+            const existingField    = existingByName.get(spec.FIELD_NAME);
             const currentPrecision = getFieldPrecision(existingField);
             if (currentPrecision !== 2) {
               const fieldId = existingField && (existingField.ID || existingField.id);
@@ -412,13 +522,16 @@ const BX24App = (() => {
           continue;
         }
         try {
-          await addDealUserField(spec);
+          if (ctx.mode === 'spa') {
+            await addSpaUserField(spec, ctx.entityTypeId);
+          } else {
+            await addDealUserField(spec);
+          }
           existingNames.add(spec.FIELD_NAME);
         } catch (e) {
           const msg = String(
             (e && (e.description || e.message || e.code)) || e || ''
           ).toLowerCase();
-          // Field may have been created concurrently by another submit.
           if (msg.includes('duplicate') || msg.includes('exists') || msg.includes('already')) {
             existingNames.add(spec.FIELD_NAME);
             continue;
@@ -427,7 +540,6 @@ const BX24App = (() => {
         }
       }
     } catch (e) {
-      // Clear cache so the next session retries instead of assuming fields are ready.
       sessionStorage.removeItem(RESPONSE_FIELDS_CACHE_KEY);
       throw e;
     }
@@ -438,6 +550,10 @@ const BX24App = (() => {
 
   async function ensureDealCardConfig() {
     if (DEV_MODE) return true;
+
+    // SPA entities don't use crm.deal.details.configuration.set
+    if (getMode() === 'spa') return true;
+
     if (sessionStorage.getItem(DEAL_CARD_CONFIG_CACHE_KEY) === '1') return true;
 
     const categoryId = await getCategoryId();
@@ -468,10 +584,9 @@ const BX24App = (() => {
   }
 
   /**
-   * Creates a new CRM deal.
-   * Runs as the system user (installer) so no per-user CRM permissions needed.
-   * @param {object} fields - crm.deal.add fields (TITLE, CATEGORY_ID, STAGE_ID, etc.)
-   * @returns {Promise<string>} - new deal ID
+   * Creates a new appraisal record (Deal or SPA item).
+   * @param {object} fields - UPPERCASE Deal-format fields
+   * @returns {Promise<string>} - new record ID
    */
   async function createDeal(fields) {
     if (DEV_MODE) {
@@ -479,9 +594,22 @@ const BX24App = (() => {
       console.log('[BX24App DEV] createDeal:', fields, '→ ID:', id);
       return id;
     }
-    // crm.deal.add is only called by admins (cycle launch), who always have CRM
-    // permissions, so we can use BX24.callMethod directly instead of the proxy.
-    // This avoids server-to-server issues where Bitrix24 ignores CATEGORY_ID.
+
+    const ctx = await _getEntityContext();
+
+    if (ctx.mode === 'spa') {
+      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId);
+      console.log('[BX24App] createDeal (SPA) entityTypeId:', ctx.entityTypeId, 'fields:', spaFields);
+      // Use current user's token — admins always have rights on items they create
+      const result = await callAsCurrentUser('crm.item.add', {
+        entityTypeId: Number(ctx.entityTypeId),
+        fields: spaFields,
+      });
+      // crm.item.add returns { item: { id, ... } }
+      return String(result && result.item ? result.item.id : result);
+    }
+
+    // Deal mode — use BX24.callMethod directly (admin context avoids CATEGORY_ID issues)
     return new Promise((resolve, reject) => {
       BX24.callMethod('crm.deal.add', { fields }, function(result) {
         if (result.error()) {
@@ -494,64 +622,65 @@ const BX24App = (() => {
   }
 
   /**
-   * Updates a CRM deal's fields (e.g. advance STAGE_ID).
-   * Uses the installer's stored OAuth token (system account) so that reviewers
-   * and partners — who are NOT the ASSIGNED_BY_ID of the deal — can advance
-   * the deal stage on behalf of the employee being appraised.
-   *
-   * ⚠️  Requires the Bitrix24 account used to install the app to have
-   *     CRM "Edit All" permission on the Appraisify pipeline.
-   *     Without that, updates from reviewers/partners will be denied.
-   *
-   * @param {string|number} id - deal ID
-   * @param {object} fields    - fields to update
+   * Updates an appraisal record's fields (e.g. advance stage, save responses).
+   * Uses the system token so reviewers/partners can update deals they don't own.
+   * @param {string|number} id
+   * @param {object} fields - UPPERCASE Deal-format fields
    */
   async function updateDeal(id, fields) {
     if (DEV_MODE) {
       console.log('[BX24App DEV] updateDeal:', id, fields);
       return true;
     }
-    // Must use the system token: reviewers/partners are not ASSIGNED_BY_ID of the
-    // deal, so their own session token would be denied by Bitrix24's CRM access check.
+
+    const ctx = await _getEntityContext();
+
+    if (ctx.mode === 'spa') {
+      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId);
+      console.log('[BX24App] updateDeal (SPA) id:', id, 'entityTypeId:', ctx.entityTypeId, 'fields:', spaFields);
+      return callAsSystem('crm.item.update', {
+        entityTypeId: Number(ctx.entityTypeId),
+        id: Number(id),
+        fields: spaFields,
+      });
+    }
+
     return callAsSystem('crm.deal.update', { id: Number(id), fields });
   }
 
   /**
-   * Fetches a single CRM deal by ID, including all custom UF_CRM_* fields.
-   * Uses the installer's stored OAuth token (system account) so that reviewers
-   * and partners — who are NOT the ASSIGNED_BY_ID of the deal — can read the
-   * deal data when opening their appraisal form.
-   *
-   * ⚠️  Requires the Bitrix24 account used to install the app to have
-   *     CRM "See All" permission on the Appraisify pipeline.
-   *
-   * @param {string|number} id - deal ID
+   * Fetches a single appraisal record by ID, including all custom fields.
+   * Uses the system token so reviewers/partners can read records they don't own.
+   * Response is always normalised to UPPERCASE Deal format.
+   * @param {string|number} id
    * @returns {Promise<object|null>}
    */
   async function getDeal(id) {
     if (DEV_MODE) {
       return MOCK_DEALS.find(d => String(d.ID) === String(id)) || null;
     }
-    // Must use the system token: reviewers/partners are not ASSIGNED_BY_ID so
-    // their own session token would return ACCESS_DENIED from Bitrix24.
+
+    const ctx = await _getEntityContext();
+
+    if (ctx.mode === 'spa') {
+      const result = await callAsSystem('crm.item.get', {
+        entityTypeId: Number(ctx.entityTypeId),
+        id: Number(id),
+      });
+      // crm.item.get returns { item: { ... } }
+      const item = result && result.item ? result.item : result;
+      return _spaRecordToDealFormat(item, ctx.entityTypeId);
+    }
+
     const result = await callAsSystem('crm.deal.get', { id: Number(id) });
     return result || null;
   }
 
   /**
-   * Lists CRM deals with optional filter and field selection (all pages).
-   * Always uses the installer's stored OAuth token so that any user — employee,
-   * reviewer, or partner — can query deals regardless of their personal CRM
-   * permissions. This works for ASSIGNED_BY_ID, UF_CRM_APR_REVIEWER,
-   * UF_CRM_APR_PARTNER, and any other filter equally.
-   *
-   * ⚠️  Requires the Bitrix24 account used to install the app to have
-   *     CRM "See All" permission on the Appraisify pipeline.
-   *
-   * Paginates automatically via the server-side proxy.
-   *
-   * @param {object} filter  - crm.deal.list filter params
-   * @param {Array}  select  - fields to return (ignored in DEV_MODE)
+   * Lists appraisal records with optional filter and field selection.
+   * Paginates automatically. Response is always normalised to UPPERCASE Deal format.
+   * @param {object} filter - UPPERCASE Deal-format filter keys
+   * @param {Array}  select
    * @returns {Promise<Array>}
    */
   async function listDeals(filter = {}, select = []) {
@@ -564,13 +693,37 @@ const BX24App = (() => {
         return true;
       });
     }
+
+    const ctx = await _getEntityContext();
+
+    if (ctx.mode === 'spa') {
+      // Translate filter keys to camelCase; CATEGORY_ID is dropped by _dealToSpaFields
+      const spaFilter = _dealToSpaFields(filter, ctx.entityTypeId);
+      const all = [];
+      let start = 0;
+      for (;;) {
+        const result = await callAsSystem('crm.item.list', {
+          entityTypeId: Number(ctx.entityTypeId),
+          filter: spaFilter,
+          start,
+        });
+        // crm.item.list returns { items: [...] }
+        const items = result && Array.isArray(result.items) ? result.items : [];
+        all.push(...items.map(item => _spaRecordToDealFormat(item, ctx.entityTypeId)));
+        if (items.length < 50) break;
+        start += 50;
+      }
+      return all;
+    }
+
+    // Deal mode
     const all = [];
     let start = 0;
     for (;;) {
       const result = await callAsSystem('crm.deal.list', { filter, select, start });
       const page = Array.isArray(result) ? result : [];
       all.push(...page);
-      if (page.length < 50) break; // last page — Bitrix24 page size is 50
+      if (page.length < 50) break;
       start += 50;
     }
     return all;
@@ -599,6 +752,7 @@ const BX24App = (() => {
   return {
     init, call, callAll, callAsSystem,
     getUser, getUsers, getDepartments,
+    getMode, getEntityTypeId,
     getCategoryId, createDeal, updateDeal, listDeals, getDeal,
     listDealUserFields, addDealUserField, ensureAppraisalResponseFields, ensureDealCardConfig,
     resizeFrame, openPath, getDomain, DEV_MODE,

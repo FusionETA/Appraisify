@@ -11,7 +11,7 @@
  */
 
 import { blobGet, blobFind } from './_lib/kv.js';
-import { callBitrix } from './_lib/bitrix.js';
+import { fetchDeal } from './_lib/bitrix.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
 
@@ -287,7 +287,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const deal = await callBitrix(domain, 'crm.deal.get', { id: Number(dealId) });
+    const deal = await fetchDeal(domain, dealId);
     if (!deal) {
       return res.status(404).json({ error: 'deal_not_found' });
     }

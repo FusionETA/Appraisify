@@ -17,6 +17,7 @@ import { logError } from './_lib/logger.js';
 
 // Methods permitted via the system proxy.
 const ALLOWED_METHODS = new Set([
+  // Deal pipeline
   'crm.deal.add',
   'crm.deal.get',
   'crm.deal.update',
@@ -27,6 +28,16 @@ const ALLOWED_METHODS = new Set([
   'crm.deal.details.configuration.set',
   'crm.category.list',
   'crm.timeline.comment.add',
+  // SPA (Smart Process Automation)
+  'crm.type.list',
+  'crm.type.add',
+  'crm.item.add',
+  'crm.item.get',
+  'crm.item.update',
+  'crm.item.list',
+  'crm.userfield.add',
+  'crm.userfield.list',
+  'crm.userfield.update',
 ]);
 
 async function callBitrixWithToken(domain, tokens, method, params) {
