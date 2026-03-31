@@ -562,7 +562,7 @@ export default async function handler(req, res) {
 
     function checkSpaStagesAndContinue(entityTypeId, categoryId) {
       BX24.callMethod('crm.status.list', {
-        filter: { ENTITY_ID: 'DT' + entityTypeId + '_' + categoryId }
+        filter: { ENTITY_ID: 'DYNAMIC_' + entityTypeId + '_STAGE_' + categoryId }
       }, function (r) {
         var count = r.error() ? 0 : (r.data() || []).length;
         if (count >= STAGES.length) {
@@ -587,8 +587,8 @@ export default async function handler(req, res) {
         var s = STAGES[stageIndex++];
         BX24.callMethod('crm.status.add', {
           fields: {
-            ENTITY_ID: 'DT' + entityTypeId + '_' + categoryId,
-            STATUS_ID: s.STATUS_ID,
+            ENTITY_ID: 'DYNAMIC_' + entityTypeId + '_STAGE_' + categoryId,
+            STATUS_ID: 'DT' + entityTypeId + '_' + categoryId + ':' + s.STATUS_ID,
             NAME:      s.NAME,
             SORT:      s.SORT,
             COLOR:     s.COLOR,
