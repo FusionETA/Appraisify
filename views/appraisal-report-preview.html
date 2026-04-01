@@ -181,15 +181,9 @@
     }
 
     async function getDealViaProxy(dealId, domain) {
-      const resp = await fetch('/api/bx-proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'crm.deal.get',
-          params: { id: Number(dealId) },
-          domain: domain,
-        }),
-      });
+      const resp = await fetch(
+        `/api/appraisal-record?dealId=${encodeURIComponent(dealId)}&domain=${encodeURIComponent(domain)}`
+      );
       const json = await resp.json();
       if (!resp.ok || json.error) {
         throw new Error(json.error_description || json.error || `deal_fetch_failed (${resp.status})`);
