@@ -245,6 +245,31 @@ const BX24App = (() => {
     }
     const cached = localStorage.getItem('appraisify_entity_type_id');
     if (cached) return cached;
+
+    // Fallback: resolve from crm.type.list (legacy installs / missing appOption).
+    try {
+      const data = await callAsSystem('crm.type.list', {});
+      const types = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.types) ? data.types : []);
+      const match = types.find(t => {
+        const title = String(t.title || t.TITLE || '').toLowerCase();
+        return title.includes('appraisify');
+      });
+      const entityTypeId = match ? String(match.entityTypeId || match.ENTITY_TYPE_ID || '') : '';
+      const typeId = match ? String(match.id || match.ID || '') : '';
+      if (entityTypeId) {
+        try { localStorage.setItem('appraisify_entity_type_id', entityTypeId); } catch (_) {}
+        try { BX24.appOption.set('entity_type_id', entityTypeId); } catch (_) {}
+      }
+      if (typeId) {
+        try { localStorage.setItem('appraisify_spa_type_id', typeId); } catch (_) {}
+        try { BX24.appOption.set('spa_type_id', typeId); } catch (_) {}
+      }
+      if (entityTypeId) return entityTypeId;
+    } catch (e) {
+      console.warn('[BX24App] getEntityTypeId fallback failed:', e);
+    }
     return null;
   }
 
