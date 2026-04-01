@@ -570,12 +570,18 @@ export default async function handler(req, res) {
       BX24.callMethod('crm.status.list', {
         filter: { ENTITY_ID: 'DYNAMIC_' + entityTypeId + '_STAGE_' + categoryId }
       }, function (r) {
-        var count = r.error() ? 0 : (r.data() || []).length;
-        if (count >= STAGES.length) {
-          log('SPA stages already present (' + count + ') \u2014 checking fields...', 'info');
+        var existing = r.error() ? [] : (r.data() || []);
+        // Bitrix24 stores bare STATUS_IDs but returns them as DT{entityTypeId}_{categoryId}:{STATUS_ID}
+        var existingIds = existing.map(function(s) { return s.STATUS_ID; });
+        var expectedPrefix = 'DT' + entityTypeId + '_' + categoryId + ':';
+        var allPresent = STAGES.every(function(s) {
+          return existingIds.indexOf(expectedPrefix + s.STATUS_ID) >= 0;
+        });
+        if (allPresent) {
+          log('SPA stages already present \u2014 checking fields...', 'info');
           createSpaFields(entityTypeId, typeId);
         } else {
-          log('SPA stages incomplete (' + count + '/' + STAGES.length + ') \u2014 creating...', 'info');
+          log('SPA stages incomplete \u2014 creating...', 'info');
           addSpaStages(entityTypeId, typeId, categoryId);
         }
       });
@@ -594,7 +600,7 @@ export default async function handler(req, res) {
         BX24.callMethod('crm.status.add', {
           fields: {
             ENTITY_ID: 'DYNAMIC_' + entityTypeId + '_STAGE_' + categoryId,
-            STATUS_ID: 'DT' + entityTypeId + '_' + categoryId + ':' + s.STATUS_ID,
+            STATUS_ID: s.STATUS_ID,
             NAME:      s.NAME,
             SORT:      s.SORT,
             COLOR:     s.COLOR,
