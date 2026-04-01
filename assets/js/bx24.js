@@ -769,20 +769,24 @@ const BX24App = (() => {
     if (ctx.mode === 'spa') {
       // Translate filter keys to camelCase; CATEGORY_ID is dropped by _dealToSpaFields
       const spaFilter = _dealToSpaFields(filter, ctx.entityTypeId, ctx.typeId, ctx.categoryId);
+      console.log('[BX24App] listDeals (SPA) entityTypeId:', ctx.entityTypeId, 'typeId:', ctx.typeId, 'categoryId:', ctx.categoryId, 'spaFilter:', JSON.stringify(spaFilter));
       const all = [];
       let start = 0;
       for (;;) {
         const result = await callAsSystem('crm.item.list', {
           entityTypeId: Number(ctx.entityTypeId),
           filter: spaFilter,
+          select: ['*'],
           start,
         });
         // crm.item.list returns { items: [...] }
         const items = result && Array.isArray(result.items) ? result.items : [];
+        console.log('[BX24App] listDeals (SPA) raw items count:', items.length, items.length > 0 ? 'first stageId:' : '', items.length > 0 ? items[0].stageId : '');
         all.push(...items.map(item => _spaRecordToDealFormat(item, ctx.typeId)));
         if (items.length < 50) break;
         start += 50;
       }
+      console.log('[BX24App] listDeals (SPA) normalized count:', all.length, all.length > 0 ? 'first STAGE_ID:' : '', all.length > 0 ? all[0].STAGE_ID : '');
       return all;
     }
 
