@@ -262,6 +262,25 @@ const BX24App = (() => {
     }
     const cached = localStorage.getItem('appraisify_spa_category_id');
     if (cached) return cached;
+
+    // Fallback: resolve categoryId from CRM if missing (legacy installs).
+    const entityTypeId = await getEntityTypeId();
+    if (!entityTypeId) return null;
+    try {
+      const data = await callAsSystem('crm.category.list', { entityTypeId: Number(entityTypeId) });
+      const categories = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.categories) ? data.categories : []);
+      const first = categories[0];
+      const categoryId = first ? String(first.id || first.ID || '') : '';
+      if (categoryId) {
+        try { localStorage.setItem('appraisify_spa_category_id', categoryId); } catch (_) {}
+        try { BX24.appOption.set('spa_category_id', categoryId); } catch (_) {}
+        return categoryId;
+      }
+    } catch (e) {
+      console.warn('[BX24App] getSpaCategoryId fallback failed:', e);
+    }
     return null;
   }
 
@@ -281,6 +300,25 @@ const BX24App = (() => {
     }
     const cached = localStorage.getItem('appraisify_spa_type_id');
     if (cached) return cached;
+
+    // Fallback: resolve typeId from CRM if missing (legacy installs).
+    const entityTypeId = await getEntityTypeId();
+    if (!entityTypeId) return null;
+    try {
+      const data = await callAsSystem('crm.type.list', {});
+      const types = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.types) ? data.types : []);
+      const match = types.find(t => String(t.entityTypeId || t.ENTITY_TYPE_ID) === String(entityTypeId));
+      const typeId = match ? String(match.id || match.ID || '') : '';
+      if (typeId) {
+        try { localStorage.setItem('appraisify_spa_type_id', typeId); } catch (_) {}
+        try { BX24.appOption.set('spa_type_id', typeId); } catch (_) {}
+        return typeId;
+      }
+    } catch (e) {
+      console.warn('[BX24App] getSpaTypeId fallback failed:', e);
+    }
     return null;
   }
 
