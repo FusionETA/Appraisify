@@ -107,15 +107,23 @@ function normalizeSpaItemToDeal(item, typeId) {
   };
 
   const out = {};
-  const ufPrefix = `ufCrm${typeId}`;
+  const ufPrefix    = `ufCrm${typeId}`;
+  const ufPrefixOrig = `UF_CRM_${typeId}_`;
 
   for (const [key, val] of Object.entries(item)) {
     if (STATIC_MAP[key]) {
       out[STATIC_MAP[key]] = val;
       continue;
     }
+    // Original-name format (returned when useOriginalUfNames:'Y' is used):
+    // 'UF_CRM_174_APR_S_S01' → 'UF_CRM_APR_S_S01'
+    if (key.startsWith(ufPrefixOrig)) {
+      out[`UF_CRM_${key.slice(ufPrefixOrig.length)}`] = val;
+      continue;
+    }
+    // camelCase format (default crm.item.* response):
+    // 'ufCrm174AprReviewer' → 'UF_CRM_APR_REVIEWER'
     if (key.startsWith(ufPrefix)) {
-      // 'ufCrm16AprReviewer' → 'UF_CRM_APR_REVIEWER'
       const suffix = key.slice(ufPrefix.length); // 'AprReviewer'
       const snake  = suffix
         .replace(/([A-Z])/g, '_$1')

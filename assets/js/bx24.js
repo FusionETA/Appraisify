@@ -389,7 +389,7 @@ const BX24App = (() => {
    * @param {string} typeId        - small SPA type ID (e.g. '16'), used for field name prefix
    * @param {string} categoryId    - SPA default category ID, used for stage IDs
    */
-  function _dealToSpaFields(fields, entityTypeId, typeId, categoryId) {
+  function _dealToSpaFields(fields, entityTypeId, typeId, categoryId, originalUfNames = false) {
     const STATIC_MAP = {
       TITLE:          'title',
       ASSIGNED_BY_ID: 'assignedById',
@@ -414,17 +414,18 @@ const BX24App = (() => {
       }
 
       if (key.startsWith('UF_CRM_')) {
-        // 'UF_CRM_APR_REVIEWER' with typeId=16
-        //   → strip 'UF_CRM_' → 'APR_REVIEWER'
-        //   → lowercase        → 'apr_reviewer'
-        //   → remove underscores, camelCase → 'aprReviewer'
-        //   → prefix with typeId → 'ufCrm16AprReviewer'
-        const suffix = key.slice('UF_CRM_'.length); // e.g. 'APR_REVIEWER'
-        const camel  = suffix
-          .toLowerCase()
-          .replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase()); // 'aprReviewer'
-        out[`ufCrm${typeId}${camel.charAt(0).toUpperCase()}${camel.slice(1)}`] = val;
-        // → 'ufCrm16AprReviewer'
+        const suffix = key.slice('UF_CRM_'.length); // e.g. 'APR_S_S01'
+        if (originalUfNames) {
+          // For crm.item.update: use original uppercase name with typeId inserted.
+          // Bitrix24 accepts 'UF_CRM_174_APR_S_S01' when useOriginalUfNames:'Y' is set.
+          out[`UF_CRM_${typeId}_${suffix}`] = val;
+        } else {
+          // For crm.item.add / crm.item.list filter: camelCase format.
+          const camel = suffix
+            .toLowerCase()
+            .replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase()); // 'aprReviewer'
+          out[`ufCrm${typeId}${camel.charAt(0).toUpperCase()}${camel.slice(1)}`] = val;
+        }
         continue;
       }
 
@@ -769,12 +770,13 @@ const BX24App = (() => {
     const ctx = await _getEntityContext();
 
     if (ctx.mode === 'spa') {
-      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId, ctx.typeId, ctx.categoryId);
+      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId, ctx.typeId, ctx.categoryId, true);
       console.log('[BX24App] updateDeal (SPA) id:', id, 'entityTypeId:', ctx.entityTypeId, 'typeId:', ctx.typeId, 'fields:', spaFields);
       return callAsSystem('crm.item.update', {
         entityTypeId: Number(ctx.entityTypeId),
         id: Number(id),
         fields: spaFields,
+        useOriginalUfNames: 'Y',
       });
     }
 
