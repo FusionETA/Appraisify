@@ -164,7 +164,7 @@ export async function fetchDeal(domain, dealId) {
     const typeId = config.spa_type_id || config.entity_type_id;
 
     console.log(`[bitrix] fetchDeal (SPA) entityTypeId=${entityTypeId} typeId=${typeId} id=${id} domain=${domain}`);
-    const result = await callBitrix(domain, 'crm.item.get', { entityTypeId, id });
+    const result = await callBitrix(domain, 'crm.item.get', { entityTypeId, id, useOriginalUfNames: 'Y' });
     // crm.item.get returns { item: { ... } }
     const item = result && result.item ? result.item : result;
     return normalizeSpaItemToDeal(item, typeId);

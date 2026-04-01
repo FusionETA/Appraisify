@@ -456,15 +456,23 @@ const BX24App = (() => {
       comments:     'COMMENTS',
     };
     const out = {};
-    const ufPrefix = `ufCrm${typeId}`;
+    const ufPrefix     = `ufCrm${typeId}`;
+    const ufPrefixOrig = `UF_CRM_${typeId}_`;
 
     for (const [key, val] of Object.entries(item)) {
       if (STATIC_MAP[key]) {
         out[STATIC_MAP[key]] = val;
         continue;
       }
+      // Original-name format (returned when useOriginalUfNames:'Y'):
+      // 'UF_CRM_174_APR_S_S01' → 'UF_CRM_APR_S_S01'
+      if (key.startsWith(ufPrefixOrig)) {
+        out[`UF_CRM_${key.slice(ufPrefixOrig.length)}`] = val;
+        continue;
+      }
+      // camelCase fallback (default crm.item.* response without useOriginalUfNames):
+      // 'ufCrm16AprReviewer' → 'UF_CRM_APR_REVIEWER'
       if (key.startsWith(ufPrefix)) {
-        // 'ufCrm16AprReviewer' → 'APR_REVIEWER' → 'UF_CRM_APR_REVIEWER'
         const suffix = key.slice(ufPrefix.length); // 'AprReviewer'
         const snake  = suffix
           .replace(/([A-Z])/g, '_$1')
@@ -801,6 +809,7 @@ const BX24App = (() => {
       const result = await callAsSystem('crm.item.get', {
         entityTypeId: Number(ctx.entityTypeId),
         id: Number(id),
+        useOriginalUfNames: 'Y',
       });
       // crm.item.get returns { item: { ... } }
       const item = result && result.item ? result.item : result;
