@@ -504,14 +504,24 @@ const BX24App = (() => {
 
   async function listSpaUserFields(entityTypeId, typeId) {
     if (DEV_MODE) return [];
-    const data = await callAsSystem('userfieldconfig.list', {
-      moduleId: 'crm',
-      filter: { entityId: `CRM_${typeId}` },
-    });
-    const raw = Array.isArray(data) ? data : [];
+    // Paginate: userfieldconfig.list returns max 50 per page.
+    // We have 122+ fields so we must page through all of them.
+    const all = [];
+    let start = 0;
+    for (;;) {
+      const data = await callAsSystem('userfieldconfig.list', {
+        moduleId: 'crm',
+        filter: { entityId: `CRM_${typeId}` },
+        start,
+      });
+      const raw = Array.isArray(data) ? data : [];
+      all.push(...raw);
+      if (raw.length < 50) break;
+      start += 50;
+    }
     // Normalize FIELD_NAME to match spec keys (e.g. 'APR_S_S01').
     // Bitrix24 stores SPA fields as 'UF_CRM_{typeId}_{FIELD_NAME}'.
-    return raw.map(f => ({
+    return all.map(f => ({
       ...f,
       FIELD_NAME: (f.fieldName || f.FIELD_NAME || '')
         .toUpperCase()
