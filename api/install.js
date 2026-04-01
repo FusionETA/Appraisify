@@ -233,7 +233,7 @@ export default async function handler(req, res) {
       { NAME: 'Reviewee Pending', STATUS_ID: 'APPRAISIFY_RVWEE', SORT: 20, COLOR: '#F59E0B', SEMANTICS: '' },
       { NAME: 'Reviewer Pending', STATUS_ID: 'APPRAISIFY_RVWR',  SORT: 30, COLOR: '#2FC6F6', SEMANTICS: '' },
       { NAME: 'Partner Pending',  STATUS_ID: 'APPRAISIFY_PART',  SORT: 40, COLOR: '#8B5CF6', SEMANTICS: '' },
-      { NAME: 'Submitted',        STATUS_ID: 'APPRAISIFY_DONE',  SORT: 50, COLOR: '#10B981', SEMANTICS: '' },
+      { NAME: 'Submitted',        STATUS_ID: 'APPRAISIFY_DONE',  SORT: 50, COLOR: '#10B981', SEMANTICS: 'S' },
     ];
 
     var MAX_Q_PER_PHASE = 20;
@@ -588,31 +588,51 @@ export default async function handler(req, res) {
     }
 
     function addSpaStages(entityTypeId, typeId, categoryId) {
-      setStatus('Setting up stages\u2026', 'Creating SPA appraisal stages\u2026');
-      var stageIndex = 0;
-      function createNextStage() {
-        if (stageIndex >= STAGES.length) {
-          log('All ' + STAGES.length + ' SPA stages created', 'ok');
-          createSpaFields(entityTypeId, typeId);
-          return;
-        }
-        var s = STAGES[stageIndex++];
-        BX24.callMethod('crm.status.add', {
-          fields: {
-            ENTITY_ID: 'DYNAMIC_' + entityTypeId + '_STAGE_' + categoryId,
-            STATUS_ID: s.STATUS_ID,
-            NAME:      s.NAME,
-            SORT:      s.SORT,
-            COLOR:     s.COLOR,
-            SEMANTICS: s.SEMANTICS,
+      setStatus('Setting up stages\u2026', 'Removing default SPA stages\u2026');
+      var entityId = 'DYNAMIC_' + entityTypeId + '_STAGE_' + categoryId;
+      // First remove all default stages Bitrix24 auto-creates (NEW, Won, Lost etc.)
+      // so their SORT values don't block our custom stage creation.
+      BX24.callMethod('crm.status.list', {
+        filter: { ENTITY_ID: entityId }
+      }, function (defaultsResult) {
+        var defaults = defaultsResult.error() ? [] : (defaultsResult.data() || []);
+        log('Removing ' + defaults.length + ' default SPA stage(s)...', 'info');
+        var delIndex = 0;
+        function deleteNextDefault() {
+          if (delIndex >= defaults.length) {
+            createNextStage();
+            return;
           }
-        }, function (r) {
-          if (r.error()) { log('SPA stage "' + s.NAME + '" skipped: ' + r.error(), 'info'); }
-          else            { log('SPA stage created: ' + s.NAME, 'ok'); }
-          createNextStage();
-        });
-      }
-      createNextStage();
+          var d = defaults[delIndex++];
+          BX24.callMethod('crm.status.delete', {
+            id: d.ID, params: { FORCED: 'Y' }
+          }, function () { deleteNextDefault(); });
+        }
+        var stageIndex = 0;
+        function createNextStage() {
+          if (stageIndex >= STAGES.length) {
+            log('All ' + STAGES.length + ' SPA stages created', 'ok');
+            createSpaFields(entityTypeId, typeId);
+            return;
+          }
+          var s = STAGES[stageIndex++];
+          BX24.callMethod('crm.status.add', {
+            fields: {
+              ENTITY_ID: entityId,
+              STATUS_ID: s.STATUS_ID,
+              NAME:      s.NAME,
+              SORT:      s.SORT,
+              COLOR:     s.COLOR,
+              SEMANTICS: s.SEMANTICS,
+            }
+          }, function (r) {
+            if (r.error()) { log('SPA stage "' + s.NAME + '" failed: ' + r.error(), 'err'); }
+            else            { log('SPA stage created: ' + s.NAME, 'ok'); }
+            createNextStage();
+          });
+        }
+        deleteNextDefault();
+      });
     }
 
     function createSpaFields(entityTypeId, typeId) {
