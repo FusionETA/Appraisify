@@ -235,7 +235,7 @@ export default async function handler(req, res) {
       { NAME: 'Initialized - Reviewee Pending', STATUS_ID: 'APPRAISIFY_RVWEE', SORT: 10, COLOR: '#F59E0B', SEMANTICS: '' },
       { NAME: 'Reviewer Pending',               STATUS_ID: 'APPRAISIFY_RVWR',  SORT: 20, COLOR: '#2FC6F6', SEMANTICS: '' },
       { NAME: 'Partner Pending',                STATUS_ID: 'APPRAISIFY_PART',  SORT: 30, COLOR: '#8B5CF6', SEMANTICS: '' },
-      { NAME: 'Submitted',                      STATUS_ID: 'APPRAISIFY_DONE',  SORT: 40, COLOR: '#10B981', SEMANTICS: 'S' },
+      { NAME: 'Submitted',                      STATUS_ID: 'APPRAISIFY_DONE',  SORT: 40, COLOR: '#10B981', SEMANTICS: '' },
     ];
 
     var MAX_Q_PER_PHASE = 20;
