@@ -629,16 +629,29 @@ export default async function handler(req, res) {
         var toNeutralize  = [];   // Non-APPRAISIFY_ stages with SEMANTICS:'S' — strip the flag
                                   // so Bitrix24 allows adding new stages after them.
                                   // The stage itself is preserved; only SEMANTICS is cleared.
-        var appraisifyMap = {};   // bareId \u2192 stage object for APPRAISIFY_* stages already present
+        var appraisifyMap = {};   // bareId \u2192 FIRST stage object for each APPRAISIFY_* bare ID
+        var appraisifyDups = [];  // Extra copies of APPRAISIFY_* stages (same bare ID, seen again)
+
+        // Strip any "DT\d+_\d+:" prefix from a STATUS_ID to get the bare code.
+        // Doing this generically (not relying on the computed bxPrefix) so that
+        // stages created with a different categoryId in a previous install attempt
+        // are still recognised as APPRAISIFY_* stages and not created again.
+        function getBare(statusId) {
+          var m = statusId.match(/^DT\d+_\d+:(.+)$/);
+          return m ? m[1] : statusId;
+        }
 
         all.forEach(function(s) {
-          var bare = s.STATUS_ID.indexOf(bxPrefix) === 0
-            ? s.STATUS_ID.slice(bxPrefix.length)
-            : s.STATUS_ID;
+          var bare = getBare(s.STATUS_ID);
           if (BX_DEFAULTS.indexOf(bare) >= 0) {
             toDelete.push(s);
           } else if (bare.indexOf('APPRAISIFY_') === 0) {
-            appraisifyMap[bare] = s;
+            if (appraisifyMap[bare]) {
+              // Duplicate — keep the first, queue the rest for deletion
+              appraisifyDups.push(s);
+            } else {
+              appraisifyMap[bare] = s;
+            }
           } else if (s.SEMANTICS === 'S') {
             // A third-party (e.g. Appraizzie) stage marked as final blocks crm.status.add.
             // Clear its SEMANTICS so we can add our stages after it.
@@ -649,22 +662,37 @@ export default async function handler(req, res) {
 
         log(
           'Stages: ' + toDelete.length + ' Bitrix24 default(s) to remove, ' +
+          appraisifyDups.length + ' Appraisify duplicate(s) to clean up, ' +
           toNeutralize.length + ' final stage(s) to neutralize, ' +
           Object.keys(appraisifyMap).length + ' Appraisify stage(s) already present',
           'info'
         );
 
-        // Step 1: delete only Bitrix24\u2019s placeholder stages
+        // Step 1: delete Bitrix24\u2019s placeholder stages
         var delIndex = 0;
         function deleteNextDefault() {
-          if (delIndex >= toDelete.length) { neutralizeNextFinalStage(); return; }
+          if (delIndex >= toDelete.length) { deleteNextDuplicate(); return; }
           var d = toDelete[delIndex++];
           BX24.callMethod('crm.status.delete', {
             id: d.ID, params: { FORCED: 'Y' }
           }, function () { deleteNextDefault(); });
         }
 
-        // Step 1b: neutralize blocking third-party final stages (SEMANTICS 'S' → '')
+        // Step 1b: remove duplicate APPRAISIFY_* stages from previous failed installs
+        var dupIndex = 0;
+        function deleteNextDuplicate() {
+          if (dupIndex >= appraisifyDups.length) { neutralizeNextFinalStage(); return; }
+          var dup = appraisifyDups[dupIndex++];
+          BX24.callMethod('crm.status.delete', {
+            id: dup.ID, params: { FORCED: 'Y' }
+          }, function (r) {
+            if (r.error()) { log('Could not remove duplicate stage ' + dup.STATUS_ID + ': ' + r.error(), 'err'); }
+            else            { log('Removed duplicate stage: ' + dup.STATUS_ID, 'info'); }
+            deleteNextDuplicate();
+          });
+        }
+
+        // Step 1c: neutralize blocking third-party final stages (SEMANTICS 'S' → '')
         var neutIndex = 0;
         function neutralizeNextFinalStage() {
           if (neutIndex >= toNeutralize.length) { upsertNextStage(); return; }
