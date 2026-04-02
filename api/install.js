@@ -611,23 +611,73 @@ export default async function handler(req, res) {
     }
 
     function addSpaStages(entityTypeId, typeId, categoryId) {
-      setStatus('Setting up stages\u2026', 'Removing existing SPA stages\u2026');
+      setStatus('Setting up stages\u2026', 'Configuring SPA stages\u2026');
       var entityId = 'DYNAMIC_' + entityTypeId + '_STAGE_' + categoryId;
-      // Delete all existing stages first (including Bitrix24 defaults and any prior
-      // install remnants), then recreate the 4 Appraisify stages cleanly.
+
       BX24.callMethod('crm.status.list', {
         filter: { ENTITY_ID: entityId }
-      }, function (defaultsResult) {
-        var defaults = defaultsResult.error() ? [] : (defaultsResult.data() || []);
-        log('Removing ' + defaults.length + ' existing SPA stage(s)...', 'info');
+      }, function (listResult) {
+        var all = listResult.error() ? [] : (listResult.data() || []);
+
+        // Identify Appraizzie\u2019s submitted stage: a non-APPRAISIFY_ stage that is
+        // either marked as the final stage (SEMANTICS:'S') or named "submitted".
+        // We keep this stage but rename it to \u2018Appraizzie Submitted\u2019 so its
+        // existing records stay valid. Everything else is deleted.
+        var BX_DEFAULTS = ['NEW', 'WON', 'LOSE'];
+        function getBare(statusId) {
+          var m = statusId.match(/^DT\d+_\d+:(.+)$/);
+          return m ? m[1] : statusId;
+        }
+        function isAppraizzie(s) {
+          var bare = getBare(s.STATUS_ID);
+          if (BX_DEFAULTS.indexOf(bare) >= 0) return false;
+          if (bare.indexOf('APPRAISIFY_') === 0) return false;
+          return s.SEMANTICS === 'S' ||
+                 (s.NAME || '').toLowerCase().indexOf('submit') >= 0;
+        }
+
+        var appraizzieSubmitted = null;
+        var toDelete = [];
+        all.forEach(function(s) {
+          if (!appraizzieSubmitted && isAppraizzie(s)) {
+            appraizzieSubmitted = s;
+          } else {
+            toDelete.push(s);
+          }
+        });
+
+        log(
+          (appraizzieSubmitted
+            ? 'Preserving Appraizzie submitted stage (ID: ' + appraizzieSubmitted.ID + '), '
+            : 'No Appraizzie submitted stage found, ') +
+          'deleting ' + toDelete.length + ' other stage(s)',
+          'info'
+        );
+
+        // Step 1: delete everything except Appraizzie\u2019s submitted stage
         var delIndex = 0;
         function deleteNext() {
-          if (delIndex >= defaults.length) { createNextStage(); return; }
-          var d = defaults[delIndex++];
+          if (delIndex >= toDelete.length) { renameAppraizzieStage(); return; }
+          var d = toDelete[delIndex++];
           BX24.callMethod('crm.status.delete', {
             id: d.ID, params: { FORCED: 'Y' }
           }, function () { deleteNext(); });
         }
+
+        // Step 2: rename Appraizzie\u2019s submitted stage (if found)
+        function renameAppraizzieStage() {
+          if (!appraizzieSubmitted) { createNextStage(); return; }
+          BX24.callMethod('crm.status.update', {
+            id: appraizzieSubmitted.ID,
+            fields: { NAME: 'Appraizzie Submitted', SEMANTICS: '', SORT: 50 }
+          }, function (r) {
+            if (r.error()) { log('Could not rename Appraizzie stage: ' + r.error(), 'err'); }
+            else            { log('Renamed Appraizzie submitted stage to \u201cAppraizzie Submitted\u201d', 'ok'); }
+            createNextStage();
+          });
+        }
+
+        // Step 3: create Appraisify\u2019s 4 stages
         var stageIndex = 0;
         function createNextStage() {
           if (stageIndex >= STAGES.length) {
@@ -651,6 +701,7 @@ export default async function handler(req, res) {
             createNextStage();
           });
         }
+
         deleteNext();
       });
     }
