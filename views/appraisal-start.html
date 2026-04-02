@@ -492,8 +492,8 @@
         COMMENTS:       `[APPRAISIFY_TEMPLATE_ID:${selectedTemplateId}]`,
       };
       if (deadline)  fields.CLOSEDATE            = deadline;
-      if (reviewer)  fields.UF_CRM_APR_REVIEWER  = parseInt(reviewer, 10);
-      if (partner)   fields.UF_CRM_APR_PARTNER   = parseInt(partner, 10);
+      if (reviewer)  fields.UF_CRM_REVIEWER  = parseInt(reviewer, 10);
+      if (partner)   fields.UF_CRM_PARTNER   = parseInt(partner, 10);
 
       const fields_log = JSON.stringify(fields);
       console.log('[Appraisify] createDeal fields:', fields_log);
@@ -502,8 +502,8 @@
         await TemplatesAPI.setTemplateForDeal(String(dealId), selectedTemplateId, {
           title:      fields.TITLE,
           revieweeId: fields.ASSIGNED_BY_ID,
-          reviewerId: fields.UF_CRM_APR_REVIEWER || null,
-          partnerId:  fields.UF_CRM_APR_PARTNER  || null,
+          reviewerId: fields.UF_CRM_REVIEWER || null,
+          partnerId:  fields.UF_CRM_PARTNER  || null,
           categoryId: fields.CATEGORY_ID,
           closeDate:  fields.CLOSEDATE || '',
         });

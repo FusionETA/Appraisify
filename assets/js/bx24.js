@@ -49,11 +49,11 @@ const BX24App = (() => {
   ];
 
   const MOCK_DEALS = [
-    { ID: 'dev-1', TITLE: 'Alex Rivera – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_RVWEE', ASSIGNED_BY_ID: '1', UF_CRM_APR_REVIEWER: '2', UF_CRM_APR_PARTNER: '3', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-2', TITLE: 'Jordan Lee – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_RVWR', ASSIGNED_BY_ID: '2', UF_CRM_APR_REVIEWER: '1', UF_CRM_APR_PARTNER: '3', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-3', TITLE: 'Sam Patel – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_PART', ASSIGNED_BY_ID: '3', UF_CRM_APR_REVIEWER: '4', UF_CRM_APR_PARTNER: '1', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-4', TITLE: 'Morgan Kim – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_INIT', ASSIGNED_BY_ID: '4', UF_CRM_APR_REVIEWER: '2', UF_CRM_APR_PARTNER: '5', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-5', TITLE: 'Taylor Brooks – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_DONE', ASSIGNED_BY_ID: '5', UF_CRM_APR_REVIEWER: '6', UF_CRM_APR_PARTNER: '2', CLOSEDATE: '2025-01-31' },
+    { ID: 'dev-1', TITLE: 'Alex Rivera – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_RVWEE', ASSIGNED_BY_ID: '1', UF_CRM_REVIEWER: '2', UF_CRM_PARTNER: '3', CLOSEDATE: '2025-01-31' },
+    { ID: 'dev-2', TITLE: 'Jordan Lee – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_RVWR', ASSIGNED_BY_ID: '2', UF_CRM_REVIEWER: '1', UF_CRM_PARTNER: '3', CLOSEDATE: '2025-01-31' },
+    { ID: 'dev-3', TITLE: 'Sam Patel – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_PART', ASSIGNED_BY_ID: '3', UF_CRM_REVIEWER: '4', UF_CRM_PARTNER: '1', CLOSEDATE: '2025-01-31' },
+    { ID: 'dev-4', TITLE: 'Morgan Kim – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_RVWEE', ASSIGNED_BY_ID: '4', UF_CRM_REVIEWER: '2', UF_CRM_PARTNER: '5', CLOSEDATE: '2025-01-31' },
+    { ID: 'dev-5', TITLE: 'Taylor Brooks – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_DONE', ASSIGNED_BY_ID: '5', UF_CRM_REVIEWER: '6', UF_CRM_PARTNER: '2', CLOSEDATE: '2025-01-31' },
   ];
 
   // ── Core helpers ──────────────────────────────────────────────────────
@@ -67,21 +67,20 @@ const BX24App = (() => {
   }
 
   function getResponseFieldSpecs() {
+    const actors = ['REVIEWEE', 'REVIEWER', 'PARTNER'];
     const specs = [];
-    const labels = { S: 'Self', R: 'Reviewer', P: 'Partner' };
-    PHASE_CODES.forEach(code => {
+    actors.forEach(actor => {
       for (let i = 1; i <= MAX_Q_PER_PHASE; i += 1) {
-        const idx = pad2(i);
         specs.push({
-          FIELD_NAME: `APR_S_${code}${idx}`,
+          FIELD_NAME:   `QUESTION_${i}_${actor}_RATING`,
           USER_TYPE_ID: 'double',
-          LABEL: `Appraisify ${labels[code]} Score Q${i}`,
-          SETTINGS: { PRECISION: 2 },
+          LABEL:        `Q${i} ${actor} Rating`,
+          SETTINGS:     { PRECISION: 2 },
         });
         specs.push({
-          FIELD_NAME: `APR_C_${code}${idx}`,
+          FIELD_NAME:   `QUESTION_${i}_${actor}_COMMENT`,
           USER_TYPE_ID: 'string',
-          LABEL: `Appraisify ${labels[code]} Comment Q${i}`,
+          LABEL:        `Q${i} ${actor} Comment`,
         });
       }
     });
@@ -89,12 +88,12 @@ const BX24App = (() => {
   }
 
   function getResponseDealCardElements() {
+    const actors = ['REVIEWEE', 'REVIEWER', 'PARTNER'];
     const elements = [];
-    PHASE_CODES.forEach(code => {
+    actors.forEach(actor => {
       for (let i = 1; i <= MAX_Q_PER_PHASE; i += 1) {
-        const idx = pad2(i);
-        elements.push({ name: `UF_CRM_APR_S_${code}${idx}` });
-        elements.push({ name: `UF_CRM_APR_C_${code}${idx}` });
+        elements.push({ name: `UF_CRM_QUESTION_${i}_${actor}_RATING` });
+        elements.push({ name: `UF_CRM_QUESTION_${i}_${actor}_COMMENT` });
       }
     });
     return elements;
@@ -581,7 +580,7 @@ const BX24App = (() => {
       filter: { entityId: `CRM_${typeId}` },
     });
     const raw = Array.isArray(data) ? data : [];
-    // Normalize FIELD_NAME to match spec keys (e.g. 'APR_S_S01').
+    // Normalize FIELD_NAME to match spec keys (e.g. 'QUESTION_1_REVIEWEE_RATING').
     // Bitrix24 stores SPA fields as 'UF_CRM_{typeId}_{FIELD_NAME}'.
     return raw.map(f => ({
       ...f,
@@ -712,8 +711,13 @@ const BX24App = (() => {
           { name: 'TITLE' },
           { name: 'STAGE_ID' },
           { name: 'ASSIGNED_BY_ID' },
-          { name: 'UF_CRM_APR_REVIEWER' },
-          { name: 'UF_CRM_APR_PARTNER' },
+          { name: 'UF_CRM_REVIEWEE' },
+          { name: 'UF_CRM_REVIEWER' },
+          { name: 'UF_CRM_PARTNER' },
+          { name: 'UF_CRM_YEAR' },
+          { name: 'UF_CRM_APPRAISAL_TYPE' },
+          { name: 'UF_CRM_TEAM' },
+          { name: 'UF_CRM_ROLE' },
           { name: 'CLOSEDATE' },
           { name: 'COMMENTS' },
           ...getResponseDealCardElements(),
@@ -832,8 +836,8 @@ const BX24App = (() => {
       return MOCK_DEALS.filter(d => {
         if (filter.ASSIGNED_BY_ID && String(d.ASSIGNED_BY_ID) !== String(filter.ASSIGNED_BY_ID)) return false;
         if (filter.STAGE_ID && d.STAGE_ID !== filter.STAGE_ID) return false;
-        if (filter.UF_CRM_APR_REVIEWER && String(d.UF_CRM_APR_REVIEWER) !== String(filter.UF_CRM_APR_REVIEWER)) return false;
-        if (filter.UF_CRM_APR_PARTNER && String(d.UF_CRM_APR_PARTNER) !== String(filter.UF_CRM_APR_PARTNER)) return false;
+        if (filter.UF_CRM_REVIEWER && String(d.UF_CRM_REVIEWER) !== String(filter.UF_CRM_REVIEWER)) return false;
+        if (filter.UF_CRM_PARTNER && String(d.UF_CRM_PARTNER) !== String(filter.UF_CRM_PARTNER)) return false;
         return true;
       });
     }

@@ -374,11 +374,11 @@
         const titleName = deal.TITLE ? deal.TITLE.split(/\s*[–\-]\s*/)[0].trim() : null;
         if (titleName) APPRAISAL_DATA.revieweeName = titleName;
 
-        // Map UF_CRM_APR_S_S** / UF_CRM_APR_C_S** fields → selfScores[qN]
+        // Map QUESTION_N_REVIEWEE_RATING / _COMMENT fields → selfScores[qN]
         APPRAISAL_DATA.sections.forEach(s => s.questions.forEach(q => {
-          const idx = String(parseInt(q.id.replace('q', ''), 10)).padStart(2, '0');
-          const rawScore   = deal[`UF_CRM_APR_S_S${idx}`];
-          const rawComment = deal[`UF_CRM_APR_C_S${idx}`];
+          const n = parseInt(q.id.replace('q', ''), 10);
+          const rawScore   = deal[`UF_CRM_QUESTION_${n}_REVIEWEE_RATING`];
+          const rawComment = deal[`UF_CRM_QUESTION_${n}_REVIEWEE_COMMENT`];
           selfScores[q.id] = {
             score:   (rawScore !== null && rawScore !== undefined && rawScore !== '') ? parseFloat(rawScore) : null,
             comment: rawComment || '',

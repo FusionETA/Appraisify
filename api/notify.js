@@ -50,8 +50,8 @@ function buildNotificationMessage(type, deal, link) {
 
 function recipientIdsForEvent(type, deal) {
   const reviewee = Number(deal?.ASSIGNED_BY_ID);
-  const reviewer = Number(deal?.UF_CRM_APR_REVIEWER);
-  const partner = Number(deal?.UF_CRM_APR_PARTNER);
+  const reviewer = Number(deal?.UF_CRM_REVIEWER);
+  const partner = Number(deal?.UF_CRM_PARTNER);
 
   const map = {
     launch: [reviewee],
@@ -99,8 +99,8 @@ export default async function handler(req, res) {
             ID: String(dealId),
             TITLE: m.title || '',
             ASSIGNED_BY_ID: String(m.revieweeId),
-            UF_CRM_APR_REVIEWER: m.reviewerId ? String(m.reviewerId) : null,
-            UF_CRM_APR_PARTNER:  m.partnerId  ? String(m.partnerId)  : null,
+            UF_CRM_REVIEWER: m.reviewerId ? String(m.reviewerId) : null,
+            UF_CRM_PARTNER:  m.partnerId  ? String(m.partnerId)  : null,
             CATEGORY_ID: m.categoryId ? String(m.categoryId) : null,
           };
         }

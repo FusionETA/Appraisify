@@ -302,14 +302,14 @@ async function triggerWorkflowNotification(type, dealId) {
 }
 
 const MAX_Q_PER_PHASE = 20;
-const PHASE_CODE = {
-  self: 'S',
-  reviewer: 'R',
-  partner: 'P',
-};
 
 function pad2(n) {
   return String(n).padStart(2, '0');
+}
+
+function roleToActor(role) {
+  const map = { self: 'REVIEWEE', reviewee: 'REVIEWEE', reviewer: 'REVIEWER', partner: 'PARTNER' };
+  return map[role] || null;
 }
 
 function parseQid(qid) {
@@ -358,35 +358,26 @@ function validateResponseCapacity() {
   return { ok: true, submittedIndexes: [...submittedIndexes] };
 }
 
-function buildResponseFieldPayload(phase, indexes) {
-  const code = PHASE_CODE[phase];
+function buildResponseFieldPayload(role, indexes) {
+  const actor = roleToActor(role);
   const fields = {};
   indexes.forEach(idx => {
     const qid = `q${idx}`;
-    const suffix = `${code}${pad2(idx)}`;
     if (Object.prototype.hasOwnProperty.call(_scores, qid) && !isNaN(_scores[qid])) {
-      fields[`UF_CRM_APR_S_${suffix}`] = Number(_scores[qid]);
+      fields[`UF_CRM_QUESTION_${idx}_${actor}_RATING`] = Number(_scores[qid]);
     }
     if (Object.prototype.hasOwnProperty.call(_comments, qid)) {
-      fields[`UF_CRM_APR_C_${suffix}`] = String(_comments[qid] || '');
+      fields[`UF_CRM_QUESTION_${idx}_${actor}_COMMENT`] = String(_comments[qid] || '');
     }
   });
   return fields;
 }
 
-function roleToPhase(role) {
-  if (role === 'reviewee') return 'self';
-  if (role === 'reviewer') return 'reviewer';
-  if (role === 'partner') return 'partner';
-  return '';
-}
-
 function scoreFieldNameFor(role, qid) {
-  const phase = roleToPhase(role);
-  const code = PHASE_CODE[phase];
+  const actor = roleToActor(role);
   const idx = parseQid(qid);
-  if (!code || !idx || idx > MAX_Q_PER_PHASE) return '';
-  return `UF_CRM_APR_S_${code}${pad2(idx)}`;
+  if (!actor || !idx || idx > MAX_Q_PER_PHASE) return '';
+  return `UF_CRM_QUESTION_${idx}_${actor}_RATING`;
 }
 
 function queueLiveDealScoreSync(qid, scoreValue) {

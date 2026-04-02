@@ -227,62 +227,83 @@ export default async function handler(req, res) {
 
     // ── Shared stage / field definitions ────────────────────────────────────
 
+    // Title of the shared SPA entity (created by Appraizzie or by this install)
+    var APPRAIZZIE_ENTITY_TITLE = 'Performance Appraisal SPA';
+
     // STATUS_IDs must be \u2264 18 characters (Bitrix24 hard limit)
     var STAGES = [
-      { NAME: 'Initialized',      STATUS_ID: 'APPRAISIFY_INIT',  SORT: 10, COLOR: '#94A3B8', SEMANTICS: '' },
-      { NAME: 'Reviewee Pending', STATUS_ID: 'APPRAISIFY_RVWEE', SORT: 20, COLOR: '#F59E0B', SEMANTICS: '' },
-      { NAME: 'Reviewer Pending', STATUS_ID: 'APPRAISIFY_RVWR',  SORT: 30, COLOR: '#2FC6F6', SEMANTICS: '' },
-      { NAME: 'Partner Pending',  STATUS_ID: 'APPRAISIFY_PART',  SORT: 40, COLOR: '#8B5CF6', SEMANTICS: '' },
-      { NAME: 'Submitted',        STATUS_ID: 'APPRAISIFY_DONE',  SORT: 50, COLOR: '#10B981', SEMANTICS: 'S' },
+      { NAME: 'Initialized - Reviewee Pending', STATUS_ID: 'APPRAISIFY_RVWEE', SORT: 10, COLOR: '#F59E0B', SEMANTICS: '' },
+      { NAME: 'Reviewer Pending',               STATUS_ID: 'APPRAISIFY_RVWR',  SORT: 20, COLOR: '#2FC6F6', SEMANTICS: '' },
+      { NAME: 'Partner Pending',                STATUS_ID: 'APPRAISIFY_PART',  SORT: 30, COLOR: '#8B5CF6', SEMANTICS: '' },
+      { NAME: 'Submitted',                      STATUS_ID: 'APPRAISIFY_DONE',  SORT: 40, COLOR: '#10B981', SEMANTICS: 'S' },
     ];
 
     var MAX_Q_PER_PHASE = 20;
-    var PHASES = [
-      { code: 'S', label: 'Self' },
-      { code: 'R', label: 'Reviewer' },
-      { code: 'P', label: 'Partner' },
-    ];
 
     function pad2(n) { return String(n).padStart(2, '0'); }
 
     function buildResponseFields() {
+      var actors = ['REVIEWEE', 'REVIEWER', 'PARTNER'];
       var response = [];
-      for (var p = 0; p < PHASES.length; p++) {
-        var phase = PHASES[p];
+      actors.forEach(function(actor) {
         for (var q = 1; q <= MAX_Q_PER_PHASE; q++) {
-          var idx = pad2(q);
           response.push({
-            FIELD_NAME: 'APR_S_' + phase.code + idx,
-            LABEL: 'Appraisify ' + phase.label + ' Score Q' + q,
+            FIELD_NAME:   'QUESTION_' + q + '_' + actor + '_RATING',
+            LABEL:        'Q' + q + ' ' + actor + ' Rating',
             USER_TYPE_ID: 'double',
-            SETTINGS: { PRECISION: 2 },
+            SETTINGS:     { PRECISION: 2 },
           });
           response.push({
-            FIELD_NAME: 'APR_C_' + phase.code + idx,
-            LABEL: 'Appraisify ' + phase.label + ' Comment Q' + q,
+            FIELD_NAME:   'QUESTION_' + q + '_' + actor + '_COMMENT',
+            LABEL:        'Q' + q + ' ' + actor + ' Comment',
             USER_TYPE_ID: 'string',
           });
         }
-      }
+      });
       return response;
     }
 
-    var RESPONSE_FIELDS = buildResponseFields();
+    var META_FIELDS = [
+      // ── Identity ──────────────────────────────────────────────────────────
+      { FIELD_NAME: 'REVIEWEE',       LABEL: 'Reviewee',       USER_TYPE_ID: 'integer' },
+      { FIELD_NAME: 'REVIEWER',       LABEL: 'Reviewer',       USER_TYPE_ID: 'integer' },
+      { FIELD_NAME: 'PARTNER',        LABEL: 'Partner',        USER_TYPE_ID: 'integer' },
+      { FIELD_NAME: 'REFERENCE_NO',   LABEL: 'Reference No',   USER_TYPE_ID: 'string'  },
+      // ── Cycle metadata ────────────────────────────────────────────────────
+      { FIELD_NAME: 'YEAR',           LABEL: 'Year',           USER_TYPE_ID: 'string'  },
+      { FIELD_NAME: 'APPRAISAL_TYPE', LABEL: 'Appraisal Type', USER_TYPE_ID: 'string'  },
+      { FIELD_NAME: 'TEAM',           LABEL: 'Team',           USER_TYPE_ID: 'string'  },
+      { FIELD_NAME: 'ROLE',           LABEL: 'Role',           USER_TYPE_ID: 'string'  },
+      // ── Section comments (Goals Review) ───────────────────────────────────
+      { FIELD_NAME: 'GOALS_REVIEW_REVIEWEE_COMMENT', LABEL: 'Goals Review \u2013 Reviewee', USER_TYPE_ID: 'string' },
+      { FIELD_NAME: 'GOALS_REVIEW_REVIEWER_COMMENT', LABEL: 'Goals Review \u2013 Reviewer', USER_TYPE_ID: 'string' },
+      { FIELD_NAME: 'GOALS_REVIEW_PARTNER_COMMENT',  LABEL: 'Goals Review \u2013 Partner',  USER_TYPE_ID: 'string' },
+      // ── Section comments (Overall Remarks) ────────────────────────────────
+      { FIELD_NAME: 'OVERALL_REMARKS_REVIEWEE_COMMENT', LABEL: 'Overall Remarks \u2013 Reviewee', USER_TYPE_ID: 'string' },
+      { FIELD_NAME: 'OVERALL_REMARKS_REVIEWER_COMMENT', LABEL: 'Overall Remarks \u2013 Reviewer', USER_TYPE_ID: 'string' },
+      { FIELD_NAME: 'OVERALL_REMARKS_PARTNER_COMMENT',  LABEL: 'Overall Remarks \u2013 Partner',  USER_TYPE_ID: 'string' },
+      // ── Section comments (Development Plans) ──────────────────────────────
+      { FIELD_NAME: 'DEVELOPMENT_PLANS_REVIEWEE_COMMENT', LABEL: 'Development Plans \u2013 Reviewee', USER_TYPE_ID: 'string' },
+      { FIELD_NAME: 'DEVELOPMENT_PLANS_REVIEWER_COMMENT', LABEL: 'Development Plans \u2013 Reviewer', USER_TYPE_ID: 'string' },
+      { FIELD_NAME: 'DEVELOPMENT_PLANS_PARTNER_COMMENT',  LABEL: 'Development Plans \u2013 Partner',  USER_TYPE_ID: 'string' },
+      // ── Aggregate scores ──────────────────────────────────────────────────
+      { FIELD_NAME: 'REVIEWEE_RATING_SCORE',      LABEL: 'Reviewee Rating Score',      USER_TYPE_ID: 'string' },
+      { FIELD_NAME: 'REVIEWER_RATING_SCORE',      LABEL: 'Reviewer Rating Score',      USER_TYPE_ID: 'string' },
+      { FIELD_NAME: 'PARTNER_RATING_SCORE',       LABEL: 'Partner Rating Score',       USER_TYPE_ID: 'string' },
+      { FIELD_NAME: 'TOTAL_AVERAGE_RATING_SCORE', LABEL: 'Total Average Rating Score', USER_TYPE_ID: 'string' },
+    ];
 
-    var ALL_FIELDS = [
-      { FIELD_NAME: 'APR_REVIEWER', LABEL: 'Appraisify Reviewer', USER_TYPE_ID: 'integer' },
-      { FIELD_NAME: 'APR_PARTNER',  LABEL: 'Appraisify Partner',  USER_TYPE_ID: 'integer' },
-    ].concat(RESPONSE_FIELDS);
+    var ALL_FIELDS = META_FIELDS.concat(buildResponseFields());
 
     function buildResponseDealCardElements() {
+      var actors = ['REVIEWEE', 'REVIEWER', 'PARTNER'];
       var elements = [];
-      for (var p = 0; p < PHASES.length; p++) {
+      actors.forEach(function(actor) {
         for (var q = 1; q <= MAX_Q_PER_PHASE; q++) {
-          var idx = pad2(q);
-          elements.push({ name: 'UF_CRM_APR_S_' + PHASES[p].code + idx });
-          elements.push({ name: 'UF_CRM_APR_C_' + PHASES[p].code + idx });
+          elements.push({ name: 'UF_CRM_QUESTION_' + q + '_' + actor + '_RATING' });
+          elements.push({ name: 'UF_CRM_QUESTION_' + q + '_' + actor + '_COMMENT' });
         }
-      }
+      });
       return elements;
     }
 
@@ -397,7 +418,9 @@ export default async function handler(req, res) {
           name: 'main', title: 'Appraisal', type: 'section',
           elements: [
             { name: 'TITLE' }, { name: 'STAGE_ID' }, { name: 'ASSIGNED_BY_ID' },
-            { name: 'UF_CRM_APR_REVIEWER' }, { name: 'UF_CRM_APR_PARTNER' },
+            { name: 'UF_CRM_REVIEWEE' }, { name: 'UF_CRM_REVIEWER' }, { name: 'UF_CRM_PARTNER' },
+            { name: 'UF_CRM_YEAR' }, { name: 'UF_CRM_APPRAISAL_TYPE' },
+            { name: 'UF_CRM_TEAM' }, { name: 'UF_CRM_ROLE' },
             { name: 'CLOSEDATE' }, { name: 'COMMENTS' },
           ].concat(responseElements)
         }]
@@ -472,8 +495,8 @@ export default async function handler(req, res) {
         var types = data.types || [];
         var existing = null;
         for (var i = 0; i < types.length; i++) {
-          var typeName = types[i].title || types[i].NAME || '';
-          if (typeName === 'Appraisify Testing') { existing = types[i]; break; }
+          var typeName = String(types[i].title || types[i].NAME || '').trim();
+          if (typeName === APPRAIZZIE_ENTITY_TITLE) { existing = types[i]; break; }
         }
 
         if (existing) {
@@ -500,7 +523,7 @@ export default async function handler(req, res) {
       log('Creating SPA entity...', 'info');
       BX24.callMethod('crm.type.add', {
         fields: {
-          title: 'Appraisify Testing',
+          title: APPRAIZZIE_ENTITY_TITLE,
           isCategoriesEnabled: false,
           isStagesEnabled: true,
           isKanbanEnabled: false,

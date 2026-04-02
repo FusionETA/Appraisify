@@ -13,11 +13,10 @@ const stageFilterId = (categoryId, statusId) => (categoryId === 'dev' ? statusId
 
 // Stage ID → display info mapping (matches STATUS_IDs created on install)
 const STAGE_MAP = {
-  'APPRAISIFY_INIT': { phase: 'init', label: 'Initialized', cls: 'bg-slate-100 text-slate-500' },
-  'APPRAISIFY_RVWEE': { phase: 'self', label: 'Self-Assessment Due', cls: 'bg-amber-100 text-amber-700' },
-  'APPRAISIFY_RVWR': { phase: 'reviewer', label: 'Awaiting Reviewer', cls: 'bg-blue-100 text-blue-700' },
-  'APPRAISIFY_PART': { phase: 'partner', label: 'Awaiting Partner', cls: 'bg-purple-100 text-purple-700' },
-  'APPRAISIFY_DONE': { phase: 'complete', label: 'Complete', cls: 'bg-emerald-100 text-emerald-700' },
+  'APPRAISIFY_RVWEE': { phase: 'self',     label: 'Initialized - Reviewee Pending', cls: 'bg-amber-100 text-amber-700' },
+  'APPRAISIFY_RVWR':  { phase: 'reviewer', label: 'Reviewer Pending',               cls: 'bg-blue-100 text-blue-700' },
+  'APPRAISIFY_PART':  { phase: 'partner',  label: 'Partner Pending',                cls: 'bg-purple-100 text-purple-700' },
+  'APPRAISIFY_DONE':  { phase: 'complete', label: 'Submitted',                      cls: 'bg-emerald-100 text-emerald-700' },
 };
 
 // ── Init ─────────────────────────────────────────────────────────────
@@ -124,7 +123,8 @@ async function loadMyAppraisal(name) {
           ['S', 'R', 'P'].forEach((phaseCode, i) => {
             const vals = [];
             for (let n = 1; n <= 20; n++) {
-              const key = `UF_CRM_APR_S_${phaseCode}${String(n).padStart(2, '0')}`;
+              const actor = ['REVIEWEE', 'REVIEWER', 'PARTNER'][i];
+              const key = `UF_CRM_QUESTION_${n}_${actor}_RATING`;
               const v = fullDeal[key];
               if (v !== null && v !== undefined && v !== '' && v !== false) {
                 const num = parseFloat(v);
@@ -168,8 +168,8 @@ async function loadPendingTasks() {
     // works uniformly for any filter as long as the installer has CRM "See All".
     const [selfDeals, reviewerDeals, partnerDeals] = await Promise.all([
       BX24App.listDeals({ CATEGORY_ID: categoryId, ASSIGNED_BY_ID:      currentUser.ID }, select),
-      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_APR_REVIEWER: currentUser.ID }, select),
-      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_APR_PARTNER:  currentUser.ID }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_REVIEWER: currentUser.ID }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_PARTNER:  currentUser.ID }, select),
     ]);
 
     // Track deal+role pairs to avoid duplicates, but allow the same deal to appear
@@ -596,11 +596,10 @@ async function applyDealCardConfig() {
   if (!categoryId) { alert('Pipeline not found. Please reinstall the app.'); return; }
   const pad2 = n => String(n).padStart(2, '0');
   const responseElements = [];
-  ['S', 'R', 'P'].forEach(phase => {
+  ['REVIEWEE', 'REVIEWER', 'PARTNER'].forEach(actor => {
     for (let i = 1; i <= 20; i += 1) {
-      const idx = pad2(i);
-      responseElements.push({ name: `UF_CRM_APR_S_${phase}${idx}` });
-      responseElements.push({ name: `UF_CRM_APR_C_${phase}${idx}` });
+      responseElements.push({ name: `UF_CRM_QUESTION_${i}_${actor}_RATING` });
+      responseElements.push({ name: `UF_CRM_QUESTION_${i}_${actor}_COMMENT` });
     }
   });
 
@@ -614,8 +613,9 @@ async function applyDealCardConfig() {
           { name: 'TITLE' },
           { name: 'STAGE_ID' },
           { name: 'ASSIGNED_BY_ID' },
-          { name: 'UF_CRM_APR_REVIEWER' },
-          { name: 'UF_CRM_APR_PARTNER' },
+          { name: 'UF_CRM_REVIEWEE' },
+          { name: 'UF_CRM_REVIEWER' },
+          { name: 'UF_CRM_PARTNER' },
           { name: 'CLOSEDATE' },
           { name: 'COMMENTS' },
         ].concat(responseElements)

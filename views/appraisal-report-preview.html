@@ -100,11 +100,10 @@
     function stageLabel(stageId) {
       const short = String(stageId || '').includes(':') ? String(stageId).split(':')[1] : String(stageId || '');
       const map = {
-        APPRAISIFY_INIT: 'Initialized',
-        APPRAISIFY_RVWEE: 'Self-Assessment Due',
-        APPRAISIFY_RVWR: 'Awaiting Reviewer',
-        APPRAISIFY_PART: 'Awaiting Partner',
-        APPRAISIFY_DONE: 'Complete',
+        APPRAISIFY_RVWEE: 'Initialized - Reviewee Pending',
+        APPRAISIFY_RVWR:  'Reviewer Pending',
+        APPRAISIFY_PART:  'Partner Pending',
+        APPRAISIFY_DONE:  'Submitted',
       };
       return map[short] || short || '—';
     }
@@ -148,8 +147,9 @@
       return avg.toFixed(2);
     }
 
-    function getField(deal, type, phase, idx) {
-      const key = `UF_CRM_APR_${type}_${phase}${pad2(idx)}`;
+    function getField(deal, actor, idx) {
+      // actor: 'REVIEWEE_RATING' | 'REVIEWEE_COMMENT' | 'REVIEWER_RATING' | etc.
+      const key = `UF_CRM_QUESTION_${idx}_${actor}`;
       return deal ? deal[key] : null;
     }
 
@@ -218,18 +218,18 @@
         const partnerScores = [];
         const tbody = document.getElementById('rows');
         tbody.innerHTML = questions.map(function(q) {
-          const selfRaw = getField(deal, 'S', 'S', q.index);
-          const reviewerRaw = getField(deal, 'S', 'R', q.index);
-          const partnerRaw = getField(deal, 'S', 'P', q.index);
+          const selfRaw = getField(deal, 'REVIEWEE_RATING', q.index);
+          const reviewerRaw = getField(deal, 'REVIEWER_RATING', q.index);
+          const partnerRaw = getField(deal, 'PARTNER_RATING', q.index);
           if (selfRaw !== null && selfRaw !== undefined && selfRaw !== '') selfScores.push(selfRaw);
           if (reviewerRaw !== null && reviewerRaw !== undefined && reviewerRaw !== '') reviewerScores.push(reviewerRaw);
           if (partnerRaw !== null && partnerRaw !== undefined && partnerRaw !== '') partnerScores.push(partnerRaw);
           const selfScore = scoreOrDash(selfRaw);
-          const selfComment = textOrDash(getField(deal, 'C', 'S', q.index));
+          const selfComment = textOrDash(getField(deal, 'REVIEWEE_COMMENT', q.index));
           const reviewerScore = scoreOrDash(reviewerRaw);
-          const reviewerComment = textOrDash(getField(deal, 'C', 'R', q.index));
+          const reviewerComment = textOrDash(getField(deal, 'REVIEWER_COMMENT', q.index));
           const partnerScore = scoreOrDash(partnerRaw);
-          const partnerComment = textOrDash(getField(deal, 'C', 'P', q.index));
+          const partnerComment = textOrDash(getField(deal, 'PARTNER_COMMENT', q.index));
           return `
             <article class="border border-slate-200 rounded-xl overflow-hidden">
               <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">

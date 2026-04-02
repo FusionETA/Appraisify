@@ -24,11 +24,10 @@ function extractTemplateIdFromDeal(deal) {
 function stageLabel(stageId) {
   const short = String(stageId || '').includes(':') ? String(stageId).split(':')[1] : String(stageId || '');
   const map = {
-    APPRAISIFY_INIT: 'Initialized',
-    APPRAISIFY_RVWEE: 'Self-Assessment Due',
-    APPRAISIFY_RVWR: 'Awaiting Reviewer',
-    APPRAISIFY_PART: 'Awaiting Partner',
-    APPRAISIFY_DONE: 'Complete',
+    APPRAISIFY_RVWEE: 'Initialized - Reviewee Pending',
+    APPRAISIFY_RVWR:  'Reviewer Pending',
+    APPRAISIFY_PART:  'Partner Pending',
+    APPRAISIFY_DONE:  'Submitted',
   };
   return map[short] || short || '-';
 }
@@ -39,8 +38,9 @@ function parseEmployeeName(title) {
   return t.split(/\s*[–\-]\s*/)[0].trim() || '-';
 }
 
-function getField(deal, type, phase, idx) {
-  const key = `UF_CRM_APR_${type}_${phase}${String(idx).padStart(2, '0')}`;
+function getField(deal, actor, idx) {
+  // actor: 'REVIEWEE_RATING' | 'REVIEWEE_COMMENT' | 'REVIEWER_RATING' | etc.
+  const key = `UF_CRM_QUESTION_${idx}_${actor}`;
   return deal ? deal[key] : null;
 }
 
@@ -228,9 +228,9 @@ function buildReportLines(deal, domain, template) {
   lines.push({ text: `Template: ${textOrDash(template.name || template.id)}`, size: 10, height: 18 });
 
   questions.forEach((q) => {
-    const selfRaw = getField(deal, 'S', 'S', q.index);
-    const revRaw = getField(deal, 'S', 'R', q.index);
-    const partRaw = getField(deal, 'S', 'P', q.index);
+    const selfRaw = getField(deal, 'REVIEWEE_RATING', q.index);
+    const revRaw  = getField(deal, 'REVIEWER_RATING', q.index);
+    const partRaw = getField(deal, 'PARTNER_RATING',  q.index);
     if (selfRaw !== null && selfRaw !== undefined && selfRaw !== '') selfScores.push(selfRaw);
     if (revRaw !== null && revRaw !== undefined && revRaw !== '') reviewerScores.push(revRaw);
     if (partRaw !== null && partRaw !== undefined && partRaw !== '') partnerScores.push(partRaw);
@@ -246,14 +246,14 @@ function buildReportLines(deal, domain, template) {
     lines.push({ text: `Q${q.index} [${textOrDash(q.section)}]`, size: 11, height: 16 });
     wrapText(`Question: ${textOrDash(q.text)}`, 90).forEach(t => lines.push({ text: t, size: 10 }));
 
-    const selfScore = scoreOrDash(getField(deal, 'S', 'S', q.index));
-    const reviewerScore = scoreOrDash(getField(deal, 'S', 'R', q.index));
-    const partnerScore = scoreOrDash(getField(deal, 'S', 'P', q.index));
+    const selfScore     = scoreOrDash(getField(deal, 'REVIEWEE_RATING',  q.index));
+    const reviewerScore = scoreOrDash(getField(deal, 'REVIEWER_RATING',  q.index));
+    const partnerScore  = scoreOrDash(getField(deal, 'PARTNER_RATING',   q.index));
     lines.push({ text: `Self Score: ${selfScore} | Reviewer Score: ${reviewerScore} | Partner Score: ${partnerScore}`, size: 10 });
 
-    wrapText(`Self Comment: ${textOrDash(getField(deal, 'C', 'S', q.index))}`, 90).forEach(t => lines.push({ text: t, size: 10 }));
-    wrapText(`Reviewer Comment: ${textOrDash(getField(deal, 'C', 'R', q.index))}`, 90).forEach(t => lines.push({ text: t, size: 10 }));
-    wrapText(`Partner Comment: ${textOrDash(getField(deal, 'C', 'P', q.index))}`, 90).forEach(t => lines.push({ text: t, size: 10 }));
+    wrapText(`Self Comment: ${textOrDash(getField(deal, 'REVIEWEE_COMMENT', q.index))}`, 90).forEach(t => lines.push({ text: t, size: 10 }));
+    wrapText(`Reviewer Comment: ${textOrDash(getField(deal, 'REVIEWER_COMMENT', q.index))}`, 90).forEach(t => lines.push({ text: t, size: 10 }));
+    wrapText(`Partner Comment: ${textOrDash(getField(deal, 'PARTNER_COMMENT',  q.index))}`, 90).forEach(t => lines.push({ text: t, size: 10 }));
     lines.push({ text: ' ', size: 10, height: 10 });
   });
 

@@ -357,11 +357,11 @@
         if (titleName) APPRAISAL_DATA.revieweeName = titleName;
 
         APPRAISAL_DATA.sections.forEach(s => s.questions.forEach(q => {
-          const idx = String(parseInt(q.id.replace('q', ''), 10)).padStart(2, '0');
-          const sScore = deal[`UF_CRM_APR_S_S${idx}`];
-          const sComment = deal[`UF_CRM_APR_C_S${idx}`];
-          const rScore = deal[`UF_CRM_APR_S_R${idx}`];
-          const rComment = deal[`UF_CRM_APR_C_R${idx}`];
+          const n = parseInt(q.id.replace('q', ''), 10);
+          const sScore   = deal[`UF_CRM_QUESTION_${n}_REVIEWEE_RATING`];
+          const sComment = deal[`UF_CRM_QUESTION_${n}_REVIEWEE_COMMENT`];
+          const rScore   = deal[`UF_CRM_QUESTION_${n}_REVIEWER_RATING`];
+          const rComment = deal[`UF_CRM_QUESTION_${n}_REVIEWER_COMMENT`];
           selfScores[q.id] = {
             score:   (sScore !== null && sScore !== undefined && sScore !== '') ? parseFloat(sScore) : null,
             comment: sComment || '',

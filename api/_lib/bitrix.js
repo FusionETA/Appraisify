@@ -178,8 +178,9 @@ export async function fetchDeal(domain, dealId) {
   console.warn(`[bitrix] crm.deal.get returned null for deal ${id}, trying crm.deal.list fallback`);
   const list = await callBitrix(domain, 'crm.deal.list', {
     filter: { ID: id },
-    select: ['ID', 'TITLE', 'STAGE_ID', 'ASSIGNED_BY_ID', 'CATEGORY_ID',
-             'UF_CRM_APR_REVIEWER', 'UF_CRM_APR_PARTNER', 'CLOSEDATE'],
+    select: ['ID', 'TITLE', 'STAGE_ID', 'ASSIGNED_BY_ID', 'CATEGORY_ID', 'CLOSEDATE',
+             'UF_CRM_REVIEWEE', 'UF_CRM_REVIEWER', 'UF_CRM_PARTNER',
+             'UF_CRM_YEAR', 'UF_CRM_APPRAISAL_TYPE', 'UF_CRM_TEAM', 'UF_CRM_ROLE'],
   });
   if (Array.isArray(list) && list.length > 0) return list[0];
 
