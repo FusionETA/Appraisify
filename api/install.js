@@ -611,153 +611,47 @@ export default async function handler(req, res) {
     }
 
     function addSpaStages(entityTypeId, typeId, categoryId) {
-      setStatus('Setting up stages\u2026', 'Configuring SPA stages\u2026');
+      setStatus('Setting up stages\u2026', 'Removing existing SPA stages\u2026');
       var entityId = 'DYNAMIC_' + entityTypeId + '_STAGE_' + categoryId;
-      // Bitrix24 prefixes returned STATUS_IDs with "DT{entityTypeId}_{categoryId}:"
-      var bxPrefix = 'DT' + entityTypeId + '_' + categoryId + ':';
-      // Only Bitrix24\u2019s three built-in auto-created placeholders are safe to delete.
-      // All other stages (including Appraizzie\u2019s) are left untouched.
-      var BX_DEFAULTS = ['NEW', 'WON', 'LOSE'];
-
+      // Delete all existing stages first (including Bitrix24 defaults and any prior
+      // install remnants), then recreate the 4 Appraisify stages cleanly.
       BX24.callMethod('crm.status.list', {
         filter: { ENTITY_ID: entityId }
-      }, function (listResult) {
-        var all = listResult.error() ? [] : (listResult.data() || []);
-
-        // Classify existing stages
-        var toDelete      = [];   // Bitrix24 built-in placeholders to remove (NEW/WON/LOSE)
-        var toNeutralize  = [];   // Non-APPRAISIFY_ stages with SEMANTICS:'S' — strip the flag
-                                  // so Bitrix24 allows adding new stages after them.
-                                  // The stage itself is preserved; only SEMANTICS is cleared.
-        var appraisifyMap = {};   // bareId \u2192 FIRST stage object for each APPRAISIFY_* bare ID
-        var appraisifyDups = [];  // Extra copies of APPRAISIFY_* stages (same bare ID, seen again)
-
-        // Strip any "DT\d+_\d+:" prefix from a STATUS_ID to get the bare code.
-        // Doing this generically (not relying on the computed bxPrefix) so that
-        // stages created with a different categoryId in a previous install attempt
-        // are still recognised as APPRAISIFY_* stages and not created again.
-        function getBare(statusId) {
-          var m = statusId.match(/^DT\d+_\d+:(.+)$/);
-          return m ? m[1] : statusId;
-        }
-
-        all.forEach(function(s) {
-          var bare = getBare(s.STATUS_ID);
-          if (BX_DEFAULTS.indexOf(bare) >= 0) {
-            toDelete.push(s);
-          } else if (bare.indexOf('APPRAISIFY_') === 0) {
-            if (appraisifyMap[bare]) {
-              // Duplicate — keep the first, queue the rest for deletion
-              appraisifyDups.push(s);
-            } else {
-              appraisifyMap[bare] = s;
-            }
-          } else if (s.SEMANTICS === 'S') {
-            // A third-party (e.g. Appraizzie) stage marked as final blocks crm.status.add.
-            // Clear its SEMANTICS so we can add our stages after it.
-            toNeutralize.push(s);
-          }
-          // All other third-party stages are left completely alone
-        });
-
-        log(
-          'Stages: ' + toDelete.length + ' Bitrix24 default(s) to remove, ' +
-          appraisifyDups.length + ' Appraisify duplicate(s) to clean up, ' +
-          toNeutralize.length + ' final stage(s) to neutralize, ' +
-          Object.keys(appraisifyMap).length + ' Appraisify stage(s) already present',
-          'info'
-        );
-
-        // Step 1: delete Bitrix24\u2019s placeholder stages
+      }, function (defaultsResult) {
+        var defaults = defaultsResult.error() ? [] : (defaultsResult.data() || []);
+        log('Removing ' + defaults.length + ' existing SPA stage(s)...', 'info');
         var delIndex = 0;
-        function deleteNextDefault() {
-          if (delIndex >= toDelete.length) { deleteNextDuplicate(); return; }
-          var d = toDelete[delIndex++];
+        function deleteNext() {
+          if (delIndex >= defaults.length) { createNextStage(); return; }
+          var d = defaults[delIndex++];
           BX24.callMethod('crm.status.delete', {
             id: d.ID, params: { FORCED: 'Y' }
-          }, function () { deleteNextDefault(); });
+          }, function () { deleteNext(); });
         }
-
-        // Step 1b: remove duplicate APPRAISIFY_* stages from previous failed installs
-        var dupIndex = 0;
-        function deleteNextDuplicate() {
-          if (dupIndex >= appraisifyDups.length) { neutralizeNextFinalStage(); return; }
-          var dup = appraisifyDups[dupIndex++];
-          BX24.callMethod('crm.status.delete', {
-            id: dup.ID, params: { FORCED: 'Y' }
-          }, function (r) {
-            if (r.error()) { log('Could not remove duplicate stage ' + dup.STATUS_ID + ': ' + r.error(), 'err'); }
-            else            { log('Removed duplicate stage: ' + dup.STATUS_ID, 'info'); }
-            deleteNextDuplicate();
-          });
-        }
-
-        // Step 1c: neutralize blocking third-party final stages (SEMANTICS 'S' → '')
-        var neutIndex = 0;
-        function neutralizeNextFinalStage() {
-          if (neutIndex >= toNeutralize.length) { upsertNextStage(); return; }
-          var n = toNeutralize[neutIndex++];
-          BX24.callMethod('crm.status.update', {
-            id: n.ID,
-            fields: { SEMANTICS: '' }
-          }, function (r) {
-            if (r.error()) { log('Could not neutralize final stage ' + n.STATUS_ID + ': ' + r.error(), 'err'); }
-            else            { log('Neutralized final-stage flag on: ' + n.STATUS_ID, 'info'); }
-            neutralizeNextFinalStage();
-          });
-        }
-
-        // Step 2: add missing APPRAISIFY_* stages; update existing ones if metadata changed
         var stageIndex = 0;
-        function upsertNextStage() {
+        function createNextStage() {
           if (stageIndex >= STAGES.length) {
-            log('All ' + STAGES.length + ' SPA stages configured', 'ok');
+            log('All ' + STAGES.length + ' SPA stages created', 'ok');
             createSpaFields(entityTypeId, typeId);
             return;
           }
           var s = STAGES[stageIndex++];
-          var existing = appraisifyMap[s.STATUS_ID];
-
-          if (existing) {
-            // Update if NAME, COLOR, SEMANTICS, or SORT don\u2019t match
-            var needsUpdate =
-              existing.NAME      !== s.NAME      ||
-              existing.COLOR     !== s.COLOR     ||
-              existing.SEMANTICS !== s.SEMANTICS ||
-              String(existing.SORT) !== String(s.SORT);
-
-            if (needsUpdate) {
-              BX24.callMethod('crm.status.update', {
-                id: existing.ID,
-                fields: { NAME: s.NAME, SORT: s.SORT, COLOR: s.COLOR, SEMANTICS: s.SEMANTICS }
-              }, function (r) {
-                if (r.error()) { log('SPA stage update "' + s.NAME + '" failed: ' + r.error(), 'err'); }
-                else            { log('SPA stage updated: '  + s.NAME, 'ok'); }
-                upsertNextStage();
-              });
-            } else {
-              log('SPA stage already correct: ' + s.NAME, 'info');
-              upsertNextStage();
+          BX24.callMethod('crm.status.add', {
+            fields: {
+              ENTITY_ID: entityId,
+              STATUS_ID: s.STATUS_ID,
+              NAME:      s.NAME,
+              SORT:      s.SORT,
+              COLOR:     s.COLOR,
+              SEMANTICS: s.SEMANTICS,
             }
-          } else {
-            BX24.callMethod('crm.status.add', {
-              fields: {
-                ENTITY_ID: entityId,
-                STATUS_ID: s.STATUS_ID,
-                NAME:      s.NAME,
-                SORT:      s.SORT,
-                COLOR:     s.COLOR,
-                SEMANTICS: s.SEMANTICS,
-              }
-            }, function (r) {
-              if (r.error()) { log('SPA stage add "' + s.NAME + '" failed: ' + r.error(), 'err'); }
-              else            { log('SPA stage created: ' + s.NAME, 'ok'); }
-              upsertNextStage();
-            });
-          }
+          }, function (r) {
+            if (r.error()) { log('SPA stage "' + s.NAME + '" failed: ' + r.error(), 'err'); }
+            else            { log('SPA stage created: ' + s.NAME, 'ok'); }
+            createNextStage();
+          });
         }
-
-        deleteNextDefault();
+        deleteNext();
       });
     }
 
