@@ -625,7 +625,10 @@ export default async function handler(req, res) {
         var all = listResult.error() ? [] : (listResult.data() || []);
 
         // Classify existing stages
-        var toDelete     = [];    // Bitrix24 built-in placeholders to remove
+        var toDelete      = [];   // Bitrix24 built-in placeholders to remove (NEW/WON/LOSE)
+        var toNeutralize  = [];   // Non-APPRAISIFY_ stages with SEMANTICS:'S' — strip the flag
+                                  // so Bitrix24 allows adding new stages after them.
+                                  // The stage itself is preserved; only SEMANTICS is cleared.
         var appraisifyMap = {};   // bareId \u2192 stage object for APPRAISIFY_* stages already present
 
         all.forEach(function(s) {
@@ -636,12 +639,17 @@ export default async function handler(req, res) {
             toDelete.push(s);
           } else if (bare.indexOf('APPRAISIFY_') === 0) {
             appraisifyMap[bare] = s;
+          } else if (s.SEMANTICS === 'S') {
+            // A third-party (e.g. Appraizzie) stage marked as final blocks crm.status.add.
+            // Clear its SEMANTICS so we can add our stages after it.
+            toNeutralize.push(s);
           }
-          // Other stages (e.g. Appraizzie custom stages) are left completely alone
+          // All other third-party stages are left completely alone
         });
 
         log(
           'Stages: ' + toDelete.length + ' Bitrix24 default(s) to remove, ' +
+          toNeutralize.length + ' final stage(s) to neutralize, ' +
           Object.keys(appraisifyMap).length + ' Appraisify stage(s) already present',
           'info'
         );
@@ -649,11 +657,26 @@ export default async function handler(req, res) {
         // Step 1: delete only Bitrix24\u2019s placeholder stages
         var delIndex = 0;
         function deleteNextDefault() {
-          if (delIndex >= toDelete.length) { upsertNextStage(); return; }
+          if (delIndex >= toDelete.length) { neutralizeNextFinalStage(); return; }
           var d = toDelete[delIndex++];
           BX24.callMethod('crm.status.delete', {
             id: d.ID, params: { FORCED: 'Y' }
           }, function () { deleteNextDefault(); });
+        }
+
+        // Step 1b: neutralize blocking third-party final stages (SEMANTICS 'S' → '')
+        var neutIndex = 0;
+        function neutralizeNextFinalStage() {
+          if (neutIndex >= toNeutralize.length) { upsertNextStage(); return; }
+          var n = toNeutralize[neutIndex++];
+          BX24.callMethod('crm.status.update', {
+            id: n.ID,
+            fields: { SEMANTICS: '' }
+          }, function (r) {
+            if (r.error()) { log('Could not neutralize final stage ' + n.STATUS_ID + ': ' + r.error(), 'err'); }
+            else            { log('Neutralized final-stage flag on: ' + n.STATUS_ID, 'info'); }
+            neutralizeNextFinalStage();
+          });
         }
 
         // Step 2: add missing APPRAISIFY_* stages; update existing ones if metadata changed
