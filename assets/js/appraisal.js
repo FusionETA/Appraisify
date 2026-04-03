@@ -423,9 +423,9 @@ async function handleSubmit(opts) {
   const categoryId = await BX24App.getCategoryId();
   const prefix = categoryId && categoryId !== 'dev' ? `C${categoryId}:` : '';
   const NEXT_STAGE = {
-    'self':     `${prefix}APPRAISIFY_RVWR`,  // after self-assessment → awaiting reviewer
-    'reviewer': `${prefix}APPRAISIFY_PART`,  // after reviewer → awaiting partner
-    'partner':  `${prefix}APPRAISIFY_DONE`,  // after partner → submitted/complete
+    'self':     `${prefix}REVIEWERPENDING`,            // after self-assessment → awaiting reviewer
+    'reviewer': `${prefix}PARTNERPENDING`,             // after reviewer → awaiting partner
+    'partner':  `${prefix}SUBMITTED`,                  // after partner → submitted/complete
   };
 
   const dealId    = opts.appraisalId;

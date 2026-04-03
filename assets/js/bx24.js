@@ -49,11 +49,11 @@ const BX24App = (() => {
   ];
 
   const MOCK_DEALS = [
-    { ID: 'dev-1', TITLE: 'Alex Rivera – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_RVWEE', ASSIGNED_BY_ID: '1', UF_CRM_REVIEWER: '2', UF_CRM_PARTNER: '3', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-2', TITLE: 'Jordan Lee – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_RVWR', ASSIGNED_BY_ID: '2', UF_CRM_REVIEWER: '1', UF_CRM_PARTNER: '3', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-3', TITLE: 'Sam Patel – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_PART', ASSIGNED_BY_ID: '3', UF_CRM_REVIEWER: '4', UF_CRM_PARTNER: '1', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-4', TITLE: 'Morgan Kim – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_RVWEE', ASSIGNED_BY_ID: '4', UF_CRM_REVIEWER: '2', UF_CRM_PARTNER: '5', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-5', TITLE: 'Taylor Brooks – Annual Q4 2024', STAGE_ID: 'APPRAISIFY_DONE', ASSIGNED_BY_ID: '5', UF_CRM_REVIEWER: '6', UF_CRM_PARTNER: '2', CLOSEDATE: '2025-01-31' },
+    { ID: 'dev-1', TITLE: 'Alex Rivera – Annual Q4 2024', STAGE_ID: 'INITIALIZEDREVIEWEEPENDING', ASSIGNED_BY_ID: '1', UF_CRM_REVIEWER: '2', UF_CRM_PARTNER: '3', CLOSEDATE: '2025-01-31' },
+    { ID: 'dev-2', TITLE: 'Jordan Lee – Annual Q4 2024', STAGE_ID: 'REVIEWERPENDING', ASSIGNED_BY_ID: '2', UF_CRM_REVIEWER: '1', UF_CRM_PARTNER: '3', CLOSEDATE: '2025-01-31' },
+    { ID: 'dev-3', TITLE: 'Sam Patel – Annual Q4 2024', STAGE_ID: 'PARTNERPENDING', ASSIGNED_BY_ID: '3', UF_CRM_REVIEWER: '4', UF_CRM_PARTNER: '1', CLOSEDATE: '2025-01-31' },
+    { ID: 'dev-4', TITLE: 'Morgan Kim – Annual Q4 2024', STAGE_ID: 'INITIALIZEDREVIEWEEPENDING', ASSIGNED_BY_ID: '4', UF_CRM_REVIEWER: '2', UF_CRM_PARTNER: '5', CLOSEDATE: '2025-01-31' },
+    { ID: 'dev-5', TITLE: 'Taylor Brooks – Annual Q4 2024', STAGE_ID: 'SUBMITTED', ASSIGNED_BY_ID: '5', UF_CRM_REVIEWER: '6', UF_CRM_PARTNER: '2', CLOSEDATE: '2025-01-31' },
   ];
 
   // ── Core helpers ──────────────────────────────────────────────────────
@@ -405,9 +405,9 @@ const BX24App = (() => {
       }
 
       if (key === 'STAGE_ID') {
-        // Strip deal pipeline prefix: 'C47:APPRAISIFY_RVWEE' → 'APPRAISIFY_RVWEE'
+        // Strip deal pipeline prefix: 'C47:INITIALIZEDREVIEWEEPENDING' → 'INITIALIZEDREVIEWEEPENDING'
         const bare = String(val).includes(':') ? String(val).split(':')[1] : String(val);
-        // Prepend full SPA stage prefix: 'DT1242_194:APPRAISIFY_RVWEE'
+        // Prepend full SPA stage prefix: 'DT1242_194:INITIALIZEDREVIEWEEPENDING'
         out.stageId = categoryId ? `DT${entityTypeId}_${categoryId}:${bare}` : bare;
         continue;
       }

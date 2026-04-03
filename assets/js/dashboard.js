@@ -13,10 +13,10 @@ const stageFilterId = (categoryId, statusId) => (categoryId === 'dev' ? statusId
 
 // Stage ID → display info mapping (matches STATUS_IDs created on install)
 const STAGE_MAP = {
-  'APPRAISIFY_RVWEE': { phase: 'self',     label: 'Initialized - Reviewee Pending', cls: 'bg-amber-100 text-amber-700' },
-  'APPRAISIFY_RVWR':  { phase: 'reviewer', label: 'Reviewer Pending',               cls: 'bg-blue-100 text-blue-700' },
-  'APPRAISIFY_PART':  { phase: 'partner',  label: 'Partner Pending',                cls: 'bg-purple-100 text-purple-700' },
-  'APPRAISIFY_DONE':  { phase: 'complete', label: 'Submitted',                      cls: 'bg-emerald-100 text-emerald-700' },
+  'INITIALIZEDREVIEWEEPENDING': { phase: 'self',     label: 'Initialized - Reviewee Pending', cls: 'bg-amber-100 text-amber-700' },
+  'REVIEWERPENDING':            { phase: 'reviewer', label: 'Reviewer Pending',               cls: 'bg-blue-100 text-blue-700' },
+  'PARTNERPENDING':             { phase: 'partner',  label: 'Partner Pending',                cls: 'bg-purple-100 text-purple-700' },
+  'SUBMITTED':                  { phase: 'complete', label: 'Submitted',                      cls: 'bg-emerald-100 text-emerald-700' },
 };
 
 // ── Init ─────────────────────────────────────────────────────────────
@@ -157,7 +157,7 @@ async function loadPendingTasks() {
   const warning = document.getElementById('pending-load-warning');
 
   // Pending task stage for each role
-  const PENDING_STAGE = { self: 'APPRAISIFY_RVWEE', reviewer: 'APPRAISIFY_RVWR', partner: 'APPRAISIFY_PART' };
+  const PENDING_STAGE = { self: 'INITIALIZEDREVIEWEEPENDING', reviewer: 'REVIEWERPENDING', partner: 'PARTNERPENDING' };
 
   try {
     const categoryId = await BX24App.getCategoryId();
@@ -175,7 +175,7 @@ async function loadPendingTasks() {
     // Track deal+role pairs to avoid duplicates, but allow the same deal to appear
     // under different roles. This handles the case where one person is both reviewer
     // AND partner on the same deal — after reviewer submission the stage advances to
-    // APPRAISIFY_PART and only the partner task should show. Using a combined key
+    // PARTNERPENDING and only the partner task should show. Using a combined key
     // (dealId+role) means each role is evaluated independently for each deal.
     const seen = new Set();
     const tasks = [];
@@ -185,7 +185,7 @@ async function loadPendingTasks() {
         if (seen.has(key)) continue;
         seen.add(key);
         const stage = shortStageId(deal.STAGE_ID);
-        if (stage !== 'APPRAISIFY_DONE' && stage === PENDING_STAGE[role]) {
+        if (stage !== 'SUBMITTED' && stage === PENDING_STAGE[role]) {
           tasks.push(normalizeTask(deal, role));
         }
       }

@@ -100,10 +100,10 @@
     function stageLabel(stageId) {
       const short = String(stageId || '').includes(':') ? String(stageId).split(':')[1] : String(stageId || '');
       const map = {
-        APPRAISIFY_RVWEE: 'Initialized - Reviewee Pending',
-        APPRAISIFY_RVWR:  'Reviewer Pending',
-        APPRAISIFY_PART:  'Partner Pending',
-        APPRAISIFY_DONE:  'Submitted',
+        INITIALIZEDREVIEWEEPENDING: 'Initialized - Reviewee Pending',
+        REVIEWERPENDING:            'Reviewer Pending',
+        PARTNERPENDING:             'Partner Pending',
+        SUBMITTED:                  'Submitted',
       };
       return map[short] || short || '—';
     }
