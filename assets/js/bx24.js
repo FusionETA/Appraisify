@@ -533,10 +533,10 @@ const BX24App = (() => {
     return null;
   }
 
-  async function callAsSystem(method, params = {}) {
+  async function callAsSystem(method, params = {}, { rawResponse = false } = {}) {
     if (DEV_MODE) {
       console.log('[BX24App DEV] callAsSystem:', method, params);
-      return {};
+      return rawResponse ? { result: {} } : {};
     }
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -564,25 +564,44 @@ const BX24App = (() => {
       err.description = json.error_description || '';
       throw err;
     }
-    return json.result;
+    return rawResponse ? json : json.result;
   }
 
   async function listDealUserFields() {
     if (DEV_MODE) return [];
-    const data = await callAsSystem('crm.deal.userfield.list', {});
-    return Array.isArray(data) ? data : [];
+    const all = [];
+    let start = 0;
+    while (true) {
+      const json = await callAsSystem('crm.deal.userfield.list', { start }, { rawResponse: true });
+      const page = Array.isArray(json.result) ? json.result : [];
+      all.push(...page);
+      if (!json.next) break;
+      start = json.next;
+    }
+    return all;
   }
 
   async function listSpaUserFields(entityTypeId, typeId) {
     if (DEV_MODE) return [];
-    const data = await callAsSystem('userfieldconfig.list', {
-      moduleId: 'crm',
-      filter: { entityId: `CRM_${typeId}` },
-    });
-    const raw = Array.isArray(data) ? data : [];
+    // Paginate through all pages — userfieldconfig.list returns 50 per page by default.
+    // With 120+ response fields (20 questions × 3 actors × 2 types) we must fetch all pages
+    // or subsequent ensureAppraisalResponseFields calls will try to re-add already-existing fields.
+    const all = [];
+    let start = 0;
+    while (true) {
+      const json = await callAsSystem('userfieldconfig.list', {
+        moduleId: 'crm',
+        filter:   { entityId: `CRM_${typeId}` },
+        start,
+      }, { rawResponse: true });
+      const page = Array.isArray(json.result) ? json.result : [];
+      all.push(...page);
+      if (!json.next) break;
+      start = json.next;
+    }
     // Normalize FIELD_NAME to match spec keys (e.g. 'QUESTION_1_REVIEWEE_RATING').
     // Bitrix24 stores SPA fields as 'UF_CRM_{typeId}_{FIELD_NAME}'.
-    return raw.map(f => ({
+    return all.map(f => ({
       ...f,
       FIELD_NAME: (f.fieldName || f.FIELD_NAME || '')
         .toUpperCase()
