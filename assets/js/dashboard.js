@@ -90,9 +90,12 @@ async function loadMyAppraisal(name) {
       return;
     }
 
-    // Prefer the first non-SUBMITTED deal (active cycle).
-    // Falls back to deals[0] (latest submitted) if all are done — e.g. between cycles.
-    const deal = deals.find(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED') ?? deals[0];
+    // Sort by ID descending so the newest deal comes first regardless of Bitrix24's
+    // default list ordering (which is oldest-first).
+    const sorted = [...deals].sort((a, b) => Number(b.ID) - Number(a.ID));
+    // Prefer the newest active (non-SUBMITTED) deal. Falls back to the newest
+    // submitted deal if all cycles are done — e.g. between appraisal cycles.
+    const deal = sorted.find(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED') ?? sorted[0];
     const stageInfo = STAGE_MAP[shortStageId(deal.STAGE_ID)] || { phase: 'self', label: deal.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
 
     badge.textContent = stageInfo.label;
@@ -486,19 +489,21 @@ async function loadEmployeeTable() {
     (departments || []).forEach(d => { deptMap[String(d.ID)] = d.NAME; });
 
     // Build employeeId → most relevant deal lookup.
-    // Prefer an active (non-SUBMITTED) deal over a submitted one so that when a
-    // new cycle starts the admin table shows the new cycle's stage, not the old
-    // completed one. If both deals are active or both are submitted, keep the
-    // first encountered (deals are returned newest-first by default).
+    // Rules (in priority order):
+    //   1. Active (non-SUBMITTED) deal beats any submitted deal.
+    //   2. Among same-status deals, higher ID (newer) wins.
     const dealMap = {};
     (deals || []).forEach(d => {
       const empId = String(d.ASSIGNED_BY_ID);
       const existing = dealMap[empId];
-      const stage = shortStageId(d.STAGE_ID);
+      const stage    = shortStageId(d.STAGE_ID);
+      const exStage  = existing ? shortStageId(existing.STAGE_ID) : null;
       if (!existing) {
         dealMap[empId] = d;
-      } else if (stage !== 'SUBMITTED' && shortStageId(existing.STAGE_ID) === 'SUBMITTED') {
-        dealMap[empId] = d; // replace old submitted deal with the new active one
+      } else if (stage !== 'SUBMITTED' && exStage === 'SUBMITTED') {
+        dealMap[empId] = d; // active beats submitted
+      } else if (stage === exStage && Number(d.ID) > Number(existing.ID)) {
+        dealMap[empId] = d; // same status → keep newer
       }
     });
 
