@@ -90,8 +90,9 @@ async function loadMyAppraisal(name) {
       return;
     }
 
-    // Show most recent (first returned) deal
-    const deal = deals[0];
+    // Prefer the first non-SUBMITTED deal (active cycle).
+    // Falls back to deals[0] (latest submitted) if all are done — e.g. between cycles.
+    const deal = deals.find(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED') ?? deals[0];
     const stageInfo = STAGE_MAP[shortStageId(deal.STAGE_ID)] || { phase: 'self', label: deal.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
 
     badge.textContent = stageInfo.label;
@@ -484,11 +485,21 @@ async function loadEmployeeTable() {
     const deptMap = {};
     (departments || []).forEach(d => { deptMap[String(d.ID)] = d.NAME; });
 
-    // Build employeeId → most recent deal lookup
+    // Build employeeId → most relevant deal lookup.
+    // Prefer an active (non-SUBMITTED) deal over a submitted one so that when a
+    // new cycle starts the admin table shows the new cycle's stage, not the old
+    // completed one. If both deals are active or both are submitted, keep the
+    // first encountered (deals are returned newest-first by default).
     const dealMap = {};
     (deals || []).forEach(d => {
-      // Keep the first deal found per user (deals are returned newest-first by default)
-      if (!dealMap[String(d.ASSIGNED_BY_ID)]) dealMap[String(d.ASSIGNED_BY_ID)] = d;
+      const empId = String(d.ASSIGNED_BY_ID);
+      const existing = dealMap[empId];
+      const stage = shortStageId(d.STAGE_ID);
+      if (!existing) {
+        dealMap[empId] = d;
+      } else if (stage !== 'SUBMITTED' && shortStageId(existing.STAGE_ID) === 'SUBMITTED') {
+        dealMap[empId] = d; // replace old submitted deal with the new active one
+      }
     });
 
     if (!users || !users.length) {
