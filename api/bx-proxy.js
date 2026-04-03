@@ -131,7 +131,11 @@ export default async function handler(req, res) {
     }
 
     console.log('[bx-proxy] OK:', method, 'for', domain);
-    return res.status(200).json({ result: data.result });
+    // Forward pagination cursor so callers can fetch subsequent pages.
+    const responseBody = { result: data.result };
+    if (data.next  != null) responseBody.next  = data.next;
+    if (data.total != null) responseBody.total = data.total;
+    return res.status(200).json(responseBody);
 
   } catch (e) {
     console.error('[bx-proxy] Error:', e.message);
