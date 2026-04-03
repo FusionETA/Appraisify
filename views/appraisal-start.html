@@ -523,7 +523,7 @@
           categoryId: categoryId,   // keep raw value ('spa' or numeric string) — not parseInt
           closeDate:  fields.CLOSEDATE || '',
         });
-        notifyLaunch(dealId);
+        await notifyLaunch(dealId);
         console.log('[Appraisify] createDeal OK → ID:', dealId);
         created++;
         btn.innerHTML = `<span class="material-symbols-outlined text-lg" style="animation:spin .8s linear infinite">progress_activity</span> Creating… ${created}/${employees.length}`;
