@@ -486,6 +486,9 @@
         console.log('[Appraisify] notifyLaunch response:', resp.status, json);
         if (!resp.ok || json.error) {
           console.warn('[Appraisify] launch notification failed:', dealId, json.error || json.error_description || resp.status);
+        } else if (json.notified === 0) {
+          const failures = (json.results || []).filter(r => !r.ok);
+          console.warn('[Appraisify] launch notification sent but 0 delivered. Failures:', JSON.stringify(failures));
         }
       } catch (e) {
         console.warn('[Appraisify] launch notification request failed:', dealId, e);
