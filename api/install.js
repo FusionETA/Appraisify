@@ -286,6 +286,8 @@ export default async function handler(req, res) {
       { FIELD_NAME: 'DEVELOPMENT_PLANS_REVIEWEE_COMMENT', LABEL: 'Development Plans \u2013 Reviewee', USER_TYPE_ID: 'string' },
       { FIELD_NAME: 'DEVELOPMENT_PLANS_REVIEWER_COMMENT', LABEL: 'Development Plans \u2013 Reviewer', USER_TYPE_ID: 'string' },
       { FIELD_NAME: 'DEVELOPMENT_PLANS_PARTNER_COMMENT',  LABEL: 'Development Plans \u2013 Partner',  USER_TYPE_ID: 'string' },
+      // ── Origin ────────────────────────────────────────────────────────────
+      { FIELD_NAME: 'SOURCE_APP', LABEL: 'Source App', USER_TYPE_ID: 'string' },
       // ── Aggregate scores ──────────────────────────────────────────────────
       { FIELD_NAME: 'REVIEWEE_RATING_SCORE',      LABEL: 'Reviewee Rating Score',      USER_TYPE_ID: 'string' },
       { FIELD_NAME: 'REVIEWER_RATING_SCORE',      LABEL: 'Reviewer Rating Score',      USER_TYPE_ID: 'string' },

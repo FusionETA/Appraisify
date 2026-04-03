@@ -504,11 +504,12 @@
 
       const catId = parseInt(categoryId, 10);
       const fields = {
-        TITLE:          `${fullName} – ${typeLabel} ${period} ${year}`,
-        CATEGORY_ID:    catId,
-        STAGE_ID:       `C${catId}:INITIALIZEDREVIEWEEPENDING`,
-        ASSIGNED_BY_ID: parseInt(emp.ID, 10),
-        COMMENTS:       `[APPRAISIFY_TEMPLATE_ID:${selectedTemplateId}]`,
+        TITLE:              `${fullName} – ${typeLabel} ${period} ${year}`,
+        CATEGORY_ID:        catId,
+        STAGE_ID:           `C${catId}:INITIALIZEDREVIEWEEPENDING`,
+        ASSIGNED_BY_ID:     parseInt(emp.ID, 10),
+        COMMENTS:           `[APPRAISIFY_TEMPLATE_ID:${selectedTemplateId}]`,
+        UF_CRM_SOURCE_APP:  'APPRAISIFY',
       };
       if (deadline)  fields.CLOSEDATE            = deadline;
       if (reviewer)  fields.UF_CRM_REVIEWER  = parseInt(reviewer, 10);

@@ -49,11 +49,11 @@ const BX24App = (() => {
   ];
 
   const MOCK_DEALS = [
-    { ID: 'dev-1', TITLE: 'Alex Rivera – Annual Q4 2024', STAGE_ID: 'INITIALIZEDREVIEWEEPENDING', ASSIGNED_BY_ID: '1', UF_CRM_REVIEWER: '2', UF_CRM_PARTNER: '3', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-2', TITLE: 'Jordan Lee – Annual Q4 2024', STAGE_ID: 'REVIEWERPENDING', ASSIGNED_BY_ID: '2', UF_CRM_REVIEWER: '1', UF_CRM_PARTNER: '3', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-3', TITLE: 'Sam Patel – Annual Q4 2024', STAGE_ID: 'PARTNERPENDING', ASSIGNED_BY_ID: '3', UF_CRM_REVIEWER: '4', UF_CRM_PARTNER: '1', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-4', TITLE: 'Morgan Kim – Annual Q4 2024', STAGE_ID: 'INITIALIZEDREVIEWEEPENDING', ASSIGNED_BY_ID: '4', UF_CRM_REVIEWER: '2', UF_CRM_PARTNER: '5', CLOSEDATE: '2025-01-31' },
-    { ID: 'dev-5', TITLE: 'Taylor Brooks – Annual Q4 2024', STAGE_ID: 'SUBMITTED', ASSIGNED_BY_ID: '5', UF_CRM_REVIEWER: '6', UF_CRM_PARTNER: '2', CLOSEDATE: '2025-01-31' },
+    { ID: 'dev-1', TITLE: 'Alex Rivera – Annual Q4 2024', STAGE_ID: 'INITIALIZEDREVIEWEEPENDING', ASSIGNED_BY_ID: '1', UF_CRM_REVIEWER: '2', UF_CRM_PARTNER: '3', CLOSEDATE: '2025-01-31', UF_CRM_SOURCE_APP: 'APPRAISIFY' },
+    { ID: 'dev-2', TITLE: 'Jordan Lee – Annual Q4 2024', STAGE_ID: 'REVIEWERPENDING', ASSIGNED_BY_ID: '2', UF_CRM_REVIEWER: '1', UF_CRM_PARTNER: '3', CLOSEDATE: '2025-01-31', UF_CRM_SOURCE_APP: 'APPRAISIFY' },
+    { ID: 'dev-3', TITLE: 'Sam Patel – Annual Q4 2024', STAGE_ID: 'PARTNERPENDING', ASSIGNED_BY_ID: '3', UF_CRM_REVIEWER: '4', UF_CRM_PARTNER: '1', CLOSEDATE: '2025-01-31', UF_CRM_SOURCE_APP: 'APPRAISIFY' },
+    { ID: 'dev-4', TITLE: 'Morgan Kim – Annual Q4 2024', STAGE_ID: 'INITIALIZEDREVIEWEEPENDING', ASSIGNED_BY_ID: '4', UF_CRM_REVIEWER: '2', UF_CRM_PARTNER: '5', CLOSEDATE: '2025-01-31', UF_CRM_SOURCE_APP: 'APPRAISIFY' },
+    { ID: 'dev-5', TITLE: 'Taylor Brooks – Annual Q4 2024', STAGE_ID: 'SUBMITTED', ASSIGNED_BY_ID: '5', UF_CRM_REVIEWER: '6', UF_CRM_PARTNER: '2', CLOSEDATE: '2025-01-31', UF_CRM_SOURCE_APP: 'APPRAISIFY' },
   ];
 
   // ── Core helpers ──────────────────────────────────────────────────────
@@ -68,7 +68,11 @@ const BX24App = (() => {
 
   function getResponseFieldSpecs() {
     const actors = ['REVIEWEE', 'REVIEWER', 'PARTNER'];
-    const specs = [];
+    const specs = [
+      // Meta field included here so ensureAppraisalResponseFields creates it on
+      // existing installs (new installs get it via META_FIELDS in install.js).
+      { FIELD_NAME: 'SOURCE_APP', USER_TYPE_ID: 'string', LABEL: 'Source App' },
+    ];
     actors.forEach(actor => {
       for (let i = 1; i <= MAX_Q_PER_PHASE; i += 1) {
         specs.push({
@@ -853,10 +857,11 @@ const BX24App = (() => {
   async function listDeals(filter = {}, select = []) {
     if (DEV_MODE) {
       return MOCK_DEALS.filter(d => {
-        if (filter.ASSIGNED_BY_ID && String(d.ASSIGNED_BY_ID) !== String(filter.ASSIGNED_BY_ID)) return false;
-        if (filter.STAGE_ID && d.STAGE_ID !== filter.STAGE_ID) return false;
-        if (filter.UF_CRM_REVIEWER && String(d.UF_CRM_REVIEWER) !== String(filter.UF_CRM_REVIEWER)) return false;
-        if (filter.UF_CRM_PARTNER && String(d.UF_CRM_PARTNER) !== String(filter.UF_CRM_PARTNER)) return false;
+        if (filter.ASSIGNED_BY_ID   && String(d.ASSIGNED_BY_ID)   !== String(filter.ASSIGNED_BY_ID))   return false;
+        if (filter.STAGE_ID         && d.STAGE_ID                 !== filter.STAGE_ID)                 return false;
+        if (filter.UF_CRM_REVIEWER  && String(d.UF_CRM_REVIEWER)  !== String(filter.UF_CRM_REVIEWER))  return false;
+        if (filter.UF_CRM_PARTNER   && String(d.UF_CRM_PARTNER)   !== String(filter.UF_CRM_PARTNER))   return false;
+        if (filter.UF_CRM_SOURCE_APP && d.UF_CRM_SOURCE_APP       !== filter.UF_CRM_SOURCE_APP)        return false;
         return true;
       });
     }

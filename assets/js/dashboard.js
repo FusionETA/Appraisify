@@ -78,7 +78,7 @@ async function loadMyAppraisal(name) {
     if (!categoryId) throw new Error('No pipeline');
 
     const deals = await BX24App.listDeals(
-      { CATEGORY_ID: categoryId, ASSIGNED_BY_ID: currentUser.ID },
+      { CATEGORY_ID: categoryId, ASSIGNED_BY_ID: currentUser.ID, UF_CRM_SOURCE_APP: 'APPRAISIFY' },
       ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE'],
     );
     if (!deals.length) {
@@ -171,9 +171,9 @@ async function loadPendingTasks() {
     // All three queries use the installer's system token via listDeals(), which
     // works uniformly for any filter as long as the installer has CRM "See All".
     const [selfDeals, reviewerDeals, partnerDeals] = await Promise.all([
-      BX24App.listDeals({ CATEGORY_ID: categoryId, ASSIGNED_BY_ID:      currentUser.ID }, select),
-      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_REVIEWER: currentUser.ID }, select),
-      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_PARTNER:  currentUser.ID }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, ASSIGNED_BY_ID:  currentUser.ID, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_REVIEWER: currentUser.ID, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_PARTNER:  currentUser.ID, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, select),
     ]);
 
     // Track deal+role pairs to avoid duplicates, but allow the same deal to appear
@@ -480,7 +480,7 @@ async function loadEmployeeTable() {
       BX24App.getUsers(),
       BX24App.getDepartments(),
       categoryId
-        ? BX24App.listDeals({ CATEGORY_ID: categoryId }, ['ID', 'STAGE_ID', 'ASSIGNED_BY_ID'])
+        ? BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, ['ID', 'STAGE_ID', 'ASSIGNED_BY_ID'])
         : Promise.resolve([]),
     ]);
 
