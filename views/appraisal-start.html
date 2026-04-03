@@ -454,12 +454,24 @@
     const period    = document.getElementById('cycle-quarter').value;
     const deadline  = document.getElementById('cycle-deadline').value;
 
-    const domain = (typeof TemplatesAPI !== 'undefined' && TemplatesAPI.getDomainFromContext)
-      ? TemplatesAPI.getDomainFromContext()
-      : '';
+    // Resolve domain from multiple sources — TemplatesAPI alone is unreliable
+    // on the launch page (it's more consistent on embedded appraisal form pages).
+    function resolveDomain() {
+      const normalize = d => (String(d || '').split('/')[0].toLowerCase().trim() || null);
+      const fromUrl = normalize(new URLSearchParams(window.location.search).get('DOMAIN') || new URLSearchParams(window.location.search).get('domain'));
+      if (fromUrl) { localStorage.setItem('appraisify_domain', fromUrl); return fromUrl; }
+      if (typeof TemplatesAPI !== 'undefined' && TemplatesAPI.getDomainFromContext) {
+        const d = normalize(TemplatesAPI.getDomainFromContext()); if (d) return d;
+      }
+      if (typeof BX24 !== 'undefined' && BX24.getAuth) {
+        try { const d = normalize(BX24.getAuth()?.domain); if (d) { localStorage.setItem('appraisify_domain', d); return d; } } catch (_) {}
+      }
+      return normalize(localStorage.getItem('appraisify_domain'));
+    }
+    const domain = resolveDomain();
 
     async function notifyLaunch(dealId) {
-      if (!domain) return;
+      if (!domain) { console.warn('[Appraisify] notifyLaunch skipped — domain could not be resolved'); return; }
       try {
         const resp = await fetch('/api/notify', {
           method: 'POST',
@@ -504,7 +516,7 @@
           revieweeId: fields.ASSIGNED_BY_ID,
           reviewerId: fields.UF_CRM_REVIEWER || null,
           partnerId:  fields.UF_CRM_PARTNER  || null,
-          categoryId: fields.CATEGORY_ID,
+          categoryId: categoryId,   // keep raw value ('spa' or numeric string) — not parseInt
           closeDate:  fields.CLOSEDATE || '',
         });
         notifyLaunch(dealId);

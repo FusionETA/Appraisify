@@ -283,7 +283,10 @@ function resolveNotifyDomain() {
 
 async function triggerWorkflowNotification(type, dealId) {
   const domain = resolveNotifyDomain();
-  if (!domain || !type || !dealId) return;
+  if (!domain || !type || !dealId) {
+    console.warn('[Appraisify] triggerWorkflowNotification skipped — domain:', domain, 'type:', type, 'dealId:', dealId);
+    return;
+  }
 
   try {
     const resp = await fetch('/api/notify', {
