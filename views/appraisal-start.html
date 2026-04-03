@@ -483,12 +483,12 @@
           body: JSON.stringify({ type: 'launch', dealId: String(dealId), domain }),
         });
         const json = await resp.json();
-        console.log('[Appraisify] notifyLaunch response:', resp.status, json);
+        const failures = (json.results || []).filter(r => !r.ok);
+        console.log('[Appraisify] notifyLaunch response:', resp.status, 'notified:', json.notified, 'failures:', JSON.stringify(failures), 'full:', json);
         if (!resp.ok || json.error) {
-          console.warn('[Appraisify] launch notification failed:', dealId, json.error || json.error_description || resp.status);
+          console.error('[Appraisify] launch notification HTTP error:', dealId, json.error || json.error_description || resp.status);
         } else if (json.notified === 0) {
-          const failures = (json.results || []).filter(r => !r.ok);
-          console.warn('[Appraisify] launch notification sent but 0 delivered. Failures:', JSON.stringify(failures));
+          console.error('[Appraisify] launch notification 0 delivered. Error codes:', failures.map(f => f.error).join(', '));
         }
       } catch (e) {
         console.warn('[Appraisify] launch notification request failed:', dealId, e);
