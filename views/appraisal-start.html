@@ -469,10 +469,13 @@
       return normalize(localStorage.getItem('appraisify_domain'));
     }
     const domain = resolveDomain();
+    console.log('[Appraisify] resolveDomain →', domain);
 
     async function notifyLaunch(dealId) {
+      console.log('[Appraisify] notifyLaunch called — dealId:', dealId, 'domain:', domain);
       if (!domain) { console.warn('[Appraisify] notifyLaunch skipped — domain could not be resolved'); return; }
       try {
+        console.log('[Appraisify] notifyLaunch fetching /api/notify …');
         const resp = await fetch('/api/notify', {
           method: 'POST',
           keepalive: true,
@@ -480,6 +483,7 @@
           body: JSON.stringify({ type: 'launch', dealId: String(dealId), domain }),
         });
         const json = await resp.json();
+        console.log('[Appraisify] notifyLaunch response:', resp.status, json);
         if (!resp.ok || json.error) {
           console.warn('[Appraisify] launch notification failed:', dealId, json.error || json.error_description || resp.status);
         }
