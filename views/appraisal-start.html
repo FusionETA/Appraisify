@@ -222,21 +222,12 @@
           </div>
         </div>
 
-        <!-- Add employee row -->
-        <div class="px-6 py-3 border-b border-slate-100 flex items-center gap-3 bg-slate-50/30">
-          <div id="add-employee-picker" class="flex-1"></div>
-          <button onclick="commitAddEmployee()"
-            class="shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors">
-            <span class="material-symbols-outlined text-sm">person_add</span> Add
-          </button>
-        </div>
-
         <!-- Employee rows -->
         <div id="employee-assignments" class="divide-y divide-slate-100">
           <!-- populated by JS -->
           <div class="px-6 py-8 text-center text-slate-400 text-sm" id="no-employees-msg">
             <span class="material-symbols-outlined text-3xl block mb-2 text-slate-300">person_off</span>
-            No employees selected. Use the search above or go back to the dashboard to select employees.
+            No employees selected. Go back to the dashboard to select employees.
           </div>
         </div>
 
@@ -320,7 +311,6 @@
   // Picker instances
   let defaultReviewerPicker = null;
   let defaultPartnerPicker  = null;
-  let addEmployeePicker     = null;
   const empPickerRegistry   = {}; // `${empId}-reviewer` | `${empId}-partner`
 
   // ── User Picker component ─────────────────────────────────────────────────────
@@ -465,17 +455,6 @@
     );
   }
 
-  function initAddEmployeePicker() {
-    const container = document.getElementById('add-employee-picker');
-    addEmployeePicker = createUserPicker(container, {
-      users: allUsers,
-      placeholder: 'Search and add an employee…',
-      onChange: () => {}, // handled on button click
-    });
-    // Override onChange to avoid triggering validateAssignments before Add is clicked
-    // (picker calls validateAssignments after selection; that's fine here)
-  }
-
   // ── Employee rows ─────────────────────────────────────────────────────────────
   function renderEmployeeRows() {
     // Clear old picker registry entries
@@ -540,26 +519,7 @@
     });
   }
 
-  // ── Add / remove employees ───────────────────────────────────────────────────
-  function commitAddEmployee() {
-    const uid = addEmployeePicker?.getValue();
-    if (!uid) return;
-    if (employees.some(e => String(e.ID) === uid)) {
-      // Already in list — just reset picker
-      addEmployeePicker.setValue('');
-      return;
-    }
-    const user = allUsers.find(u => String(u.ID) === uid);
-    if (!user) return;
-    employees.push(user);
-    addEmployeePicker.setValue('');
-    renderEmployeeRows();
-    const count = employees.length;
-    document.getElementById('emp-count').textContent = count;
-    document.getElementById('summary-employees').textContent = count;
-    validateAssignments();
-  }
-
+  // ── Remove employee ───────────────────────────────────────────────────────────
   function removeEmployee(empId) {
     employees = employees.filter(e => String(e.ID) !== String(empId));
     renderEmployeeRows();
@@ -596,7 +556,6 @@
     AppraisifyMetaOptions.load('cycle-type', 'type');
     await loadQuestionSets();
     initDefaultPickers();
-    initAddEmployeePicker();
     loadEmployeesFromStorage();
     updateSummary();
 
