@@ -232,7 +232,7 @@ export default async function handler(req, res) {
 
     // STATUS_IDs must be \u2264 18 characters (Bitrix24 hard limit)
     var STAGES = [
-      { NAME: 'Initialized - Reviewee Pending', STATUS_ID: 'INITIALIZEDREVIEWEEPENDING', SORT: 5,  COLOR: '#F59E0B', SEMANTICS: '' },
+      { NAME: 'Initialized-Reviewee Pending', STATUS_ID: 'INITIALIZEDREVIEWEEPENDING', SORT: 5,  COLOR: '#F59E0B', SEMANTICS: '' },
       { NAME: 'Reviewer Pending',               STATUS_ID: 'REVIEWERPENDING',            SORT: 15, COLOR: '#2FC6F6', SEMANTICS: '' },
       { NAME: 'Partner Pending',                STATUS_ID: 'PARTNERPENDING',             SORT: 20, COLOR: '#8B5CF6', SEMANTICS: '' },
       { NAME: 'Submitted',                      STATUS_ID: 'SUBMITTED',                  SORT: 25, COLOR: '#10B981', SEMANTICS: '' },
