@@ -329,7 +329,7 @@ export default async function handler(req, res) {
     function createDealPipeline() {
       log('Creating CRM pipeline...', 'info');
       BX24.callMethod('crm.dealcategory.add', {
-        fields: { NAME: 'Appraisify Testing', SORT: 100, IS_LOCKED: 'N' }
+        fields: { NAME: 'Performance Appraisal', SORT: 100, IS_LOCKED: 'N' }
       }, function (catResult) {
         if (catResult.error()) {
           log('Failed to create pipeline: ' + catResult.error(), 'err');
