@@ -25,7 +25,54 @@
       },
     }
   </script>
-  <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+  <style>
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── User Picker combobox ──────────────────────────────────────────────── */
+    .user-picker { position: relative; }
+
+    .picker-trigger {
+      width: 100%; display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 8px;
+      background: #fff; cursor: pointer; text-align: left;
+      transition: border-color .15s, box-shadow .15s; font-family: inherit;
+    }
+    .picker-trigger:hover { border-color: #136dec; }
+    .picker-trigger.open  { border-color: #136dec; box-shadow: 0 0 0 3px rgba(19,109,236,.12); }
+
+    .picker-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0;
+      min-width: 100%; width: max-content; max-width: 300px;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.13); z-index: 200; overflow: hidden;
+    }
+    .picker-search { position: relative; }
+    .picker-search-icon {
+      position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+      font-size: 15px; color: #94a3b8; pointer-events: none; user-select: none;
+    }
+    .picker-search input {
+      width: 100%; border: none; border-bottom: 1px solid #f1f5f9;
+      padding: 8px 10px 8px 30px; font-size: 12px; font-family: inherit;
+      outline: none; background: transparent; color: #1e293b;
+    }
+    .picker-list { max-height: 220px; overflow-y: auto; }
+    .picker-option {
+      display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+      cursor: pointer; transition: background .1s;
+    }
+    .picker-option:hover  { background: #eff6ff; }
+    .picker-option.sel    { background: #dbeafe; }
+    .picker-initials {
+      border-radius: 50%; display: inline-flex; align-items: center;
+      justify-content: center; font-weight: 700; color: #fff;
+      flex-shrink: 0; line-height: 1;
+    }
+    .picker-name { font-size: 12px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .picker-pos  { font-size: 11px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .picker-empty { padding: 14px 12px; text-align: center; font-size: 12px; color: #94a3b8; }
+    .picker-label-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  </style>
 </head>
 <body class="bg-background-light text-slate-800 font-sans min-h-screen">
 
@@ -166,17 +213,22 @@
           <div class="flex gap-3">
             <div class="flex-1">
               <label class="block text-xs text-slate-500 mb-1">Default Reviewer</label>
-              <select id="default-reviewer" class="w-full rounded-lg border-slate-200 focus:ring-primary text-xs py-1.5">
-                <option value="">— Select reviewer —</option>
-              </select>
+              <div id="default-reviewer-picker"></div>
             </div>
             <div class="flex-1">
               <label class="block text-xs text-slate-500 mb-1">Default Partner</label>
-              <select id="default-partner" class="w-full rounded-lg border-slate-200 focus:ring-primary text-xs py-1.5">
-                <option value="">— Select partner —</option>
-              </select>
+              <div id="default-partner-picker"></div>
             </div>
           </div>
+        </div>
+
+        <!-- Add employee row -->
+        <div class="px-6 py-3 border-b border-slate-100 flex items-center gap-3 bg-slate-50/30">
+          <div id="add-employee-picker" class="flex-1"></div>
+          <button onclick="commitAddEmployee()"
+            class="shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors">
+            <span class="material-symbols-outlined text-sm">person_add</span> Add
+          </button>
         </div>
 
         <!-- Employee rows -->
@@ -184,7 +236,7 @@
           <!-- populated by JS -->
           <div class="px-6 py-8 text-center text-slate-400 text-sm" id="no-employees-msg">
             <span class="material-symbols-outlined text-3xl block mb-2 text-slate-300">person_off</span>
-            No employees selected. Go back to the dashboard to select employees.
+            No employees selected. Use the search above or go back to the dashboard to select employees.
           </div>
         </div>
 
@@ -260,21 +312,294 @@
 <script src="../assets/js/meta-options.js"></script>
 <script src="../assets/js/templates-api.js"></script>
 <script>
-  let employees = [];
-  let allUsers  = [];
+  // ── State ────────────────────────────────────────────────────────────────────
+  let employees   = [];
+  let allUsers    = [];
   let templateMap = {};
 
+  // Picker instances
+  let defaultReviewerPicker = null;
+  let defaultPartnerPicker  = null;
+  let addEmployeePicker     = null;
+  const empPickerRegistry   = {}; // `${empId}-reviewer` | `${empId}-partner`
+
+  // ── User Picker component ─────────────────────────────────────────────────────
+  /**
+   * Creates a searchable user picker inside `container`.
+   * @param {HTMLElement} container  - wrapping element (gets class="user-picker")
+   * @param {object}      opts
+   * @param {Array}       opts.users       - full user list
+   * @param {string}      opts.placeholder - empty-state label
+   * @param {string}      [opts.value]     - pre-selected user ID
+   * @param {string}      [opts.excludeId] - user ID to hide (the reviewee)
+   * @param {Function}    [opts.onChange]  - callback(userId) on selection
+   * @returns {{ getValue, setValue }}
+   */
+  function createUserPicker(container, { users, placeholder, value, excludeId, onChange }) {
+    const AVATAR_COLORS = ['#136dec','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#3B82F6','#F97316'];
+    const pid = Math.random().toString(36).slice(2, 8);
+    let selectedId = String(value || '');
+    let isOpen = false;
+    let outsideHandler = null;
+
+    function userName(u) { return `${u.NAME} ${u.LAST_NAME || ''}`.trim(); }
+    function userColor(u) { return AVATAR_COLORS[Number(u.ID) % AVATAR_COLORS.length]; }
+    function userInitials(u) {
+      return userName(u).split(/\s+/).map(w => w[0]?.toUpperCase() || '').slice(0, 2).join('');
+    }
+    function avatarHtml(u, sz) {
+      return `<span class="picker-initials" style="width:${sz}px;height:${sz}px;font-size:${Math.round(sz*0.4)}px;background:${userColor(u)}">${userInitials(u)}</span>`;
+    }
+    function selectedUser() { return users.find(u => String(u.ID) === selectedId) || null; }
+    function filteredUsers(q) {
+      const lq = q.toLowerCase();
+      return users
+        .filter(u => String(u.ID) !== String(excludeId))
+        .filter(u => !lq || userName(u).toLowerCase().includes(lq) || (u.WORK_POSITION || '').toLowerCase().includes(lq));
+    }
+
+    function triggerInner() {
+      const u = selectedUser();
+      if (u) {
+        return `${avatarHtml(u, 22)}<span class="picker-label-text" style="font-size:12px;font-weight:600;color:#1e293b">${userName(u)}</span><span class="material-symbols-outlined" style="font-size:16px;color:#94a3b8;flex-shrink:0">expand_more</span>`;
+      }
+      return `<span class="picker-label-text" style="font-size:12px;color:#94a3b8">${placeholder}</span><span class="material-symbols-outlined" style="font-size:16px;color:#94a3b8;flex-shrink:0">expand_more</span>`;
+    }
+
+    function optionRows(list) {
+      if (!list.length) return '<div class="picker-empty">No users found</div>';
+      return list.map(u => `
+        <div class="picker-option${String(u.ID) === selectedId ? ' sel' : ''}" data-uid="${u.ID}">
+          ${avatarHtml(u, 26)}
+          <div style="min-width:0">
+            <div class="picker-name">${userName(u)}</div>
+            ${u.WORK_POSITION ? `<div class="picker-pos">${u.WORK_POSITION}</div>` : ''}
+          </div>
+        </div>`).join('');
+    }
+
+    function dropdownHtml(q) {
+      return `
+        <div class="picker-dropdown" id="pdrop_${pid}">
+          <div class="picker-search">
+            <span class="picker-search-icon material-symbols-outlined">search</span>
+            <input type="text" placeholder="Search by name or position…" autocomplete="off" id="psearch_${pid}" value="${q || ''}">
+          </div>
+          <div class="picker-list" id="plist_${pid}">${optionRows(filteredUsers(q || ''))}</div>
+        </div>`;
+    }
+
+    function bindOptions() {
+      const list = document.getElementById(`plist_${pid}`);
+      if (!list) return;
+      list.querySelectorAll('.picker-option[data-uid]').forEach(el => {
+        el.addEventListener('mousedown', e => { e.preventDefault(); choose(el.dataset.uid); });
+      });
+    }
+
+    function open() {
+      if (isOpen) return;
+      // Close any other open pickers
+      document.querySelectorAll('.picker-trigger.open').forEach(t => {
+        if (t.id !== `ptrig_${pid}`) t.dispatchEvent(new MouseEvent('click'));
+      });
+      isOpen = true;
+      trigger.classList.add('open');
+      container.insertAdjacentHTML('beforeend', dropdownHtml(''));
+      const inp = document.getElementById(`psearch_${pid}`);
+      if (inp) {
+        inp.focus();
+        inp.addEventListener('input', () => {
+          document.getElementById(`plist_${pid}`).innerHTML = optionRows(filteredUsers(inp.value));
+          bindOptions();
+        });
+        inp.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+      }
+      bindOptions();
+      outsideHandler = e => { if (!container.contains(e.target)) close(); };
+      setTimeout(() => document.addEventListener('mousedown', outsideHandler), 0);
+    }
+
+    function close() {
+      if (!isOpen) return;
+      isOpen = false;
+      trigger.classList.remove('open');
+      document.getElementById(`pdrop_${pid}`)?.remove();
+      if (outsideHandler) { document.removeEventListener('mousedown', outsideHandler); outsideHandler = null; }
+    }
+
+    function choose(uid) {
+      selectedId = String(uid);
+      close();
+      trigger.innerHTML = triggerInner();
+      if (onChange) onChange(selectedId);
+      validateAssignments();
+    }
+
+    // Build trigger
+    container.className = 'user-picker';
+    container.innerHTML = `<button type="button" class="picker-trigger" id="ptrig_${pid}">${triggerInner()}</button>`;
+    const trigger = container.querySelector('.picker-trigger');
+    trigger.addEventListener('click', () => { if (isOpen) close(); else open(); });
+    container.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+
+    return {
+      getValue() { return selectedId; },
+      setValue(uid) {
+        selectedId = String(uid || '');
+        trigger.innerHTML = triggerInner();
+        // Note: does not call validateAssignments() — caller should do so after bulk updates
+      },
+    };
+  }
+
+  // ── Initialise default + add-employee pickers ────────────────────────────────
+  function initDefaultPickers() {
+    defaultReviewerPicker = createUserPicker(
+      document.getElementById('default-reviewer-picker'),
+      { users: allUsers, placeholder: '— Select reviewer —' }
+    );
+    defaultPartnerPicker = createUserPicker(
+      document.getElementById('default-partner-picker'),
+      { users: allUsers, placeholder: '— Select partner —' }
+    );
+  }
+
+  function initAddEmployeePicker() {
+    const container = document.getElementById('add-employee-picker');
+    addEmployeePicker = createUserPicker(container, {
+      users: allUsers,
+      placeholder: 'Search and add an employee…',
+      onChange: () => {}, // handled on button click
+    });
+    // Override onChange to avoid triggering validateAssignments before Add is clicked
+    // (picker calls validateAssignments after selection; that's fine here)
+  }
+
+  // ── Employee rows ─────────────────────────────────────────────────────────────
+  function renderEmployeeRows() {
+    // Clear old picker registry entries
+    Object.keys(empPickerRegistry).forEach(k => delete empPickerRegistry[k]);
+
+    const container = document.getElementById('employee-assignments');
+    if (!employees.length) {
+      container.innerHTML = `
+        <div class="px-6 py-8 text-center text-slate-400 text-sm" id="no-employees-msg">
+          <span class="material-symbols-outlined text-3xl block mb-2 text-slate-300">person_off</span>
+          No employees selected. Use the search above or go back to the dashboard to select employees.
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = employees.map(emp => {
+      const fullName = `${emp.NAME} ${emp.LAST_NAME || ''}`.trim();
+      const initial  = emp.NAME.charAt(0).toUpperCase();
+      return `
+        <div class="px-6 py-4" data-emp-id="${emp.ID}">
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">${initial}</div>
+              <div>
+                <p class="font-semibold text-slate-900 text-sm">${fullName}</p>
+                <p class="text-xs text-slate-500">${emp.WORK_POSITION || 'Employee'}</p>
+              </div>
+            </div>
+            <button onclick="removeEmployee('${emp.ID}')" title="Remove"
+              class="text-slate-300 hover:text-red-400 transition-colors shrink-0">
+              <span class="material-symbols-outlined text-lg">close</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Reviewer</label>
+              <div data-picker-key="${emp.ID}-reviewer"></div>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Partner</label>
+              <div data-picker-key="${emp.ID}-partner"></div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Initialise a picker in each container
+    employees.forEach(emp => {
+      const reviewerEl = container.querySelector(`[data-picker-key="${emp.ID}-reviewer"]`);
+      const partnerEl  = container.querySelector(`[data-picker-key="${emp.ID}-partner"]`);
+
+      empPickerRegistry[`${emp.ID}-reviewer`] = createUserPicker(reviewerEl, {
+        users: allUsers,
+        placeholder: '— Assign reviewer —',
+        excludeId: emp.ID,
+      });
+      empPickerRegistry[`${emp.ID}-partner`] = createUserPicker(partnerEl, {
+        users: allUsers,
+        placeholder: '— Assign partner —',
+        excludeId: emp.ID,
+      });
+    });
+  }
+
+  // ── Add / remove employees ───────────────────────────────────────────────────
+  function commitAddEmployee() {
+    const uid = addEmployeePicker?.getValue();
+    if (!uid) return;
+    if (employees.some(e => String(e.ID) === uid)) {
+      // Already in list — just reset picker
+      addEmployeePicker.setValue('');
+      return;
+    }
+    const user = allUsers.find(u => String(u.ID) === uid);
+    if (!user) return;
+    employees.push(user);
+    addEmployeePicker.setValue('');
+    renderEmployeeRows();
+    const count = employees.length;
+    document.getElementById('emp-count').textContent = count;
+    document.getElementById('summary-employees').textContent = count;
+    validateAssignments();
+  }
+
+  function removeEmployee(empId) {
+    employees = employees.filter(e => String(e.ID) !== String(empId));
+    renderEmployeeRows();
+    const count = employees.length;
+    document.getElementById('emp-count').textContent = count;
+    document.getElementById('summary-employees').textContent = count;
+    validateAssignments();
+  }
+
+  // ── Apply defaults ───────────────────────────────────────────────────────────
+  function applyToAll() {
+    const reviewerId = defaultReviewerPicker?.getValue() || '';
+    const partnerId  = defaultPartnerPicker?.getValue()  || '';
+    employees.forEach(emp => {
+      if (reviewerId) empPickerRegistry[`${emp.ID}-reviewer`]?.setValue(reviewerId);
+      if (partnerId)  empPickerRegistry[`${emp.ID}-partner`]?.setValue(partnerId);
+    });
+    validateAssignments();
+  }
+
+  // ── Validation ───────────────────────────────────────────────────────────────
+  function validateAssignments() {
+    const allAssigned = employees.length === 0 ||
+      employees.every(emp => (empPickerRegistry[`${emp.ID}-reviewer`]?.getValue() || '') !== '');
+    document.getElementById('launch-validation').classList.toggle('hidden', allAssigned);
+    return allAssigned;
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
   BX24App.init(async () => {
     const _u = await BX24App.getUser();
     if (_u.APP_ROLE !== 'admin') { window.location.replace('dashboard.html'); return; }
     allUsers = await BX24App.getUsers();
     AppraisifyMetaOptions.load('cycle-type', 'type');
     await loadQuestionSets();
+    initDefaultPickers();
+    initAddEmployeePicker();
     loadEmployeesFromStorage();
-    populateUserDropdowns();
     updateSummary();
 
-    // Listen for cycle setting changes
     ['cycle-type','cycle-year','cycle-quarter','cycle-deadline'].forEach(id => {
       document.getElementById(id)?.addEventListener('change', updateSummary);
     });
@@ -282,13 +607,14 @@
 
   function loadEmployeesFromStorage() {
     const stored = sessionStorage.getItem('selectedEmployees');
-    if (!stored) return;
-    const ids = JSON.parse(stored);
-    employees = allUsers.filter(u => ids.includes(String(u.ID)));
+    if (stored) {
+      const ids = JSON.parse(stored);
+      employees = allUsers.filter(u => ids.includes(String(u.ID)));
+    }
     renderEmployeeRows();
-    document.getElementById('emp-count').textContent = employees.length;
-    document.getElementById('summary-employees').textContent = employees.length;
-    if (employees.length > 0) document.getElementById('no-employees-msg')?.remove();
+    const count = employees.length;
+    document.getElementById('emp-count').textContent = count;
+    document.getElementById('summary-employees').textContent = count;
   }
 
   async function loadQuestionSets() {
@@ -309,82 +635,14 @@
     }
   }
 
-  function populateUserDropdowns() {
-    const options = allUsers.map(u =>
-      `<option value="${u.ID}">${u.NAME}</option>`
-    ).join('');
-    ['default-reviewer','default-partner'].forEach(id => {
-      document.getElementById(id).insertAdjacentHTML('beforeend', options);
-    });
-  }
-
-  function renderEmployeeRows() {
-    const container = document.getElementById('employee-assignments');
-    container.innerHTML = employees.map(emp => `
-      <div class="px-6 py-4" data-emp-id="${emp.ID}">
-        <div class="flex items-center gap-3 mb-3">
-          <div class="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-            ${emp.NAME.charAt(0)}
-          </div>
-          <div>
-            <p class="font-semibold text-slate-900 text-sm">${emp.NAME}</p>
-            <p class="text-xs text-slate-500">${emp.WORK_POSITION || 'Employee'}</p>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs text-slate-500 mb-1">Reviewer</label>
-            <select data-role="reviewer" data-emp="${emp.ID}"
-              class="w-full rounded-lg border-slate-200 focus:ring-primary text-xs py-1.5 emp-reviewer"
-              onchange="validateAssignments()">
-              <option value="">— Assign reviewer —</option>
-              ${allUsers.filter(u => u.ID !== emp.ID).map(u =>
-                `<option value="${u.ID}">${u.NAME}</option>`
-              ).join('')}
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs text-slate-500 mb-1">Partner</label>
-            <select data-role="partner" data-emp="${emp.ID}"
-              class="w-full rounded-lg border-slate-200 focus:ring-primary text-xs py-1.5">
-              <option value="">— Assign partner —</option>
-              ${allUsers.filter(u => u.ID !== emp.ID).map(u =>
-                `<option value="${u.ID}">${u.NAME}</option>`
-              ).join('')}
-            </select>
-          </div>
-        </div>
-      </div>`).join('');
-  }
-
-  function applyToAll() {
-    const reviewer = document.getElementById('default-reviewer').value;
-    const partner  = document.getElementById('default-partner').value;
-    document.querySelectorAll('.emp-reviewer').forEach(sel => {
-      if (reviewer) sel.value = reviewer;
-    });
-    document.querySelectorAll('[data-role="partner"]').forEach(sel => {
-      if (partner) sel.value = partner;
-    });
-    validateAssignments();
-  }
-
-  function validateAssignments() {
-    const reviewers = document.querySelectorAll('.emp-reviewer');
-    const allAssigned = [...reviewers].every(sel => sel.value !== '');
-    const warning = document.getElementById('launch-validation');
-    warning.classList.toggle('hidden', allAssigned || reviewers.length === 0);
-    return allAssigned || reviewers.length === 0;
-  }
-
   function updateSummary() {
     const type     = document.getElementById('cycle-type');
     const year     = document.getElementById('cycle-year');
     const quarter  = document.getElementById('cycle-quarter');
     const deadline = document.getElementById('cycle-deadline');
-    if (type)     document.getElementById('summary-type').textContent     = type.options[type.selectedIndex].text.replace(' Review','');
+    if (type)            document.getElementById('summary-type').textContent    = type.options[type.selectedIndex].text.replace(' Review','');
     if (year && quarter) document.getElementById('summary-period').textContent  = `${quarter.value} ${year.value}`;
-    if (deadline) document.getElementById('summary-deadline').textContent  = deadline.value || '—';
+    if (deadline)        document.getElementById('summary-deadline').textContent = deadline.value || '—';
   }
 
   function previewQuestions() {
@@ -404,7 +662,6 @@
         if (!grouped[sectionName]) grouped[sectionName] = [];
         grouped[sectionName].push(q.text || '');
       });
-
       content.innerHTML = `
         <p class="font-bold text-slate-900 mb-4">${qs.name}</p>
         ${Object.entries(grouped).map(([sectionTitle, items]) => `
@@ -418,10 +675,11 @@
     modal.classList.remove('hidden');
   }
 
+  // ── Launch ───────────────────────────────────────────────────────────────────
   async function launchAppraisal() {
     if (!validateAssignments()) return;
     if (!employees.length) {
-      alert('No employees selected. Please go back and select employees from the dashboard.');
+      alert('No employees selected. Please add employees using the search above or go back to the dashboard.');
       return;
     }
     const selectedTemplateId = document.getElementById('cycle-questions').value;
@@ -438,7 +696,6 @@
     btn.disabled = true;
     btn.innerHTML = '<span class="material-symbols-outlined text-lg" style="animation:spin .8s linear infinite">progress_activity</span> Launching…';
 
-    // Look up Appraisify pipeline ID
     const categoryId = await BX24App.getCategoryId();
     console.log('[Appraisify] launchAppraisal categoryId:', categoryId);
     if (!categoryId) {
@@ -454,8 +711,6 @@
     const period    = document.getElementById('cycle-quarter').value;
     const deadline  = document.getElementById('cycle-deadline').value;
 
-    // Resolve domain from multiple sources — TemplatesAPI alone is unreliable
-    // on the launch page (it's more consistent on embedded appraisal form pages).
     function resolveDomain() {
       const normalize = d => (String(d || '').split('/')[0].toLowerCase().trim() || null);
       const fromUrl = normalize(new URLSearchParams(window.location.search).get('DOMAIN') || new URLSearchParams(window.location.search).get('domain'));
@@ -497,23 +752,22 @@
 
     let created = 0;
     for (const emp of employees) {
-      const row      = document.querySelector(`[data-emp-id="${emp.ID}"]`);
-      const reviewer = row?.querySelector('[data-role="reviewer"]')?.value || '';
-      const partner  = row?.querySelector('[data-role="partner"]')?.value  || '';
+      const reviewer = empPickerRegistry[`${emp.ID}-reviewer`]?.getValue() || '';
+      const partner  = empPickerRegistry[`${emp.ID}-partner`]?.getValue()  || '';
       const fullName = `${emp.NAME} ${emp.LAST_NAME || ''}`.trim();
 
       const catId = parseInt(categoryId, 10);
       const fields = {
-        TITLE:              `${fullName} – ${typeLabel} ${period} ${year}`,
-        CATEGORY_ID:        catId,
-        STAGE_ID:           `C${catId}:INITIALIZEDREVIEWEEPENDING`,
-        ASSIGNED_BY_ID:     parseInt(emp.ID, 10),
-        COMMENTS:           `[APPRAISIFY_TEMPLATE_ID:${selectedTemplateId}]`,
-        UF_CRM_SOURCE_APP:  'APPRAISIFY',
+        TITLE:             `${fullName} – ${typeLabel} ${period} ${year}`,
+        CATEGORY_ID:       catId,
+        STAGE_ID:          `C${catId}:INITIALIZEDREVIEWEEPENDING`,
+        ASSIGNED_BY_ID:    parseInt(emp.ID, 10),
+        COMMENTS:          `[APPRAISIFY_TEMPLATE_ID:${selectedTemplateId}]`,
+        UF_CRM_SOURCE_APP: 'APPRAISIFY',
       };
-      if (deadline)  fields.CLOSEDATE            = deadline;
-      if (reviewer)  fields.UF_CRM_REVIEWER  = parseInt(reviewer, 10);
-      if (partner)   fields.UF_CRM_PARTNER   = parseInt(partner, 10);
+      if (deadline)  fields.CLOSEDATE       = deadline;
+      if (reviewer)  fields.UF_CRM_REVIEWER = parseInt(reviewer, 10);
+      if (partner)   fields.UF_CRM_PARTNER  = parseInt(partner,  10);
 
       const fields_log = JSON.stringify(fields);
       console.log('[Appraisify] createDeal fields:', fields_log);
@@ -524,7 +778,7 @@
           revieweeId: fields.ASSIGNED_BY_ID,
           reviewerId: fields.UF_CRM_REVIEWER || null,
           partnerId:  fields.UF_CRM_PARTNER  || null,
-          categoryId: categoryId,   // keep raw value ('spa' or numeric string) — not parseInt
+          categoryId: categoryId,
           closeDate:  fields.CLOSEDATE || '',
         });
         await notifyLaunch(dealId);
@@ -540,7 +794,7 @@
     if (created === 0) {
       btn.disabled = false;
       btn.innerHTML = '<span class="material-symbols-outlined text-lg">rocket_launch</span> Launch Appraisal';
-      return; // don't redirect if nothing was created
+      return;
     }
 
     sessionStorage.removeItem('selectedEmployees');
@@ -549,9 +803,7 @@
 
   function addCustomCycleType() {
     const added = AppraisifyMetaOptions.addCustom('cycle-type', 'type', 'appraisal type');
-    if (added) {
-      updateSummary();
-    }
+    if (added) updateSummary();
   }
 </script>
 </body>
