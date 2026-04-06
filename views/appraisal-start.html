@@ -41,10 +41,10 @@
     .picker-trigger.open  { border-color: #136dec; box-shadow: 0 0 0 3px rgba(19,109,236,.12); }
 
     .picker-dropdown {
-      position: absolute; top: calc(100% + 4px); left: 0;
-      min-width: 100%; width: max-content; max-width: 300px;
+      position: fixed;
+      width: max-content; max-width: 300px;
       background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(0,0,0,.13); z-index: 200; overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,.13); z-index: 9999; overflow: hidden;
     }
     .picker-search { position: relative; }
     .picker-search-icon {
@@ -395,7 +395,18 @@
       });
       isOpen = true;
       trigger.classList.add('open');
-      container.insertAdjacentHTML('beforeend', dropdownHtml(''));
+
+      // Append to body so overflow:hidden on any ancestor cannot clip the dropdown
+      document.body.insertAdjacentHTML('beforeend', dropdownHtml(''));
+      const drop = document.getElementById(`pdrop_${pid}`);
+
+      // Position below the trigger using fixed coords from its bounding rect
+      const rect = trigger.getBoundingClientRect();
+      const dropW = Math.max(rect.width, 220);
+      drop.style.top      = `${rect.bottom + 4}px`;
+      drop.style.left     = `${rect.left}px`;
+      drop.style.minWidth = `${dropW}px`;
+
       const inp = document.getElementById(`psearch_${pid}`);
       if (inp) {
         inp.focus();
@@ -406,7 +417,7 @@
         inp.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
       }
       bindOptions();
-      outsideHandler = e => { if (!container.contains(e.target)) close(); };
+      outsideHandler = e => { if (!drop.contains(e.target) && !container.contains(e.target)) close(); };
       setTimeout(() => document.addEventListener('mousedown', outsideHandler), 0);
     }
 
