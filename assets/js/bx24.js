@@ -587,9 +587,8 @@ const BX24App = (() => {
 
   async function listSpaUserFields(entityTypeId, typeId) {
     if (DEV_MODE) return [];
-    // Paginate through all pages — userfieldconfig.list returns 50 per page by default.
-    // With 120+ response fields (20 questions × 3 actors × 2 types) we must fetch all pages
-    // or subsequent ensureAppraisalResponseFields calls will try to re-add already-existing fields.
+    // userfieldconfig.list returns { result: { fields: [...] } } — NOT { result: [...] }.
+    // Paginate via the top-level `next` cursor in case there are more than 50 fields.
     const all = [];
     let start = 0;
     while (true) {
@@ -598,7 +597,12 @@ const BX24App = (() => {
         filter:   { entityId: `CRM_${typeId}` },
         start,
       }, { rawResponse: true });
-      const page = Array.isArray(json.result) ? json.result : [];
+      // Extract the fields array from whichever response shape Bitrix24 uses:
+      //   newer: { result: { fields: [...] } }
+      //   older: { result: [...] }
+      const page = Array.isArray(json.result?.fields) ? json.result.fields
+                 : Array.isArray(json.result)          ? json.result
+                 : [];
       all.push(...page);
       if (!json.next) break;
       start = json.next;
