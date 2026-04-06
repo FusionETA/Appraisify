@@ -3,14 +3,10 @@
  *
  * Sends Bitrix24 in-app notifications to appraisal participants using
  * per-tenant OAuth tokens instead of a shared webhook.
- * Includes a direct link to the relevant in-app appraisal form page.
  *
  * Env vars required:
-
  *   BX24_CLIENT_ID         — for token refresh
  *   BX24_CLIENT_SECRET     — for token refresh
- *   APP_URL                — public app URL (e.g. https://appraisify-v2-123.vercel.app)
- *                            used to build the appraisal link; falls back to request host
  */
 
 import { callBitrix, fetchDeal } from './_lib/bitrix.js';
@@ -18,34 +14,25 @@ import { blobFind, blobGet } from './_lib/kv.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
 
-// Internal app page to link to for each in-app (Bitrix24 bell) notification
-const NOTIFY_PAGE = {
-  launch:             '/views/appraisal-reviewee.html',
-  self_submitted:     '/views/appraisal-reviewer.html',
-  reviewer_submitted: '/views/appraisal-partner.html',
-  // partner_submitted → appraisal complete, no new page needed
-};
-
 function parseEmployeeName(title) {
   const t = String(title || '').trim();
   if (!t) return 'employee';
   return t.split(/\s*[–\-]\s*/)[0].trim() || 'employee';
 }
 
-function buildNotificationMessage(type, deal, link) {
+function buildNotificationMessage(type, deal) {
   const name   = parseEmployeeName(deal?.TITLE);
   const dealId = String(deal?.ID || '');
   const ref    = dealId ? `#APR-${dealId}` : 'this appraisal';
-  const linkPart = link ? ` | Direct link: ${link}` : '';
 
   const MAP = {
-    launch:             `Your appraisal cycle has started for ${name}. Please complete your self-assessment. (${ref})${linkPart}`,
-    self_submitted:     `${name} has submitted self-assessment. Please complete reviewer evaluation. (${ref})${linkPart}`,
-    reviewer_submitted: `${name} reviewer evaluation is complete. Please submit partner review. (${ref})${linkPart}`,
-    partner_submitted:  `${name} appraisal cycle is completed. Please go to Appraisify to view the final review summary. (${ref})`,
+    launch:             `Your appraisal cycle has started for ${name} (${ref}). Please open Appraisify to submit your self-assessment.`,
+    self_submitted:     `${name} has submitted their self-assessment (${ref}). Please open Appraisify to complete your reviewer evaluation.`,
+    reviewer_submitted: `The reviewer evaluation for ${name} is complete (${ref}). Please open Appraisify to submit your partner review.`,
+    partner_submitted:  `The appraisal cycle for ${name} is now complete (${ref}). Please open Appraisify to view the final review summary.`,
   };
 
-  return MAP[type] || `Appraisal update for ${name}. Please go to Appraisify for details. (${ref})`;
+  return MAP[type] || `Appraisal update for ${name} (${ref}). Please open Appraisify for details.`;
 }
 
 function recipientIdsForEvent(type, deal) {
@@ -117,16 +104,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, type, dealId, notified: 0, skipped: true, reason: 'no_recipients' });
     }
 
-    const appUrl = (process.env.APP_URL || `https://${req.headers.host}`).replace(/\/$/, '');
-
-    // Build in-app notification link (Bitrix24 bell)
-    let link = null;
-    const notifyPage = NOTIFY_PAGE[type];
-    if (notifyPage) {
-      link = `${appUrl}${notifyPage}?appraisal=${dealId}`;
-    }
-
-    const message = buildNotificationMessage(type, deal, link);
+    const message = buildNotificationMessage(type, deal);
     const results = [];
 
     for (const uid of recipients) {
@@ -145,7 +123,7 @@ export default async function handler(req, res) {
     }
 
     const notified = results.filter(r => r.ok).length;
-    return res.status(200).json({ ok: true, type, dealId, notified, results, link });
+    return res.status(200).json({ ok: true, type, dealId, notified, results });
 
   } catch (e) {
     logError(domain, { event: 'error', source: 'notify', error: e.code || 'notification_failed', message: e.message, dealId }).catch(() => {});
