@@ -613,48 +613,100 @@ export default async function handler(req, res) {
     }
 
     function addSpaStages(entityTypeId, typeId, categoryId) {
-      setStatus('Setting up stages\u2026', 'Removing existing SPA stages\u2026');
+      setStatus('Setting up stages\u2026', 'Configuring SPA stages\u2026');
       var entityId = 'DYNAMIC_' + entityTypeId + '_STAGE_' + categoryId;
-      // Both Appraisify and Appraizzie share the same STATUS_IDs, so deleting
-      // all stages and recreating them is safe — existing records snap back
-      // once the stages are recreated with the same STATUS_ID strings.
+      var bxPrefix = 'DT' + entityTypeId + '_' + categoryId + ':';
+      var BITRIX_DEFAULTS = ['NEW', 'WON', 'LOSE'];
+
       BX24.callMethod('crm.status.list', {
         filter: { ENTITY_ID: entityId }
-      }, function (defaultsResult) {
-        var defaults = defaultsResult.error() ? [] : (defaultsResult.data() || []);
-        log('Removing ' + defaults.length + ' existing SPA stage(s)...', 'info');
+      }, function (listResult) {
+        var all = listResult.error() ? [] : (listResult.data() || []);
+
+        // Classify existing stages into buckets:
+        //   toDelete      — Bitrix24 auto-created placeholders (NEW/WON/LOSE) with no records
+        //   appraisifyMap — our own APPRAISIFY_* stages (upsert these)
+        //   everything else (Appraizzie's stages) — leave completely untouched
+        var toDelete = [];
+        var appraisifyMap = {};
+
+        all.forEach(function(s) {
+          var bare = s.STATUS_ID.indexOf(bxPrefix) === 0
+            ? s.STATUS_ID.slice(bxPrefix.length)
+            : s.STATUS_ID;
+          if (BITRIX_DEFAULTS.indexOf(bare) >= 0) {
+            toDelete.push(s);
+          } else if (bare.indexOf('APPRAISIFY_') === 0 || STAGES.some(function(st) { return st.STATUS_ID === bare; })) {
+            appraisifyMap[bare] = s;
+          }
+        });
+
+        log(
+          'Stages: ' + toDelete.length + ' Bitrix24 defaults to delete, ' +
+          Object.keys(appraisifyMap).length + ' Appraisify stages found',
+          'info'
+        );
+
+        // Step 1 — delete only the Bitrix24 auto-created placeholder stages
         var delIndex = 0;
-        function deleteNext() {
-          if (delIndex >= defaults.length) { createNextStage(); return; }
-          var d = defaults[delIndex++];
+        function deleteNextDefault() {
+          if (delIndex >= toDelete.length) { upsertNextStage(); return; }
+          var d = toDelete[delIndex++];
           BX24.callMethod('crm.status.delete', {
             id: d.ID, params: { FORCED: 'Y' }
-          }, function () { deleteNext(); });
+          }, function () { deleteNextDefault(); });
         }
+
+        // Step 2 — upsert each of the 4 Appraisify stages (update if exists, add if not)
         var stageIndex = 0;
-        function createNextStage() {
+        function upsertNextStage() {
           if (stageIndex >= STAGES.length) {
-            log('All ' + STAGES.length + ' SPA stages created', 'ok');
+            log('All ' + STAGES.length + ' SPA stages configured', 'ok');
             createSpaFields(entityTypeId, typeId);
             return;
           }
           var s = STAGES[stageIndex++];
-          BX24.callMethod('crm.status.add', {
-            fields: {
-              ENTITY_ID: entityId,
-              STATUS_ID: s.STATUS_ID,
-              NAME:      s.NAME,
-              SORT:      s.SORT,
-              COLOR:     s.COLOR,
-              SEMANTICS: s.SEMANTICS,
+          var existing = appraisifyMap[s.STATUS_ID];
+
+          if (existing) {
+            var needsUpdate =
+              existing.NAME      !== s.NAME      ||
+              existing.COLOR     !== s.COLOR     ||
+              existing.SEMANTICS !== s.SEMANTICS ||
+              String(existing.SORT) !== String(s.SORT);
+
+            if (needsUpdate) {
+              BX24.callMethod('crm.status.update', {
+                id: existing.ID,
+                fields: { NAME: s.NAME, SORT: s.SORT, COLOR: s.COLOR, SEMANTICS: s.SEMANTICS }
+              }, function (r) {
+                if (r.error()) { log('SPA stage update "' + s.NAME + '" failed: ' + r.error(), 'err'); }
+                else            { log('SPA stage updated: ' + s.NAME, 'ok'); }
+                upsertNextStage();
+              });
+            } else {
+              log('SPA stage already correct: ' + s.NAME, 'info');
+              upsertNextStage();
             }
-          }, function (r) {
-            if (r.error()) { log('SPA stage "' + s.NAME + '" failed: ' + r.error(), 'err'); }
-            else            { log('SPA stage created: ' + s.NAME, 'ok'); }
-            createNextStage();
-          });
+          } else {
+            BX24.callMethod('crm.status.add', {
+              fields: {
+                ENTITY_ID: entityId,
+                STATUS_ID: s.STATUS_ID,
+                NAME:      s.NAME,
+                SORT:      s.SORT,
+                COLOR:     s.COLOR,
+                SEMANTICS: s.SEMANTICS,
+              }
+            }, function (r) {
+              if (r.error()) { log('SPA stage add "' + s.NAME + '" failed: ' + r.error(), 'err'); }
+              else            { log('SPA stage created: ' + s.NAME, 'ok'); }
+              upsertNextStage();
+            });
+          }
         }
-        deleteNext();
+
+        deleteNextDefault();
       });
     }
 
@@ -745,6 +797,7 @@ export default async function handler(req, res) {
                 refresh_token: auth.refresh_token,
                 domain:        auth.domain,
                 member_id:     auth.member_id,
+                is_install:    true,
               }),
             }).then(function(r) { return r.json(); }).then(function(d) {
               if (d.ok) { log('System auth stored in KV \u2713', 'ok'); }

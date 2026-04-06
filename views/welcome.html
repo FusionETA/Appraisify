@@ -204,7 +204,16 @@
         // the welcome wizard on their next login (not just this browser/session).
         localStorage.setItem('appraisify_setup_done', '1');
         if (typeof BX24 !== 'undefined' && BX24.appOption) {
-          try { BX24.appOption.set('setup_done', '1'); } catch (e) { console.warn('appOption.set setup_done failed:', e); }
+          try {
+            // BX24.appOption.set is async — navigate only after the server confirms
+            // the value is stored, so it's available on the next BX24.init() call.
+            BX24.appOption.set('setup_done', '1', function () {
+              window.location.href = 'dashboard.html';
+            });
+            return; // navigation handled inside callback
+          } catch (e) {
+            console.warn('appOption.set setup_done failed:', e);
+          }
         }
         window.location.href = 'dashboard.html';
         return;

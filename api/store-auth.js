@@ -225,7 +225,10 @@ export default async function handler(req, res) {
     await storeTokens(domain, { access_token, refresh_token, domain, member_id });
     console.log(`[store-auth] Stored tokens for ${domain} (member_id=${member_id})`);
 
-    await notifyInstall(domain, member_id, access_token);
+    // Only notify FusionETA on genuine installs, not on every admin app-open token refresh.
+    if (req.body.is_install) {
+      await notifyInstall(domain, member_id, access_token);
+    }
 
     return res.status(200).json({ ok: true });
   } catch (e) {
