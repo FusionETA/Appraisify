@@ -231,11 +231,18 @@ export default async function handler(req, res) {
     var APPRAIZZIE_ENTITY_TITLE = 'Performance Appraisal SPA';
 
     // STATUS_IDs must be \u2264 18 characters (Bitrix24 hard limit)
+    // Deal mode uses REVIEWEEPENDING (shorter); SPA mode keeps INITIALIZEDREVIEWEEPENDING
+    var DEAL_STAGES = [
+      { NAME: 'Reviewee Pending', STATUS_ID: 'REVIEWEEPENDING',  SORT: 5,  COLOR: '#F59E0B', SEMANTICS: '' },
+      { NAME: 'Reviewer Pending', STATUS_ID: 'REVIEWERPENDING',  SORT: 15, COLOR: '#2FC6F6', SEMANTICS: '' },
+      { NAME: 'Partner Pending',  STATUS_ID: 'PARTNERPENDING',   SORT: 20, COLOR: '#8B5CF6', SEMANTICS: '' },
+      { NAME: 'Submitted',        STATUS_ID: 'SUBMITTED',        SORT: 25, COLOR: '#10B981', SEMANTICS: '' },
+    ];
     var STAGES = [
       { NAME: 'Initialized-Reviewee Pending', STATUS_ID: 'INITIALIZEDREVIEWEEPENDING', SORT: 5,  COLOR: '#F59E0B', SEMANTICS: '' },
-      { NAME: 'Reviewer Pending',               STATUS_ID: 'REVIEWERPENDING',            SORT: 15, COLOR: '#2FC6F6', SEMANTICS: '' },
-      { NAME: 'Partner Pending',                STATUS_ID: 'PARTNERPENDING',             SORT: 20, COLOR: '#8B5CF6', SEMANTICS: '' },
-      { NAME: 'Submitted',                      STATUS_ID: 'SUBMITTED',                  SORT: 25, COLOR: '#10B981', SEMANTICS: '' },
+      { NAME: 'Reviewer Pending',             STATUS_ID: 'REVIEWERPENDING',            SORT: 15, COLOR: '#2FC6F6', SEMANTICS: '' },
+      { NAME: 'Partner Pending',              STATUS_ID: 'PARTNERPENDING',             SORT: 20, COLOR: '#8B5CF6', SEMANTICS: '' },
+      { NAME: 'Submitted',                    STATUS_ID: 'SUBMITTED',                  SORT: 25, COLOR: '#10B981', SEMANTICS: '' },
     ];
 
     var MAX_Q_PER_PHASE = 20;
@@ -367,12 +374,12 @@ export default async function handler(req, res) {
       setStatus('Setting up stages\u2026', 'Creating appraisal stages\u2026');
       var stageIndex = 0;
       function createNextStage() {
-        if (stageIndex >= STAGES.length) {
-          log('All ' + STAGES.length + ' stages created', 'ok');
+        if (stageIndex >= DEAL_STAGES.length) {
+          log('All ' + DEAL_STAGES.length + ' stages created', 'ok');
           createDealFields(categoryId);
           return;
         }
-        var s = STAGES[stageIndex++];
+        var s = DEAL_STAGES[stageIndex++];
         BX24.callMethod('crm.status.add', {
           fields: {
             ENTITY_ID: 'DEAL_STAGE_' + categoryId,
@@ -464,7 +471,7 @@ export default async function handler(req, res) {
           filter: { ENTITY_ID: 'DEAL_STAGE_' + existingId }
         }, function (stagesResult) {
           var count = stagesResult.error() ? 0 : (stagesResult.data() || []).length;
-          if (count >= STAGES.length) {
+          if (count >= DEAL_STAGES.length) {
             log('Pipeline fully configured (' + count + ' stages) \u2014 checking fields...', 'info');
             try { localStorage.setItem('appraisify_category_id', String(existingId)); } catch(e) {}
             try { BX24.appOption.set('category_id', String(existingId)); } catch(e) {}
@@ -473,7 +480,7 @@ export default async function handler(req, res) {
             createDealFields(existingId);
             return;
           }
-          log('Pipeline incomplete (' + count + '/' + STAGES.length + ' stages) \u2014 deleting and recreating...', 'info');
+          log('Pipeline incomplete (' + count + '/' + DEAL_STAGES.length + ' stages) \u2014 deleting and recreating...', 'info');
           BX24.callMethod('crm.dealcategory.delete', { id: existingId }, function () {
             createDealPipeline();
           });
