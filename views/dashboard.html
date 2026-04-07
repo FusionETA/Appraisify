@@ -207,7 +207,10 @@
     <!-- Admin greeting + stats -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-extrabold text-slate-900">Admin Dashboard</h1>
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-extrabold text-slate-900">Admin Dashboard</h1>
+          <span id="mode-badge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-bold border"></span>
+        </div>
         <p class="text-slate-500 text-sm mt-0.5">Manage appraisal cycles and question sets</p>
       </div>
       <div class="flex gap-4">

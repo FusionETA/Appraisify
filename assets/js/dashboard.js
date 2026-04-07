@@ -48,6 +48,20 @@ BX24App.init(async () => {
     document.getElementById('nav-questions')?.classList.remove('hidden');
     document.getElementById('mobile-nav-questions')?.classList.remove('hidden');
     loadEmployeeTable();
+
+    // Show which CRM mode this portal is using
+    const mode = BX24App.getMode();
+    const modeBadge = document.getElementById('mode-badge');
+    if (modeBadge) {
+      if (mode === 'spa') {
+        modeBadge.textContent = 'SPA Mode';
+        modeBadge.classList.add('bg-blue-50', 'text-blue-600', 'border-blue-200');
+      } else {
+        modeBadge.textContent = 'Deal Mode';
+        modeBadge.classList.add('bg-amber-50', 'text-amber-600', 'border-amber-200');
+      }
+      modeBadge.classList.remove('hidden');
+    }
   }
 
   // Always show personal appraisal summary + pending task queue for everyone.
