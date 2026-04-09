@@ -223,29 +223,37 @@
     .phase-pill h4 { font-size: 15px; font-weight: 700; color: var(--gray-900); margin-bottom: 6px; }
     .phase-pill p  { font-size: 13px; color: var(--gray-600); }
 
-    /* ── SPA BANNER ── */
+    /* ── UPGRADE BANNER ── */
     .spa-banner {
       background: white; border-top: 1px solid var(--gray-200);
       padding: 60px 40px; text-align: center;
     }
     .spa-banner .spa-inner {
-      max-width: 680px; margin: 0 auto;
-      background: var(--gray-50); border: 2px solid var(--purple-light);
+      max-width: 720px; margin: 0 auto;
+      background: linear-gradient(135deg, #fefce8 0%, #f0fdf4 100%);
+      border: 2px solid #86efac;
       border-radius: 20px; padding: 40px 40px;
     }
     .spa-banner .spa-tag {
-      display: inline-block; background: #dbeafe; color: #1e40af;
+      display: inline-block; background: #dcfce7; color: #166534;
       font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
       text-transform: uppercase; padding: 4px 14px; border-radius: 999px; margin-bottom: 16px;
     }
     .spa-banner h3 { font-size: 22px; font-weight: 800; color: var(--gray-900); margin-bottom: 10px; }
     .spa-banner p  { font-size: 15px; color: var(--gray-600); line-height: 1.65; margin-bottom: 24px; }
+    .spa-banner .mode-pills { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
+    .spa-banner .mode-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 18px; border-radius: 999px; font-size: 13px; font-weight: 700;
+    }
+    .spa-banner .mode-pill.deal { background: #fef3c7; color: #92400e; border: 1.5px solid #fcd34d; }
+    .spa-banner .mode-pill.spa  { background: #dbeafe; color: #1e40af; border: 1.5px solid #93c5fd; }
     .spa-banner a.spa-link {
-      display: inline-block; background: var(--purple-light); color: var(--purple-dark);
+      display: inline-block; background: var(--purple); color: white;
       padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px;
       transition: background 0.2s, transform 0.15s;
     }
-    .spa-banner a.spa-link:hover { background: #ddd6fe; transform: translateY(-1px); }
+    .spa-banner a.spa-link:hover { background: var(--purple-dark); transform: translateY(-1px); }
 
     /* ── CTA ── */
     .cta-banner {
@@ -401,7 +409,7 @@
                 <td style="padding:9px 12px;"><span style="width:26px;height:26px;border-radius:50%;background:#dc2626;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:white;vertical-align:middle;margin-right:7px;">MK</span><span style="font-weight:700;color:#0f172a;">Mark Kong</span></td>
                 <td style="padding:9px 12px;font-size:11px;color:#64748b;">Operations Lead</td>
                 <td style="padding:9px 12px;font-size:11px;color:#64748b;">Operations</td>
-                <td style="padding:9px 12px;"><span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">Initialized</span></td>
+                <td style="padding:9px 12px;"><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">Reviewee Pending</span></td>
               </tr>
             </tbody>
           </table>
@@ -445,7 +453,7 @@
   <div class="features-grid">
     <div class="feature-card"><div class="feature-icon">📋</div><h3>Structured 3-Phase Workflow</h3><p>Self-assessment → Reviewer evaluation → Partner review. Each phase is gated — reviewers only unlock once the reviewee submits.</p></div>
     <div class="feature-card"><div class="feature-icon">🚀</div><h3>Bulk Appraisal Launch</h3><p>Select multiple employees and launch all their appraisal cycles at once. Configure once, apply to all.</p></div>
-    <div class="feature-card"><div class="feature-icon">📊</div><h3>CRM Deal Tracking</h3><p>Every appraisal is tracked as a CRM deal with a dedicated Kanban board for at-a-glance progress monitoring.</p></div>
+    <div class="feature-card"><div class="feature-icon">📊</div><h3>Deal Mode &amp; SPA Mode</h3><p>Works on Standard plan (CRM Deal mode) and Professional plan (SPA mode). Appraisify auto-configures at install — one app, two modes.</p></div>
     <div class="feature-card"><div class="feature-icon">📄</div><h3>PDF Report Generation</h3><p>Download a polished PDF report for any completed appraisal — ready to share with the employee or archive to HR records.</p></div>
     <div class="feature-card"><div class="feature-icon">🛠️</div><h3>Custom Question Templates</h3><p>Build and reuse your own question sets with scored questions and open-text fields tailored to your review criteria.</p></div>
     <div class="feature-card"><div class="feature-icon">🔒</div><h3>Role-Based Access</h3><p>Employees see only their own appraisal. Reviewers see only their assigned cases. Admins have full visibility.</p></div>
@@ -746,18 +754,19 @@
 <!-- ══════════════════════ SPA ALTERNATIVE ══════════════════════ -->
 <section class="spa-banner">
   <div class="spa-inner">
-    <div class="spa-tag">💡 Also on Bitrix24</div>
-    <h3>On a Professional plan or above? Try Appraizzie.</h3>
+    <div class="spa-tag">⬆️ Appraizzie Users — Upgrade Notice</div>
+    <h3>Already using Appraizzie? Appraisify is your upgrade.</h3>
     <p>
-      Both Appraisify and <strong>Appraizzie</strong> are powered by Bitrix24 — the difference is how
-      they integrate. Appraisify uses CRM deals, which makes it accessible to <strong>Standard plan users
-      and above</strong>. Appraizzie uses Bitrix24's SPA framework for a more embedded experience, but
-      requires a <strong>Professional plan or above</strong>. We're continuing to improve Appraisify
-      to support all workflows — but if you're on Professional and prefer the SPA approach, Appraizzie
-      is available now.
+      Appraisify is the actively developed successor to <strong>Appraizzie</strong>. It now supports
+      <strong>both CRM modes</strong> — so whether your portal is on Standard or Professional, Appraisify
+      configures itself automatically at install. Your appraisal data stays right where it is.
     </p>
-    <a href="https://fusioneta.com/appraizzie/performance-appraisal-app/" class="spa-link" target="_blank" rel="noopener noreferrer">
-      Explore Appraizzie →
+    <div class="mode-pills">
+      <span class="mode-pill deal">🟡 Deal Mode &nbsp;·&nbsp; Standard plan &amp; above</span>
+      <span class="mode-pill spa">🔵 SPA Mode &nbsp;·&nbsp; Professional plan &amp; above</span>
+    </div>
+    <a href="https://www.bitrix24.com/apps/app/fusion_eta.appraisify_v2/?skip_server_ip_redirect=Y" class="spa-link" target="_blank" rel="noopener noreferrer">
+      Switch to Appraisify →
     </a>
   </div>
 </section>
