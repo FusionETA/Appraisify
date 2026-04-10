@@ -1,0 +1,777 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --purple:        #7c3aed;
+      --purple-dark:   #5b21b6;
+      --purple-deep:   #4c1d95;
+      --purple-light:  #ede9fe;
+      --purple-xlight: #f5f3ff;
+      --app-blue:      #136dec;
+      --app-bg:        #f0f3f5;
+      --white:         #ffffff;
+      --gray-50:       #f8fafc;
+      --gray-100:      #f1f5f9;
+      --gray-200:      #e2e8f0;
+      --gray-400:      #94a3b8;
+      --gray-500:      #64748b;
+      --gray-600:      #475569;
+      --gray-800:      #1e293b;
+      --gray-900:      #0f172a;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--white);
+      color: var(--gray-800);
+      line-height: 1.6;
+    }
+    a { text-decoration: none; color: inherit; }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(135deg, var(--purple-xlight) 0%, var(--white) 60%);
+      padding: 90px 40px 80px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -120px; right: -120px;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .hero::after {
+      content: '';
+      position: absolute; bottom: -80px; left: -80px;
+      width: 350px; height: 350px;
+      background: radial-gradient(circle, rgba(124,58,237,0.08) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .hero-logo {
+      display: flex; align-items: center; justify-content: center;
+      gap: 14px; margin-bottom: 32px;
+      position: relative; z-index: 1;
+    }
+    .hero-logo svg { width: 56px; height: 56px; border-radius: 14px; box-shadow: 0 4px 20px rgba(124,58,237,0.25); }
+    .hero-logo-name { font-size: 28px; font-weight: 900; color: var(--purple-deep); letter-spacing: -0.02em; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--purple-light); color: var(--purple-dark);
+      font-size: 13px; font-weight: 600; padding: 6px 16px;
+      border-radius: 999px; margin-bottom: 24px;
+      position: relative; z-index: 1;
+    }
+    .hero h1 {
+      font-size: clamp(34px, 5vw, 58px); font-weight: 900;
+      color: var(--gray-900); line-height: 1.15;
+      max-width: 780px; margin: 0 auto 22px;
+      letter-spacing: -0.02em; position: relative; z-index: 1;
+    }
+    .hero h1 span { color: var(--purple); }
+    .hero > p {
+      font-size: 18px; color: var(--gray-600);
+      max-width: 560px; margin: 0 auto 36px;
+      position: relative; z-index: 1;
+    }
+    .hero-actions {
+      display: flex; gap: 14px; justify-content: center;
+      flex-wrap: wrap; position: relative; z-index: 1;
+    }
+    .btn-primary {
+      background: var(--purple); color: white;
+      padding: 14px 32px; border-radius: 10px;
+      font-weight: 700; font-size: 15px;
+      transition: background 0.2s, transform 0.15s; display: inline-block;
+    }
+    .btn-primary:hover { background: var(--purple-dark); transform: translateY(-1px); }
+    .btn-secondary {
+      background: white; color: var(--purple);
+      padding: 14px 32px; border-radius: 10px;
+      font-weight: 700; font-size: 15px;
+      border: 2px solid var(--purple-light);
+      transition: border-color 0.2s, transform 0.15s; display: inline-block;
+    }
+    .btn-secondary:hover { border-color: var(--purple); transform: translateY(-1px); }
+    .hero-sub { margin-top: 18px; font-size: 13px; color: var(--gray-400); position: relative; z-index: 1; }
+    .hero-mockup-wrap {
+      margin-top: 60px; position: relative; z-index: 1;
+      max-width: 960px; margin-left: auto; margin-right: auto;
+    }
+    .mockup-browser {
+      background: var(--app-bg); border-radius: 16px;
+      box-shadow: 0 24px 80px rgba(124,58,237,0.18), 0 4px 16px rgba(0,0,0,0.08);
+      overflow: hidden; border: 1px solid var(--purple-light);
+    }
+    .mockup-bar {
+      background: var(--gray-100); border-bottom: 1px solid var(--gray-200);
+      padding: 10px 16px; display: flex; align-items: center; gap: 6px;
+    }
+    .m-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .m-dot.r { background: #fc5c65; }
+    .m-dot.y { background: #fed330; }
+    .m-dot.g { background: #26de81; }
+    .m-url {
+      flex: 1; background: white; border: 1px solid var(--gray-200);
+      border-radius: 6px; padding: 4px 12px; font-size: 12px;
+      color: var(--gray-400); margin-left: 8px; font-family: monospace;
+    }
+
+    /* ── BUILT FOR ── */
+    .built-for {
+      background: var(--white);
+      border-top: 1px solid var(--gray-100);
+      border-bottom: 1px solid var(--gray-100);
+      padding: 24px 40px; text-align: center;
+    }
+    .built-for p {
+      font-size: 13px; font-weight: 600;
+      color: var(--gray-400); letter-spacing: 0.08em; text-transform: uppercase;
+    }
+
+    /* ── SECTIONS ── */
+    section { padding: 80px 40px; }
+    .section-label {
+      display: inline-block; background: var(--purple-light); color: var(--purple-dark);
+      font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 4px 14px; border-radius: 999px; margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: clamp(26px, 3.5vw, 40px); font-weight: 800;
+      color: var(--gray-900); line-height: 1.2;
+      letter-spacing: -0.02em; margin-bottom: 14px;
+    }
+    .section-sub { font-size: 16px; color: var(--gray-600); max-width: 560px; }
+    .section-header { margin-bottom: 56px; }
+    .center { text-align: center; margin-left: auto; margin-right: auto; }
+
+    /* ── FEATURES ── */
+    .features { background: var(--gray-50); }
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px; max-width: 1100px; margin: 0 auto;
+    }
+    .feature-card {
+      background: white; border: 1px solid #ede9fe;
+      border-radius: 16px; padding: 32px 28px;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .feature-card:hover { box-shadow: 0 8px 32px rgba(124,58,237,0.12); transform: translateY(-2px); }
+    .feature-icon {
+      width: 48px; height: 48px; background: var(--purple-light);
+      border-radius: 12px; display: flex; align-items: center;
+      justify-content: center; font-size: 22px; margin-bottom: 20px;
+    }
+    .feature-card h3 { font-size: 17px; font-weight: 700; color: var(--gray-900); margin-bottom: 10px; }
+    .feature-card p  { font-size: 14px; color: var(--gray-600); line-height: 1.65; }
+
+    /* ── SCREENSHOTS ── */
+    .screenshots { background: white; }
+    .screens-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 40px; max-width: 1100px; margin: 0 auto;
+    }
+    .screen-tag   { font-size: 12px; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .screen-title { font-size: 20px; font-weight: 800; color: var(--gray-900); margin-bottom: 8px; }
+    .screen-desc  { font-size: 14px; color: var(--gray-600); line-height: 1.65; margin-bottom: 18px; }
+    .screen-frame {
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid var(--gray-200);
+    }
+    .screen-bar {
+      background: #f1f5f9; border-bottom: 1px solid #e2e8f0;
+      padding: 8px 12px; display: flex; gap: 5px; align-items: center;
+    }
+    .sbar-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* ── HOW IT WORKS ── */
+    .how { background: var(--gray-50); }
+    .steps {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 32px; max-width: 1000px; margin: 0 auto;
+    }
+    .step { text-align: center; padding: 0 8px; }
+    .step-number {
+      width: 52px; height: 52px; background: var(--purple); color: white;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 800; margin: 0 auto 20px;
+    }
+    .step h3 { font-size: 16px; font-weight: 700; color: var(--gray-900); margin-bottom: 10px; }
+    .step p   { font-size: 14px; color: var(--gray-600); line-height: 1.65; }
+
+    /* ── PHASES ── */
+    .phases { background: var(--purple-xlight); }
+    .phases-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px; max-width: 1000px; margin: 0 auto;
+    }
+    .phase-pill {
+      background: white; border: 2px solid var(--purple-light);
+      border-radius: 14px; padding: 24px 20px; text-align: center;
+    }
+    .phase-pill .phase-num {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--purple); margin-bottom: 8px;
+    }
+    .phase-pill h4 { font-size: 15px; font-weight: 700; color: var(--gray-900); margin-bottom: 6px; }
+    .phase-pill p  { font-size: 13px; color: var(--gray-600); }
+
+    /* ── UPGRADE BANNER ── */
+    .spa-banner {
+      background: white; border-top: 1px solid var(--gray-200);
+      padding: 60px 40px; text-align: center;
+    }
+    .spa-banner .spa-inner {
+      max-width: 720px; margin: 0 auto;
+      background: linear-gradient(135deg, #fefce8 0%, #f0fdf4 100%);
+      border: 2px solid #86efac;
+      border-radius: 20px; padding: 40px 40px;
+    }
+    .spa-banner .spa-tag {
+      display: inline-block; background: #dcfce7; color: #166534;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 4px 14px; border-radius: 999px; margin-bottom: 16px;
+    }
+    .spa-banner h3 { font-size: 22px; font-weight: 800; color: var(--gray-900); margin-bottom: 10px; }
+    .spa-banner p  { font-size: 15px; color: var(--gray-600); line-height: 1.65; margin-bottom: 24px; }
+    .spa-banner .mode-pills { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
+    .spa-banner .mode-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 18px; border-radius: 999px; font-size: 13px; font-weight: 700;
+    }
+    .spa-banner .mode-pill.deal { background: #fef3c7; color: #92400e; border: 1.5px solid #fcd34d; }
+    .spa-banner .mode-pill.spa  { background: #dbeafe; color: #1e40af; border: 1.5px solid #93c5fd; }
+    .spa-banner a.spa-link {
+      display: inline-block; background: var(--purple); color: white;
+      padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .spa-banner a.spa-link:hover { background: var(--purple-dark); transform: translateY(-1px); }
+
+    /* ── CTA ── */
+    .cta-banner {
+      background: linear-gradient(135deg, var(--purple-deep) 0%, var(--purple) 100%);
+      padding: 80px 40px; text-align: center; color: white;
+    }
+    .cta-banner h2 {
+      font-size: clamp(28px, 4vw, 44px); font-weight: 800;
+      margin-bottom: 16px; letter-spacing: -0.02em;
+    }
+    .cta-banner p { font-size: 16px; opacity: 0.85; max-width: 480px; margin: 0 auto 36px; }
+    .btn-white {
+      background: white; color: var(--purple-dark);
+      padding: 14px 36px; border-radius: 10px; font-weight: 700; font-size: 15px;
+      display: inline-block; transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn-white:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+    .btn-outline-white {
+      background: transparent; color: white;
+      padding: 14px 36px; border-radius: 10px; font-weight: 700; font-size: 15px;
+      border: 2px solid rgba(255,255,255,0.4); display: inline-block;
+      transition: border-color 0.2s;
+    }
+    .btn-outline-white:hover { border-color: white; }
+
+    @media (max-width: 700px) {
+      .hero { padding: 60px 20px 50px; }
+      section { padding: 60px 20px; }
+      .cta-banner { padding: 60px 20px; }
+      .screens-grid { grid-template-columns: 1fr; }
+      .built-for { padding: 20px; }
+    }
+  
+</style>
+
+<!-- ══════════════════════ HERO ══════════════════════ -->
+<section class="hero">
+  <div class="hero-logo">
+    <svg width="512" height="512" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="200" height="200" rx="44" fill="#111827"/>
+      <path d="M44 146L84 88L120 122L160 64" stroke="#FBBF24" stroke-width="7" stroke-linecap="round"/>
+      <path d="M44 146L98 156L160 64" stroke="#60A5FA" stroke-width="5" stroke-linecap="round" stroke-opacity="0.85"/>
+      <circle cx="44" cy="146" r="8" fill="#FCD34D"/>
+      <circle cx="84" cy="88" r="8" fill="#FCD34D"/>
+      <circle cx="120" cy="122" r="8" fill="#FCD34D"/>
+      <circle cx="160" cy="64" r="8" fill="#FCD34D"/>
+      <circle cx="98" cy="156" r="8" fill="#93C5FD"/>
+      <circle cx="150" cy="154" r="6" fill="#6EE7B7"/>
+      <path d="M26 174H174" stroke="#374151" stroke-width="6" stroke-linecap="round"/>
+    </svg>
+    <span class="hero-logo-name">Appraisify</span>
+  </div>
+  <div class="hero-badge">🎯 Built for Bitrix24</div>
+  <h1>Performance Appraisals,<br/><span>done right</span> — inside Bitrix24</h1>
+  <p>Turn annual reviews into a structured, trackable workflow. Launch appraisal cycles, collect multi-phase feedback, and download PDF reports — all without leaving Bitrix24.</p>
+  <div class="hero-actions">
+    <a href="https://www.bitrix24.com/apps/app/fusion_eta.appraisify_v2/?skip_server_ip_redirect=Y" class="btn-primary">Install on Bitrix24 — Free</a>
+    <a href="mailto:rachel@fusioneta.com?subject=Book a Demo" class="btn-secondary">Book a Demo</a>
+  </div>
+  <p class="hero-sub">Free to install · No credit card required · Standard plan and above</p>
+
+  <!-- Hero Dashboard Mockup -->
+  <div class="hero-mockup-wrap">
+    <div class="mockup-browser">
+      <div class="mockup-bar">
+        <div class="m-dot r"></div><div class="m-dot y"></div><div class="m-dot g"></div>
+        <div class="m-url">your-portal.bitrix24.com · Appraisify</div>
+      </div>
+      <!-- App header -->
+      <div style="background:white;border-bottom:1px solid #e2e8f0;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;font-family:'Manrope',sans-serif;">
+        <div style="display:flex;align-items:center;gap:16px;height:100%;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="512" height="512" viewBox="0 0 200 200" fill="none" style="width:36px;height:36px;border-radius:9px;">
+              <rect width="200" height="200" rx="44" fill="#111827"/>
+              <path d="M44 146L84 88L120 122L160 64" stroke="#FBBF24" stroke-width="7" stroke-linecap="round"/>
+              <circle cx="44" cy="146" r="8" fill="#FCD34D"/>
+              <circle cx="160" cy="64" r="8" fill="#FCD34D"/>
+              <path d="M26 174H174" stroke="#374151" stroke-width="6" stroke-linecap="round"/>
+            </svg>
+            <span style="font-size:14px;font-weight:900;color:#0f172a;">Appraisify</span>
+          </div>
+          <div style="display:flex;align-items:center;height:100%;gap:2px;border-left:1px solid #f1f5f9;padding-left:16px;">
+            <div style="height:100%;display:flex;align-items:center;padding:0 12px;font-size:13px;font-weight:700;color:#136dec;border-bottom:2px solid #136dec;">Dashboard</div>
+            <div style="height:100%;display:flex;align-items:center;padding:0 12px;font-size:13px;font-weight:600;color:#64748b;">App Guide</div>
+            <div style="height:100%;display:flex;align-items:center;padding:0 12px;font-size:13px;font-weight:600;color:#64748b;">Subscription</div>
+            <div style="height:100%;display:flex;align-items:center;padding:0 12px;font-size:13px;font-weight:600;color:#64748b;">Questions</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:30px;height:30px;border-radius:50%;background:rgba(19,109,236,0.1);border:1px solid rgba(19,109,236,0.2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#136dec;">SL</div>
+          <span style="font-size:13px;font-weight:600;color:#334155;">Sarah Lim</span>
+        </div>
+      </div>
+      <!-- Dashboard body -->
+      <div style="background:#f0f3f5;padding:18px 20px;font-family:'Manrope',sans-serif;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div>
+            <div style="font-size:18px;font-weight:900;color:#0f172a;">Admin Dashboard</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Manage appraisal cycles and question sets</div>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:8px 14px;text-align:center;"><div style="font-size:20px;font-weight:900;color:#136dec;line-height:1;">3</div><div style="font-size:10px;color:#94a3b8;font-weight:500;margin-top:2px;">Active</div></div>
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:8px 14px;text-align:center;"><div style="font-size:20px;font-weight:900;color:#f59e0b;line-height:1;">5</div><div style="font-size:10px;color:#94a3b8;font-weight:500;margin-top:2px;">Pending</div></div>
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:8px 14px;text-align:center;"><div style="font-size:20px;font-weight:900;color:#10b981;line-height:1;">12</div><div style="font-size:10px;color:#94a3b8;font-weight:500;margin-top:2px;">Complete</div></div>
+          </div>
+        </div>
+        <!-- Employee table -->
+        <div style="background:white;border-radius:14px;border:1px solid #e2e8f0;overflow:hidden;margin-bottom:12px;">
+          <div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;background:rgba(248,250,252,0.5);display:flex;justify-content:space-between;align-items:center;">
+            <div><div style="font-size:13px;font-weight:700;color:#0f172a;">Employees</div><div style="font-size:11px;color:#94a3b8;margin-top:1px;">Select employees to start an appraisal cycle</div></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <div style="background:white;border:1px solid #e2e8f0;border-radius:7px;padding:6px 10px 6px 28px;font-size:12px;color:#94a3b8;position:relative;">
+                <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;">🔍</span>Search…
+              </div>
+              <div style="background:#136dec;color:white;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:4px;">▶ Start Appraisal</div>
+            </div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:rgba(248,250,252,0.4);border-bottom:1px solid #f1f5f9;">
+                <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;width:36px;"><div style="width:13px;height:13px;border:2px solid #136dec;border-radius:3px;background:#136dec;display:inline-block;"></div></th>
+                <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Employee</th>
+                <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Position</th>
+                <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Department</th>
+                <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #f8fafc;">
+                <td style="padding:9px 12px;"><div style="width:13px;height:13px;border:2px solid #136dec;border-radius:3px;background:#136dec;display:inline-block;"></div></td>
+                <td style="padding:9px 12px;"><span style="width:26px;height:26px;border-radius:50%;background:#7c3aed;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:white;vertical-align:middle;margin-right:7px;">SL</span><span style="font-weight:700;color:#0f172a;">Sarah Lim</span></td>
+                <td style="padding:9px 12px;font-size:11px;color:#64748b;">Senior Engineer</td>
+                <td style="padding:9px 12px;font-size:11px;color:#64748b;">Engineering</td>
+                <td style="padding:9px 12px;"><span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">Submitted</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid #f8fafc;">
+                <td style="padding:9px 12px;"><div style="width:13px;height:13px;border:2px solid #136dec;border-radius:3px;background:#136dec;display:inline-block;"></div></td>
+                <td style="padding:9px 12px;"><span style="width:26px;height:26px;border-radius:50%;background:#0891b2;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:white;vertical-align:middle;margin-right:7px;">JT</span><span style="font-weight:700;color:#0f172a;">James Tan</span></td>
+                <td style="padding:9px 12px;font-size:11px;color:#64748b;">Sales Executive</td>
+                <td style="padding:9px 12px;font-size:11px;color:#64748b;">Sales</td>
+                <td style="padding:9px 12px;"><span style="background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">Reviewer Pending</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid #f8fafc;">
+                <td style="padding:9px 12px;"><div style="width:13px;height:13px;border:2px solid #e2e8f0;border-radius:3px;display:inline-block;"></div></td>
+                <td style="padding:9px 12px;"><span style="width:26px;height:26px;border-radius:50%;background:#059669;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:white;vertical-align:middle;margin-right:7px;">AR</span><span style="font-weight:700;color:#0f172a;">Aisha Rahman</span></td>
+                <td style="padding:9px 12px;font-size:11px;color:#64748b;">HR Manager</td>
+                <td style="padding:9px 12px;font-size:11px;color:#64748b;">Human Resources</td>
+                <td style="padding:9px 12px;"><span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">Reviewee Pending</span></td>
+              </tr>
+              <tr>
+                <td style="padding:9px 12px;"><div style="width:13px;height:13px;border:2px solid #e2e8f0;border-radius:3px;display:inline-block;"></div></td>
+                <td style="padding:9px 12px;"><span style="width:26px;height:26px;border-radius:50%;background:#dc2626;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:white;vertical-align:middle;margin-right:7px;">MK</span><span style="font-weight:700;color:#0f172a;">Mark Kong</span></td>
+                <td style="padding:9px 12px;font-size:11px;color:#64748b;">Operations Lead</td>
+                <td style="padding:9px 12px;font-size:11px;color:#64748b;">Operations</td>
+                <td style="padding:9px 12px;"><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;">Reviewee Pending</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="background:rgba(19,109,236,0.05);border-top:1px solid rgba(19,109,236,0.15);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12px;font-weight:700;color:#136dec;">2 employee(s) selected</span>
+            <div style="background:#136dec;color:white;padding:7px 14px;border-radius:7px;font-size:11px;font-weight:700;">▶ Start Appraisal for Selected</div>
+          </div>
+        </div>
+        <!-- Quick-action cards -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div style="background:white;border-radius:12px;border:1px solid #e2e8f0;padding:14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:38px;height:38px;border-radius:10px;background:rgba(19,109,236,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">➕</div>
+            <div><div style="font-size:12px;font-weight:700;color:#0f172a;">Question Builder</div><div style="font-size:10px;color:#94a3b8;margin-top:1px;">Create question sets</div></div>
+          </div>
+          <div style="background:white;border-radius:12px;border:1px solid #e2e8f0;padding:14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:38px;height:38px;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📝</div>
+            <div><div style="font-size:12px;font-weight:700;color:#0f172a;">Question Editor</div><div style="font-size:10px;color:#94a3b8;margin-top:1px;">Edit existing sets</div></div>
+          </div>
+          <div style="background:white;border-radius:12px;border:1px solid #e2e8f0;padding:14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:38px;height:38px;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">⚙️</div>
+            <div><div style="font-size:12px;font-weight:700;color:#0f172a;">Custom Options</div><div style="font-size:10px;color:#94a3b8;margin-top:1px;">Manage settings</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BUILT FOR -->
+<div class="built-for">
+  <p>🔗 &nbsp; A native Bitrix24 marketplace application by FusionETA</p>
+</div>
+
+<!-- ══════════════════════ FEATURES ══════════════════════ -->
+<section class="features" id="features">
+  <div class="section-header center">
+    <div class="section-label">Features</div>
+    <h2 class="section-title">Everything you need for a complete appraisal cycle</h2>
+    <p class="section-sub center">No external tools. No spreadsheets. Everything runs natively inside your Bitrix24 portal.</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card"><div class="feature-icon">📋</div><h3>Structured 3-Phase Workflow</h3><p>Self-assessment → Reviewer evaluation → Partner review. Each phase is gated — reviewers only unlock once the reviewee submits.</p></div>
+    <div class="feature-card"><div class="feature-icon">🚀</div><h3>Bulk Appraisal Launch</h3><p>Select multiple employees and launch all their appraisal cycles at once. Configure once, apply to all.</p></div>
+    <div class="feature-card"><div class="feature-icon">📊</div><h3>Deal Mode &amp; SPA Mode</h3><p>Works on Standard plan (CRM Deal mode) and Professional plan (SPA mode). Appraisify auto-configures at install — one app, two modes.</p></div>
+    <div class="feature-card"><div class="feature-icon">📄</div><h3>PDF Report Generation</h3><p>Download a polished PDF report for any completed appraisal — ready to share with the employee or archive to HR records.</p></div>
+    <div class="feature-card"><div class="feature-icon">🛠️</div><h3>Custom Question Templates</h3><p>Build and reuse your own question sets with scored questions and open-text fields tailored to your review criteria.</p></div>
+    <div class="feature-card"><div class="feature-icon">🔒</div><h3>Role-Based Access</h3><p>Employees see only their own appraisal. Reviewers see only their assigned cases. Admins have full visibility.</p></div>
+  </div>
+</section>
+
+<!-- ══════════════════════ SCREENSHOTS ══════════════════════ -->
+<section class="screenshots" id="screenshots">
+  <div class="section-header center">
+    <div class="section-label">App Preview</div>
+    <h2 class="section-title">See it in action</h2>
+    <p class="section-sub center">A clean, intuitive interface built to feel native inside Bitrix24.</p>
+  </div>
+
+  <div class="screens-grid">
+
+    <!-- 1. Appraisal Form -->
+    <div class="screen-card">
+      <div class="screen-tag">Appraisal Form</div>
+      <h3 class="screen-title">Score each question across all three phases</h3>
+      <p class="screen-desc">Self, Reviewer, and Partner scores appear side by side in a clean table — with a comment field per question and real-time average score tracking.</p>
+      <div class="screen-frame">
+        <div class="screen-bar">
+          <div class="sbar-dot" style="background:#fc5c65;"></div>
+          <div class="sbar-dot" style="background:#fed330;"></div>
+          <div class="sbar-dot" style="background:#26de81;"></div>
+        </div>
+        <div style="background:white;border-bottom:1px solid #e2e8f0;padding:0 22px;height:50px;display:flex;align-items:center;justify-content:space-between;font-family:'Manrope',sans-serif;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <span style="font-size:11px;color:#64748b;font-weight:600;">← Dashboard</span>
+            <div style="display:flex;align-items:center;gap:8px;border-left:1px solid #e2e8f0;padding-left:14px;">
+              <div style="width:28px;height:28px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#136dec;">R</div>
+              <div><div style="font-size:11px;font-weight:800;color:#0f172a;line-height:1.2;">Rachel</div><div style="font-size:9px;color:#94a3b8;line-height:1.2;margin-top:2px;">Self-Assessment</div></div>
+            </div>
+          </div>
+          <span style="background:#fef9c3;color:#92400e;font-size:9px;font-weight:700;padding:4px 12px;border-radius:999px;">Self-Assessment Phase</span>
+        </div>
+        <div style="background:#f0f3f5;padding:16px 18px;font-family:'Manrope',sans-serif;">
+          <div style="background:white;border-radius:12px;border:1px solid #e2e8f0;padding:14px 18px;margin-bottom:12px;">
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:16px;">
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px;">Reviewee</div><div style="font-size:10px;font-weight:700;color:#0f172a;">Rachel</div></div>
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px;">Reviewer</div><div style="font-size:10px;color:#94a3b8;font-style:italic;">TBD</div></div>
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px;">Partner</div><div style="font-size:10px;color:#94a3b8;font-style:italic;">TBD</div></div>
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px;">Year</div><div style="font-size:10px;font-weight:700;color:#0f172a;">2024</div></div>
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px;">Team</div><div style="font-size:10px;font-weight:700;color:#0f172a;">Engineering</div></div>
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px;">Role</div><div style="font-size:10px;color:#94a3b8;">—</div></div>
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:4px;">Ref#</div><div style="font-size:9px;font-weight:700;color:#0f172a;font-family:monospace;">#APR-58062</div></div>
+            </div>
+          </div>
+          <div style="background:white;border-radius:12px;border:1px solid #e2e8f0;padding:10px 18px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:10px;font-weight:600;color:#334155;">Completion</span>
+            <span style="font-size:10px;font-weight:800;color:#136dec;">0 / 9 questions answered</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:12px;">
+            <div style="padding:5px 14px;border-radius:999px;font-size:10px;font-weight:700;background:#136dec;color:white;">All</div>
+            <div style="padding:5px 14px;border-radius:999px;font-size:10px;font-weight:600;color:#475569;border:1px solid #e2e8f0;background:white;">Marketing Execution</div>
+          </div>
+          <div style="background:white;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+            <div style="padding:12px 18px;border-bottom:1px solid #f1f5f9;">
+              <span style="font-size:12px;font-weight:800;color:#0f172a;">Marketing Execution</span>
+            </div>
+            <div style="display:grid;grid-template-columns:2fr 72px 72px 72px 1.4fr;column-gap:20px;padding:8px 18px;border-bottom:1px solid #f1f5f9;background:#f8fafc;">
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;">Question</div>
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#f97316;text-align:center;">✏ Self</div>
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;text-align:center;">Reviewer</div>
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;text-align:center;">Partner</div>
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;">Comments</div>
+            </div>
+            <div style="display:grid;grid-template-columns:2fr 72px 72px 72px 1.4fr;column-gap:20px;padding:14px 18px;border-bottom:1px solid #f1f5f9;align-items:start;">
+              <div style="font-size:10px;color:#334155;line-height:1.5;padding-right:4px;">Plans and executes campaigns aligned with business goals.</div>
+              <div style="text-align:center;"><div style="border:2px solid #136dec;border-radius:7px;padding:6px 0;font-size:10px;font-weight:700;color:#136dec;text-align:center;">1–5</div></div>
+              <div style="text-align:center;"><div style="border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 0;font-size:9px;color:#94a3b8;text-align:center;">Pending</div></div>
+              <div style="text-align:center;"><div style="border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 0;font-size:9px;color:#94a3b8;text-align:center;">Pending</div></div>
+              <div><div style="border:1px solid #e2e8f0;border-radius:7px;padding:7px 9px;font-size:9px;color:#94a3b8;min-height:44px;line-height:1.5;">Add your comments…</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:2fr 72px 72px 72px 1.4fr;column-gap:20px;padding:14px 18px;align-items:start;">
+              <div style="font-size:10px;color:#334155;line-height:1.5;padding-right:4px;">Produces high-quality content with clear messaging and impact.</div>
+              <div style="text-align:center;"><div style="border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 0;font-size:10px;font-weight:600;color:#334155;text-align:center;">1–5</div></div>
+              <div style="text-align:center;"><div style="border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 0;font-size:9px;color:#94a3b8;text-align:center;">Pending</div></div>
+              <div style="text-align:center;"><div style="border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 0;font-size:9px;color:#94a3b8;text-align:center;">Pending</div></div>
+              <div><div style="border:1px solid #e2e8f0;border-radius:7px;padding:7px 9px;font-size:9px;color:#94a3b8;min-height:44px;line-height:1.5;">Add your comments…</div></div>
+            </div>
+          </div>
+        </div>
+        <div style="background:white;border-top:1px solid #e2e8f0;padding:0 18px;height:54px;display:flex;align-items:center;justify-content:space-between;font-family:'Manrope',sans-serif;">
+          <div style="display:flex;gap:8px;">
+            <div style="padding:7px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:10px;font-weight:600;color:#475569;">💾 Save Draft</div>
+            <div style="padding:7px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:10px;font-weight:600;color:#475569;">⬇ Download Draft</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <div style="text-align:center;"><div style="font-size:9px;color:#94a3b8;margin-bottom:2px;">Avg Score</div><div style="font-size:18px;font-weight:900;color:#136dec;line-height:1;border-bottom:2px solid #136dec;padding-bottom:1px;">—</div></div>
+            <div style="background:#136dec;color:white;padding:9px 18px;border-radius:9px;font-size:11px;font-weight:700;">▷ Submit Self-Appraisal</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PDF Report -->
+    <div class="screen-card">
+      <div class="screen-tag">PDF Report</div>
+      <h3 class="screen-title">A complete, branded report for every cycle</h3>
+      <p class="screen-desc">When all phases are done, download a professional PDF showing all scores and comments from Self, Reviewer, and Partner — ready to archive or share.</p>
+      <div class="screen-frame">
+        <div class="screen-bar">
+          <div class="sbar-dot" style="background:#fc5c65;"></div>
+          <div class="sbar-dot" style="background:#fed330;"></div>
+          <div class="sbar-dot" style="background:#26de81;"></div>
+        </div>
+        <div style="background:white;border-bottom:1px solid #e2e8f0;padding:0 22px;height:48px;display:flex;align-items:center;justify-content:space-between;font-family:'Manrope',sans-serif;">
+          <span style="font-size:11px;color:#475569;font-weight:700;">Appraisal Report Preview</span>
+          <div style="display:flex;gap:8px;">
+            <div style="background:#136dec;color:white;padding:6px 14px;border-radius:7px;font-size:10px;font-weight:700;">🖨 Print / Save PDF</div>
+            <div style="border:1px solid #e2e8f0;color:#475569;padding:6px 12px;border-radius:7px;font-size:10px;font-weight:600;">✕ Close</div>
+          </div>
+        </div>
+        <div style="background:white;padding:18px 22px;font-family:'Manrope',sans-serif;">
+          <div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <svg width="512" height="512" viewBox="0 0 200 200" fill="none" style="width:28px;height:28px;border-radius:7px;flex-shrink:0;">
+                <rect width="200" height="200" rx="44" fill="#111827"/>
+                <path d="M44 146L84 88L120 122L160 64" stroke="#FBBF24" stroke-width="7" stroke-linecap="round"/>
+                <circle cx="44" cy="146" r="8" fill="#FCD34D"/>
+                <circle cx="160" cy="64" r="8" fill="#FCD34D"/>
+                <path d="M26 174H174" stroke="#374151" stroke-width="6" stroke-linecap="round"/>
+              </svg>
+              <div><div style="font-size:11px;font-weight:800;color:#0f172a;">Appraisify</div><div style="font-size:9px;color:#94a3b8;margin-top:1px;">Performance, made clear.</div></div>
+            </div>
+            <div style="font-size:17px;font-weight:900;color:#0f172a;margin-bottom:3px;">Performance Appraisal Report</div>
+            <div style="font-size:9px;color:#94a3b8;">Generated: 11/03/2026, 15:22:13</div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:12px;padding:12px 18px;margin-bottom:12px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:3px;">Employee</div><div style="font-size:10px;font-weight:700;color:#0f172a;">Demo Rachel</div></div>
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:3px;">Deal ID</div><div style="font-size:10px;font-weight:700;color:#0f172a;">58052</div></div>
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:3px;">Cycle</div><div style="font-size:10px;font-weight:700;color:#0f172a;">Demo Rachel – Annual Q4 2024</div></div>
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:3px;">Status</div><div style="display:inline-block;background:#dcfce7;color:#166534;font-size:9px;font-weight:700;padding:2px 8px;border-radius:999px;">Complete</div></div>
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:3px;">Template</div><div style="font-size:10px;font-weight:700;color:#0f172a;">PIP (Performance Improvement Plan)</div></div>
+              <div><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:3px;">Domain</div><div style="font-size:10px;font-weight:700;color:#0f172a;">fusion.bitrix24.com</div></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:6px;">Self Avg</div><div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1;">4.17</div></div>
+            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:6px;">Reviewer Avg</div><div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1;">4.01</div></div>
+            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:6px;">Partner Avg</div><div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1;">4.07</div></div>
+            <div style="border:2px solid #dbeafe;border-radius:10px;padding:14px 16px;background:#f0f6ff;"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#136dec;margin-bottom:6px;">Total Avg</div><div style="font-size:24px;font-weight:900;color:#136dec;line-height:1;">4.08</div></div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+            <div style="padding:12px 18px;border-bottom:1px solid #f1f5f9;background:#f8fafc;">
+              <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:4px;">Question 1 · PIP Progress</div>
+              <div style="font-size:12px;font-weight:700;color:#0f172a;">Shows measurable progress on defined PIP goals.</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;">
+              <div style="padding:14px 22px;border-right:1px solid #f1f5f9;">
+                <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:4px;">Self · Score: <span style="color:#0f172a;">4.2</span></div>
+                <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-top:10px;margin-bottom:4px;">Comment</div>
+                <div style="font-size:10px;color:#475569;line-height:1.6;border:1px solid #f1f5f9;border-radius:7px;padding:7px 9px;">I have made steady progress toward the goals outlined in the PIP…</div>
+              </div>
+              <div style="padding:14px 22px;border-right:1px solid #f1f5f9;">
+                <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:4px;">Reviewer · Score: <span style="color:#0f172a;">4.0</span></div>
+                <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-top:10px;margin-bottom:4px;">Comment</div>
+                <div style="font-size:10px;color:#475569;line-height:1.6;border:1px solid #f1f5f9;border-radius:7px;padding:7px 9px;">Rachel has demonstrated measurable progress on several PIP goals…</div>
+              </div>
+              <div style="padding:14px 22px;">
+                <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:4px;">Partner · Score: <span style="color:#0f172a;">4.1</span></div>
+                <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-top:10px;margin-bottom:4px;">Comment</div>
+                <div style="font-size:10px;color:#475569;line-height:1.6;border:1px solid #f1f5f9;border-radius:7px;padding:7px 9px;">I have observed clear improvement in the areas targeted in the PIP…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. CRM Kanban -->
+    <div class="screen-card">
+      <div class="screen-tag">CRM Kanban</div>
+      <h3 class="screen-title">Track every appraisal across 4 pipeline stages</h3>
+      <p class="screen-desc">Appraisify creates a dedicated pipeline in your Bitrix24 CRM. The Kanban shows every active appraisal deal moving through all 4 stages in real time.</p>
+      <div class="screen-frame" style="padding:0;overflow:hidden;">
+        <img src="https://appraisify-ten.vercel.app/assets/screenshots/crm-kanban.png"
+             alt="Appraisify CRM Kanban board — 4 pipeline stages in Bitrix24"
+             style="width:100%;display:block;border-radius:0 0 12px 12px;">
+      </div>
+    </div>
+
+    <!-- 4. Question Builder -->
+    <div class="screen-card">
+      <div class="screen-tag">Question Builder</div>
+      <h3 class="screen-title">Build custom question sets for any team or role</h3>
+      <p class="screen-desc">Create reusable question templates scoped to appraisal type, team, and role level. Add scored and open-text questions, then save as named templates.</p>
+      <div class="screen-frame">
+        <div class="screen-bar">
+          <div class="sbar-dot" style="background:#fc5c65;"></div>
+          <div class="sbar-dot" style="background:#fed330;"></div>
+          <div class="sbar-dot" style="background:#26de81;"></div>
+        </div>
+        <div style="background:white;border-bottom:1px solid #e2e8f0;padding:0 22px;height:50px;display:flex;align-items:center;gap:16px;font-family:'Manrope',sans-serif;">
+          <span style="font-size:11px;color:#64748b;font-weight:600;">← Dashboard</span>
+          <div style="display:flex;align-items:center;gap:8px;border-left:1px solid #e2e8f0;padding-left:16px;">
+            <svg width="512" height="512" viewBox="0 0 200 200" fill="none" style="width:28px;height:28px;border-radius:7px;">
+              <rect width="200" height="200" rx="44" fill="#111827"/>
+              <path d="M44 146L84 88L120 122L160 64" stroke="#FBBF24" stroke-width="7" stroke-linecap="round"/>
+              <circle cx="44" cy="146" r="8" fill="#FCD34D"/>
+              <circle cx="160" cy="64" r="8" fill="#FCD34D"/>
+            </svg>
+            <span style="font-size:12px;font-weight:800;color:#0f172a;">Question Builder</span>
+          </div>
+        </div>
+        <div style="background:#f0f3f5;padding:16px 18px;font-family:'Manrope',sans-serif;">
+          <div style="background:white;border-radius:12px;border:1px solid #e2e8f0;padding:14px 18px;margin-bottom:12px;">
+            <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin-bottom:12px;">Template Scope</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:14px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="font-size:10px;font-weight:600;color:#334155;">Appraisal Type</span><span style="font-size:9px;color:#136dec;font-weight:600;">+ Add custom</span></div>
+                <div style="border:1px solid #e2e8f0;border-radius:7px;padding:8px 12px;font-size:10px;color:#94a3b8;background:white;display:flex;justify-content:space-between;align-items:center;">— Select type — <span style="color:#94a3b8;">▾</span></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="font-size:10px;font-weight:600;color:#334155;">Target Team</span><span style="font-size:9px;color:#136dec;font-weight:600;">+ Add custom</span></div>
+                <div style="border:1px solid #e2e8f0;border-radius:7px;padding:8px 12px;font-size:10px;color:#94a3b8;background:white;display:flex;justify-content:space-between;align-items:center;">— Select team — <span style="color:#94a3b8;">▾</span></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="font-size:10px;font-weight:600;color:#334155;">Role Level</span><span style="font-size:9px;color:#136dec;font-weight:600;">+ Add custom</span></div>
+                <div style="border:1px solid #e2e8f0;border-radius:7px;padding:8px 12px;font-size:10px;color:#94a3b8;background:white;display:flex;justify-content:space-between;align-items:center;">— Select level — <span style="color:#94a3b8;">▾</span></div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:600;color:#334155;margin-bottom:6px;">Scope of Work <span style="font-weight:400;color:#94a3b8;font-size:9px;">(responsibilities this appraisal covers)</span></div>
+              <div style="display:flex;gap:8px;">
+                <div style="flex:1;border:1px solid #e2e8f0;border-radius:7px;padding:8px 12px;font-size:10px;color:#94a3b8;">e.g. Frontend development, Code reviews…</div>
+                <div style="background:#136dec;color:white;padding:8px 16px;border-radius:7px;font-size:10px;font-weight:700;">Add</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 3fr;gap:20px;">
+            <div style="background:white;border-radius:12px;border:1px solid #e2e8f0;padding:16px 18px;">
+              <div style="font-size:12px;font-weight:800;color:#0f172a;margin-bottom:14px;">⊕ New Question</div>
+              <div style="margin-bottom:10px;"><div style="font-size:10px;font-weight:600;color:#334155;margin-bottom:5px;">Section</div><div style="border:1px solid #e2e8f0;border-radius:7px;padding:8px 12px;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;align-items:center;">— Select section — <span>▾</span></div></div>
+              <div style="margin-bottom:10px;">
+                <div style="font-size:10px;font-weight:600;color:#334155;margin-bottom:5px;">Create New Section</div>
+                <div style="display:flex;gap:6px;"><div style="flex:1;border:1px solid #e2e8f0;border-radius:7px;padding:8px 12px;font-size:10px;color:#94a3b8;">e.g. Technical Skills</div><div style="background:#136dec;color:white;padding:8px 12px;border-radius:7px;font-size:10px;font-weight:700;">Add</div></div>
+              </div>
+              <div style="margin-bottom:10px;"><div style="font-size:10px;font-weight:600;color:#334155;margin-bottom:5px;">Question Text <span style="color:#ef4444;">*</span></div><div style="border:1px solid #e2e8f0;border-radius:7px;padding:8px 12px;font-size:10px;color:#94a3b8;min-height:54px;line-height:1.5;">e.g. How effectively does the employee communicate with stakeholders?</div></div>
+              <div style="margin-bottom:14px;"><div style="font-size:10px;font-weight:600;color:#334155;margin-bottom:5px;">Description <span style="font-weight:400;color:#94a3b8;">(optional)</span></div><div style="border:1px solid #e2e8f0;border-radius:7px;padding:8px 12px;font-size:9px;color:#94a3b8;min-height:38px;line-height:1.5;">Optional: provide guidance on how to score this question…</div></div>
+              <div style="background:#136dec;color:white;padding:9px;border-radius:8px;font-size:11px;font-weight:700;text-align:center;">+ Add to List</div>
+            </div>
+            <div style="background:white;border-radius:12px;border:1px solid #e2e8f0;padding:16px 18px;display:flex;flex-direction:column;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div style="font-size:12px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:6px;">☰ Question Set <span style="background:#e2e8f0;color:#475569;font-size:9px;padding:2px 8px;border-radius:999px;font-weight:700;">0</span></div>
+                <div style="border:1px solid #e2e8f0;border-radius:7px;padding:6px 12px;font-size:10px;color:#334155;">Scope of Work ▾</div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 0;text-align:center;">
+                <div style="font-size:36px;color:#e2e8f0;margin-bottom:10px;">?</div>
+                <div style="font-size:10px;color:#94a3b8;line-height:1.6;max-width:200px;">No questions yet.<br>Use the form on the left to add your first question.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="background:white;border-top:1px solid #e2e8f0;padding:0 18px;height:54px;display:flex;align-items:center;justify-content:space-between;font-family:'Manrope',sans-serif;">
+          <div style="padding:8px 18px;border:1px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:600;color:#475569;">✕ Discard</div>
+          <div style="background:#136dec;color:white;padding:9px 22px;border-radius:9px;font-size:11px;font-weight:700;">💾 Save Template</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════ HOW IT WORKS ══════════════════════ -->
+<section class="how" id="how">
+  <div class="section-header center">
+    <div class="section-label">Getting Started</div>
+    <h2 class="section-title">Up and running in minutes</h2>
+    <p class="section-sub center">One-click install from Bitrix24 Market. No configuration needed — Appraisify sets itself up automatically.</p>
+  </div>
+  <div class="steps">
+    <div class="step"><div class="step-number">1</div><h3>Install from Bitrix24 Market</h3><p>Find Appraisify in the marketplace and click Install. The app opens automatically inside your portal.</p></div>
+    <div class="step"><div class="step-number">2</div><h3>Complete the Setup Wizard</h3><p>The admin sees a one-time welcome wizard. Appraisify auto-creates your CRM pipeline, stages, and custom fields.</p></div>
+    <div class="step"><div class="step-number">3</div><h3>Launch Your First Appraisal</h3><p>Select employees, choose a question template, assign a reviewer and partner, and click Launch.</p></div>
+    <div class="step"><div class="step-number">4</div><h3>Track, Review &amp; Report</h3><p>Monitor progress on the Kanban board. Download PDF reports when cycles complete.</p></div>
+  </div>
+</section>
+
+<!-- ══════════════════════ PHASES ══════════════════════ -->
+<section class="phases" id="workflow">
+  <div class="section-header center">
+    <div class="section-label">Appraisal Workflow</div>
+    <h2 class="section-title">Four clear stages, zero confusion</h2>
+    <p class="section-sub center">Each appraisal moves through a defined pipeline so everyone knows exactly where things stand.</p>
+  </div>
+  <div class="phases-grid">
+    <div class="phase-pill"><div class="phase-num">Stage 1</div><h4>Reviewee Pending</h4><p>Employee completes self-assessment</p></div>
+    <div class="phase-pill"><div class="phase-num">Stage 2</div><h4>Reviewer Pending</h4><p>Line manager submits evaluation</p></div>
+    <div class="phase-pill"><div class="phase-num">Stage 3</div><h4>Partner Pending</h4><p>Secondary reviewer adds input</p></div>
+    <div class="phase-pill"><div class="phase-num">Stage 4</div><h4>Submitted</h4><p>Complete — PDF report ready</p></div>
+  </div>
+</section>
+
+<!-- ══════════════════════ SPA ALTERNATIVE ══════════════════════ -->
+<section class="spa-banner">
+  <div class="spa-inner">
+    <div class="spa-tag">⬆️ Appraizzie Users — Upgrade Notice</div>
+    <h3>Already using Appraizzie? Appraisify is your upgrade.</h3>
+    <p>
+      Appraisify is the actively developed successor to <strong>Appraizzie</strong>. It now supports
+      <strong>both CRM modes</strong> — so whether your portal is on Standard or Professional, Appraisify
+      configures itself automatically at install. Your appraisal data stays right where it is.
+    </p>
+    <div class="mode-pills">
+      <span class="mode-pill deal">🟡 Deal Mode &nbsp;·&nbsp; Standard plan &amp; above</span>
+      <span class="mode-pill spa">🔵 SPA Mode &nbsp;·&nbsp; Professional plan &amp; above</span>
+    </div>
+    <a href="https://www.bitrix24.com/apps/app/fusion_eta.appraisify_v2/?skip_server_ip_redirect=Y" class="spa-link" target="_blank" rel="noopener noreferrer">
+      Switch to Appraisify →
+    </a>
+  </div>
+</section>
+
+<!-- ══════════════════════ CTA ══════════════════════ -->
+<section class="cta-banner">
+  <h2>Ready to modernise your appraisal process?</h2>
+  <p>Install Appraisify for free from the Bitrix24 marketplace — or book a live walkthrough with our team.</p>
+  <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+    <a href="https://www.bitrix24.com/apps/app/fusion_eta.appraisify_v2/?skip_server_ip_redirect=Y" class="btn-white">Install on Bitrix24</a>
+    <a href="mailto:rachel@fusioneta.com?subject=Book a Demo" class="btn-outline-white">Book a Demo</a>
+  </div>
+</section>
