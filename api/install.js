@@ -441,8 +441,12 @@ export default async function handler(req, res) {
       });
     }
 
+    // Names that previous versions of the app may have used for the deal pipeline.
+    // If any of these are found we reuse and rename the pipeline instead of creating a duplicate.
+    var LEGACY_PIPELINE_NAMES = ['Appraisify Appraisals', 'Appraisify Testing', 'Performance Appraisal'];
+
     function checkAndInstallDeal() {
-      // Check if pipeline already exists
+      // Check if a pipeline already exists under any known name
       BX24.callMethod('crm.category.list', { entityTypeId: 2 }, function (listResult) {
         if (listResult.error()) {
           log('Could not check pipelines: ' + listResult.error() + ' \u2014 skipping CRM setup', 'err');
@@ -454,7 +458,7 @@ export default async function handler(req, res) {
         var existing = null;
         for (var i = 0; i < categories.length; i++) {
           var catName = categories[i].NAME || categories[i].name || '';
-          if (catName === 'Appraisify Testing') { existing = categories[i]; break; }
+          if (LEGACY_PIPELINE_NAMES.indexOf(catName) >= 0) { existing = categories[i]; break; }
         }
 
         if (!existing) { createDealPipeline(); return; }
@@ -466,24 +470,45 @@ export default async function handler(req, res) {
           return;
         }
 
-        log('Pipeline found (ID: ' + existingId + ') \u2014 checking stages...', 'info');
-        BX24.callMethod('crm.status.list', {
-          filter: { ENTITY_ID: 'DEAL_STAGE_' + existingId }
-        }, function (stagesResult) {
-          var count = stagesResult.error() ? 0 : (stagesResult.data() || []).length;
-          if (count >= DEAL_STAGES.length) {
-            log('Pipeline fully configured (' + count + ' stages) \u2014 checking fields...', 'info');
-            try { localStorage.setItem('appraisify_category_id', String(existingId)); } catch(e) {}
-            try { BX24.appOption.set('category_id', String(existingId)); } catch(e) {}
-            try { BX24.appOption.set('crm_mode', 'deal'); } catch(e) {}
-            storeModeInKV('deal', { category_id: String(existingId) });
-            createDealFields(existingId);
-            return;
-          }
-          log('Pipeline incomplete (' + count + '/' + DEAL_STAGES.length + ' stages) \u2014 deleting and recreating...', 'info');
-          BX24.callMethod('crm.dealcategory.delete', { id: existingId }, function () {
-            createDealPipeline();
+        var existingName = existing.NAME || existing.name || '';
+        if (existingName !== 'Performance Appraisal') {
+          // Rename legacy pipeline to the current canonical name
+          log('Renaming pipeline "' + existingName + '" \u2192 "Performance Appraisal"...', 'info');
+          BX24.callMethod('crm.dealcategory.update', {
+            id: existingId,
+            fields: { NAME: 'Performance Appraisal' }
+          }, function (renameResult) {
+            if (renameResult.error()) {
+              log('Pipeline rename failed: ' + renameResult.error() + ' \u2014 continuing anyway', 'err');
+            } else {
+              log('Pipeline renamed to "Performance Appraisal"', 'ok');
+            }
+            checkDealStages(existingId);
           });
+        } else {
+          log('Pipeline "Performance Appraisal" found (ID: ' + existingId + ') \u2014 checking stages...', 'info');
+          checkDealStages(existingId);
+        }
+      });
+    }
+
+    function checkDealStages(existingId) {
+      BX24.callMethod('crm.status.list', {
+        filter: { ENTITY_ID: 'DEAL_STAGE_' + existingId }
+      }, function (stagesResult) {
+        var count = stagesResult.error() ? 0 : (stagesResult.data() || []).length;
+        if (count >= DEAL_STAGES.length) {
+          log('Pipeline fully configured (' + count + ' stages) \u2014 checking fields...', 'info');
+          try { localStorage.setItem('appraisify_category_id', String(existingId)); } catch(e) {}
+          try { BX24.appOption.set('category_id', String(existingId)); } catch(e) {}
+          try { BX24.appOption.set('crm_mode', 'deal'); } catch(e) {}
+          storeModeInKV('deal', { category_id: String(existingId) });
+          createDealFields(existingId);
+          return;
+        }
+        log('Pipeline incomplete (' + count + '/' + DEAL_STAGES.length + ' stages) \u2014 deleting and recreating...', 'info');
+        BX24.callMethod('crm.dealcategory.delete', { id: existingId }, function () {
+          createDealPipeline();
         });
       });
     }
