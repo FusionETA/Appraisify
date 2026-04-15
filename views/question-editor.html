@@ -47,6 +47,44 @@
 
   <!-- Template selector -->
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Filter Type</label>
+        <select id="filter-type" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
+          <option value="">All Types</option>
+          <option value="annual">Annual Review</option>
+          <option value="semi">Semi-Annual Review</option>
+          <option value="quarterly">Quarterly Review</option>
+          <option value="probation">Probation Review</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Filter Team</label>
+        <select id="filter-team" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
+          <option value="">All Teams</option>
+          <option value="engineering">Engineering</option>
+          <option value="marketing">Marketing</option>
+          <option value="operations">Operations</option>
+          <option value="sales">Sales</option>
+          <option value="all">Generic (All Teams)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Filter Role</label>
+        <select id="filter-role" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
+          <option value="">All Roles</option>
+          <option value="junior">Junior</option>
+          <option value="mid">Mid-level</option>
+          <option value="senior">Senior</option>
+          <option value="lead">Lead / Manager</option>
+          <option value="all">Generic (All Roles)</option>
+        </select>
+      </div>
+      <label class="flex items-center gap-2 text-xs font-medium text-slate-600 self-end pb-2 cursor-pointer">
+        <input id="filter-include-generic" type="checkbox" checked class="rounded border-slate-300 text-primary focus:ring-primary"/>
+        Include generic templates
+      </label>
+    </div>
     <div class="flex items-end gap-4">
       <div class="flex-1">
         <label class="block text-xs font-semibold text-slate-600 mb-1.5">Select Question Set to Edit</label>
@@ -178,6 +216,7 @@
 <script src="../assets/js/bx24.js"></script>
 <script src="../assets/js/meta-options.js"></script>
 <script src="../assets/js/templates-api.js"></script>
+<script src="../assets/js/template-filters.js"></script>
 <script src="../assets/js/builder.js"></script>
 <script>
   let templatesCache = [];
@@ -187,9 +226,15 @@
   BX24App.init(async () => {
     const _u = await BX24App.getUser();
     if (_u.APP_ROLE !== 'admin') { window.location.replace('dashboard.html'); return; }
+    AppraisifyMetaOptions.load('filter-type', 'type');
+    AppraisifyMetaOptions.load('filter-team', 'team');
+    AppraisifyMetaOptions.load('filter-role', 'role');
     AppraisifyMetaOptions.load('edit-type', 'type');
     AppraisifyMetaOptions.load('edit-team', 'team');
     AppraisifyMetaOptions.load('edit-role', 'role');
+    ['filter-type', 'filter-team', 'filter-role', 'filter-include-generic'].forEach((id) => {
+      document.getElementById(id)?.addEventListener('change', applyTemplateFilters);
+    });
     ['edit-type', 'edit-team', 'edit-role'].forEach((id) => {
       document.getElementById(id)?.addEventListener('change', markDirty);
     });
@@ -209,13 +254,38 @@
     }, { scope: [], engagement: [] });
   }
 
+  function getFilterCriteria() {
+    return {
+      type: document.getElementById('filter-type')?.value || '',
+      team: document.getElementById('filter-team')?.value || '',
+      role: document.getElementById('filter-role')?.value || '',
+      includeGeneric: !!document.getElementById('filter-include-generic')?.checked,
+    };
+  }
+
+  function applyTemplateFilters() {
+    const select = document.getElementById('template-select');
+    if (!select) return;
+    const previousValue = select.value || '';
+
+    const filtered = AppraisifyTemplateFilters.filterTemplates(templatesCache, getFilterCriteria());
+    const nextValue = AppraisifyTemplateFilters.renderSelectOptions(select, filtered, {
+      previousValue,
+      placeholder: '— Choose a saved template —',
+      noMatchLabel: '— No templates match selected filters —',
+    });
+
+    if (nextValue !== previousValue) {
+      loadSet();
+    }
+  }
+
   async function loadTemplateOptions() {
     const select = document.getElementById('template-select');
     select.disabled = true;
     try {
       templatesCache = await TemplatesAPI.listTemplates();
-      select.innerHTML = '<option value="">— Choose a saved template —</option>' +
-        templatesCache.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+      applyTemplateFilters();
     } catch (e) {
       alert(`Failed to load templates: ${e.message || e}`);
       select.innerHTML = '<option value="">— Unable to load templates —</option>';
@@ -366,7 +436,10 @@
       await TemplatesAPI.updateTemplate(currentTemplateId, payload);
       editState.dirty = false;
       await loadTemplateOptions();
-      document.getElementById('template-select').value = currentTemplateId;
+      const select = document.getElementById('template-select');
+      if (Array.from(select.options).some((opt) => opt.value === currentTemplateId)) {
+        select.value = currentTemplateId;
+      }
       alert('Changes saved.');
     } catch (e) {
       alert(`Save failed: ${e.message || e}`);
@@ -384,6 +457,7 @@
     if (!cfg) return;
     const added = AppraisifyMetaOptions.addCustom(cfg.id, kind, cfg.label);
     if (added) {
+      AppraisifyMetaOptions.ensureValue(`filter-${kind}`, added.value, added.label);
       markDirty();
     }
   }

@@ -129,6 +129,31 @@
             </select>
           </div>
 
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Filter Team</label>
+              <select id="cycle-filter-team" class="w-full rounded-lg border-slate-200 focus:ring-primary focus:border-primary bg-white text-sm font-medium">
+                <option value="">All Teams</option>
+                <option value="engineering">Engineering</option>
+                <option value="marketing">Marketing</option>
+                <option value="operations">Operations</option>
+                <option value="sales">Sales</option>
+                <option value="all">Generic (All Teams)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Filter Role</label>
+              <select id="cycle-filter-role" class="w-full rounded-lg border-slate-200 focus:ring-primary focus:border-primary bg-white text-sm font-medium">
+                <option value="">All Roles</option>
+                <option value="junior">Junior</option>
+                <option value="mid">Mid-level</option>
+                <option value="senior">Senior</option>
+                <option value="lead">Lead / Manager</option>
+                <option value="all">Generic (All Roles)</option>
+              </select>
+            </div>
+          </div>
+
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Period</label>
             <div class="grid grid-cols-2 gap-3">
@@ -163,6 +188,10 @@
             <a href="question-builder.html" class="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1.5">
               <span class="material-symbols-outlined text-sm">add</span> Create new set
             </a>
+            <label class="mt-2.5 flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+              <input id="cycle-include-generic" type="checkbox" checked class="rounded border-slate-300 text-primary focus:ring-primary"/>
+              Include generic templates (all teams/roles)
+            </label>
           </div>
 
           <div>
@@ -302,10 +331,12 @@
 <script src="../assets/js/bx24.js"></script>
 <script src="../assets/js/meta-options.js"></script>
 <script src="../assets/js/templates-api.js"></script>
+<script src="../assets/js/template-filters.js"></script>
 <script>
   // ── State ────────────────────────────────────────────────────────────────────
   let employees   = [];
   let allUsers    = [];
+  let templatesCache = [];
   let templateMap = {};
 
   // Picker instances
@@ -565,6 +596,8 @@
     if (_u.APP_ROLE !== 'admin') { window.location.replace('dashboard.html'); return; }
     allUsers = await BX24App.getUsers();
     AppraisifyMetaOptions.load('cycle-type', 'type');
+    AppraisifyMetaOptions.load('cycle-filter-team', 'team');
+    AppraisifyMetaOptions.load('cycle-filter-role', 'role');
     await loadQuestionSets();
     initDefaultPickers();
     loadEmployeesFromStorage();
@@ -572,6 +605,9 @@
 
     ['cycle-type','cycle-year','cycle-quarter','cycle-deadline'].forEach(id => {
       document.getElementById(id)?.addEventListener('change', updateSummary);
+    });
+    ['cycle-type', 'cycle-filter-team', 'cycle-filter-role', 'cycle-include-generic'].forEach((id) => {
+      document.getElementById(id)?.addEventListener('change', renderFilteredQuestionSets);
     });
   });
 
@@ -587,16 +623,45 @@
     document.getElementById('summary-employees').textContent = count;
   }
 
+  function getTemplateFilterCriteria() {
+    return {
+      type: document.getElementById('cycle-type')?.value || '',
+      team: document.getElementById('cycle-filter-team')?.value || '',
+      role: document.getElementById('cycle-filter-role')?.value || '',
+      includeGeneric: !!document.getElementById('cycle-include-generic')?.checked,
+    };
+  }
+
+  function renderFilteredQuestionSets() {
+    const select = document.getElementById('cycle-questions');
+    if (!select) return;
+
+    const filteredTemplates = AppraisifyTemplateFilters.filterTemplates(
+      templatesCache,
+      getTemplateFilterCriteria()
+    );
+    const prevValue = select.value || '';
+    const nextValue = AppraisifyTemplateFilters.renderSelectOptions(select, filteredTemplates, {
+      previousValue: prevValue,
+      placeholder: '— Select a template —',
+      noMatchLabel: '— No templates match selected filters —',
+    });
+    if (!nextValue && prevValue) {
+      select.value = '';
+    }
+  }
+
   async function loadQuestionSets() {
     const select = document.getElementById('cycle-questions');
     select.disabled = true;
     try {
       const templates = await TemplatesAPI.listTemplates();
+      templatesCache = Array.isArray(templates) ? templates : [];
       templateMap = {};
-      templates.forEach(t => { templateMap[t.id] = t; });
-      select.innerHTML = '<option value="">— Select a template —</option>' +
-        templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+      templatesCache.forEach(t => { templateMap[t.id] = t; });
+      renderFilteredQuestionSets();
     } catch (e) {
+      templatesCache = [];
       templateMap = {};
       select.innerHTML = '<option value="">— Unable to load templates —</option>';
       console.warn('[Appraisify] Failed to load templates:', e);
@@ -773,7 +838,10 @@
 
   function addCustomCycleType() {
     const added = AppraisifyMetaOptions.addCustom('cycle-type', 'type', 'appraisal type');
-    if (added) updateSummary();
+    if (added) {
+      updateSummary();
+      renderFilteredQuestionSets();
+    }
   }
 </script>
 </body>
