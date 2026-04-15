@@ -296,9 +296,9 @@
       if (role) roles.add(role);
     });
 
-    types.forEach((v) => AppraisifyMetaOptions.ensureValue('filter-type', v, v));
-    teams.forEach((v) => AppraisifyMetaOptions.ensureValue('filter-team', v, v));
-    roles.forEach((v) => AppraisifyMetaOptions.ensureValue('filter-role', v, v));
+    types.forEach((v) => AppraisifyMetaOptions.ensureOptionValue('filter-type', v, v));
+    teams.forEach((v) => AppraisifyMetaOptions.ensureOptionValue('filter-team', v, v));
+    roles.forEach((v) => AppraisifyMetaOptions.ensureOptionValue('filter-role', v, v));
   }
 
   async function loadTemplateOptions() {

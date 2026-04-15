@@ -90,6 +90,13 @@ const AppraisifyMetaOptions = (() => {
     selectEl.value = value;
   }
 
+  function ensureOptionValue(selectId, value, fallbackLabel) {
+    const selectEl = document.getElementById(selectId);
+    if (!selectEl || !value) return;
+    const exists = Array.from(selectEl.options).some(o => o.value === value);
+    if (!exists) ensureOption(selectEl, value, fallbackLabel || value);
+  }
+
   function removeCustom(selectId, kind) {
     const selectEl = document.getElementById(selectId);
     if (!selectEl) return { ok: false, reason: 'missing_select' };
@@ -174,6 +181,7 @@ const AppraisifyMetaOptions = (() => {
     addCustom,
     addCustomValue,
     ensureValue,
+    ensureOptionValue,
     removeCustom,
     removeCustomByValue,
     removeCustomValue,

@@ -160,9 +160,7 @@
               <div>
                 <label class="block text-xs text-slate-500 mb-1">Year</label>
                 <select id="cycle-year" class="w-full rounded-lg border-slate-200 focus:ring-primary focus:border-primary bg-white text-sm">
-                  <option>2025</option>
-                  <option selected>2024</option>
-                  <option>2023</option>
+                  <option value="">— Select year —</option>
                 </select>
               </div>
               <div>
@@ -591,10 +589,33 @@
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────────
+  function populateCycleYearOptions() {
+    const select = document.getElementById('cycle-year');
+    if (!select) return;
+
+    const currentYear = new Date().getFullYear();
+    const prev = String(select.value || '').trim();
+
+    // Include next year for early planning and a reasonable trailing history window.
+    const years = [];
+    for (let y = currentYear + 1; y >= currentYear - 5; y -= 1) {
+      years.push(y);
+    }
+
+    select.innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join('');
+
+    if (prev && years.includes(Number(prev))) {
+      select.value = prev;
+    } else {
+      select.value = String(currentYear);
+    }
+  }
+
   BX24App.init(async () => {
     const _u = await BX24App.getUser();
     if (_u.APP_ROLE !== 'admin') { window.location.replace('dashboard.html'); return; }
     allUsers = await BX24App.getUsers();
+    populateCycleYearOptions();
     AppraisifyMetaOptions.load('cycle-type', 'type');
     AppraisifyMetaOptions.load('cycle-filter-team', 'team');
     AppraisifyMetaOptions.load('cycle-filter-role', 'role');
@@ -667,9 +688,9 @@
       if (role) roles.add(role);
     });
 
-    types.forEach((v) => AppraisifyMetaOptions.ensureValue('cycle-type', v, v));
-    teams.forEach((v) => AppraisifyMetaOptions.ensureValue('cycle-filter-team', v, v));
-    roles.forEach((v) => AppraisifyMetaOptions.ensureValue('cycle-filter-role', v, v));
+    types.forEach((v) => AppraisifyMetaOptions.ensureOptionValue('cycle-type', v, v));
+    teams.forEach((v) => AppraisifyMetaOptions.ensureOptionValue('cycle-filter-team', v, v));
+    roles.forEach((v) => AppraisifyMetaOptions.ensureOptionValue('cycle-filter-role', v, v));
   }
 
   async function loadQuestionSets() {
