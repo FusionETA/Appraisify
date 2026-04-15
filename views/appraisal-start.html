@@ -651,6 +651,27 @@
     }
   }
 
+  function hydrateFilterOptionsFromTemplates(templates) {
+    if (!Array.isArray(templates)) return;
+
+    const types = new Set();
+    const teams = new Set();
+    const roles = new Set();
+
+    templates.forEach((tpl) => {
+      const type = String(tpl?.type || '').trim();
+      const team = String(tpl?.team || '').trim();
+      const role = String(tpl?.role || '').trim();
+      if (type) types.add(type);
+      if (team) teams.add(team);
+      if (role) roles.add(role);
+    });
+
+    types.forEach((v) => AppraisifyMetaOptions.ensureValue('cycle-type', v, v));
+    teams.forEach((v) => AppraisifyMetaOptions.ensureValue('cycle-filter-team', v, v));
+    roles.forEach((v) => AppraisifyMetaOptions.ensureValue('cycle-filter-role', v, v));
+  }
+
   async function loadQuestionSets() {
     const select = document.getElementById('cycle-questions');
     select.disabled = true;
@@ -659,6 +680,7 @@
       templatesCache = Array.isArray(templates) ? templates : [];
       templateMap = {};
       templatesCache.forEach(t => { templateMap[t.id] = t; });
+      hydrateFilterOptionsFromTemplates(templatesCache);
       renderFilteredQuestionSets();
     } catch (e) {
       templatesCache = [];

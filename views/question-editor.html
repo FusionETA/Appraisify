@@ -280,11 +280,33 @@
     }
   }
 
+  function hydrateFilterOptionsFromTemplates(templates) {
+    if (!Array.isArray(templates)) return;
+
+    const types = new Set();
+    const teams = new Set();
+    const roles = new Set();
+
+    templates.forEach((tpl) => {
+      const type = String(tpl?.type || '').trim();
+      const team = String(tpl?.team || '').trim();
+      const role = String(tpl?.role || '').trim();
+      if (type) types.add(type);
+      if (team) teams.add(team);
+      if (role) roles.add(role);
+    });
+
+    types.forEach((v) => AppraisifyMetaOptions.ensureValue('filter-type', v, v));
+    teams.forEach((v) => AppraisifyMetaOptions.ensureValue('filter-team', v, v));
+    roles.forEach((v) => AppraisifyMetaOptions.ensureValue('filter-role', v, v));
+  }
+
   async function loadTemplateOptions() {
     const select = document.getElementById('template-select');
     select.disabled = true;
     try {
       templatesCache = await TemplatesAPI.listTemplates();
+      hydrateFilterOptionsFromTemplates(templatesCache);
       applyTemplateFilters();
     } catch (e) {
       alert(`Failed to load templates: ${e.message || e}`);
