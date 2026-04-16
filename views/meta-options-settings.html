@@ -110,7 +110,10 @@
 <script src="//api.bitrix24.com/api/v1/"></script>
 <script src="../assets/js/bx24.js"></script>
 <script src="../assets/js/meta-options.js"></script>
+<script src="../assets/js/templates-api.js"></script>
 <script>
+  let cachedTemplates = [];
+
   BX24App.init(async () => {
     const user = await BX24App.getUser();
     if (user.APP_ROLE !== 'admin') { window.location.replace('dashboard.html'); return; }
@@ -136,6 +139,7 @@
         { value: 'all',     label: 'All Roles' },
       ],
     });
+    try { cachedTemplates = await TemplatesAPI.listTemplates(); } catch (_) { cachedTemplates = []; }
     renderLists();
   });
 
@@ -213,15 +217,34 @@
     renderLists();
   }
 
-  function deleteCustomValue(kind, value, label) {
-    if (!window.confirm(`Delete "${label}" from custom ${kind} options?`)) return;
+  async function deleteCustomValue(kind, value, label) {
+    const matching = cachedTemplates.filter((tpl) => {
+      const tplVal = String(tpl[kind] || '').trim();
+      return tplVal.toLowerCase() === label.toLowerCase() || tplVal === value;
+    });
+
+    const confirmMsg = matching.length
+      ? `Delete "${label}"?\n\nThis will also permanently delete ${matching.length} template${matching.length > 1 ? 's' : ''} that use this ${kind}.`
+      : `Delete "${label}" from custom ${kind} options?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    // Cascade-delete matching templates
+    if (matching.length) {
+      const results = await Promise.allSettled(matching.map((tpl) => TemplatesAPI.deleteTemplate(tpl.id)));
+      const failed = results.filter((r) => r.status === 'rejected' || r.value === false).length;
+      if (failed) {
+        showFeedback(`Warning: ${failed} template(s) could not be deleted.`, 'error');
+      }
+      cachedTemplates = cachedTemplates.filter((tpl) => !matching.some((m) => m.id === tpl.id));
+    }
+
     const result = AppraisifyMetaOptions.removeCustomValue(kind, value);
     if (!result.ok) {
       showFeedback('Delete failed. The selected custom option was not found.', 'error');
       renderLists();
       return;
     }
-    showFeedback(`Deleted "${label}" from custom ${kind} options.`, 'ok');
+    showFeedback(`Deleted "${label}"${matching.length ? ` and ${matching.length} template(s)` : ''} successfully.`, 'ok');
     renderLists();
   }
 </script>

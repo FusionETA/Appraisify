@@ -160,16 +160,7 @@
             </div>
           </div>
 
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Question Set</label>
-            <input type="hidden" id="cycle-questions"/>
-            <div id="cycle-questions-status" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-400 italic">
-              — Select type, team, and role above —
-            </div>
-            <a href="question-builder.html" class="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1.5">
-              <span class="material-symbols-outlined text-sm">add</span> Create new set
-            </a>
-          </div>
+          <input type="hidden" id="cycle-questions"/>
 
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Deadline</label>
@@ -638,8 +629,7 @@
 
   function renderFilteredQuestionSets() {
     const hiddenInput = document.getElementById('cycle-questions');
-    const statusEl = document.getElementById('cycle-questions-status');
-    if (!hiddenInput || !statusEl) return;
+    if (!hiddenInput) return;
 
     // Try exact match first, fall back to generic (all teams/roles)
     let matches = AppraisifyTemplateFilters.filterTemplates(templatesCache, getTemplateFilterCriteria(false));
@@ -649,14 +639,6 @@
 
     const resolved = matches[0] || null;
     hiddenInput.value = resolved ? String(resolved.id) : '';
-
-    if (resolved) {
-      statusEl.className = 'rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-semibold text-emerald-700 flex items-center gap-2';
-      statusEl.innerHTML = `<span class="material-symbols-outlined text-base">check_circle</span> ${resolved.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}`;
-    } else {
-      statusEl.className = 'rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-700 flex items-center gap-2';
-      statusEl.innerHTML = `<span class="material-symbols-outlined text-base">warning</span> No question set found for these filters`;
-    }
   }
 
   function getLabelForValue(kind, value) {
