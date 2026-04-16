@@ -231,7 +231,7 @@ export default async function handler(req, res) {
     var APPRAIZZIE_ENTITY_TITLE = 'Performance Appraisal SPA';
 
     // STATUS_IDs must be \u2264 18 characters (Bitrix24 hard limit)
-    // Deal mode uses REVIEWEEPENDING (shorter); SPA mode keeps INITIALIZEDREVIEWEEPENDING
+    // Deal mode uses REVIEWEEPENDING (shorter); SPA mode uses INITIALIZED
     var DEAL_STAGES = [
       { NAME: 'Reviewee Pending', STATUS_ID: 'REVIEWEEPENDING',  SORT: 5,  COLOR: '#F59E0B', SEMANTICS: '' },
       { NAME: 'Reviewer Pending', STATUS_ID: 'REVIEWERPENDING',  SORT: 15, COLOR: '#2FC6F6', SEMANTICS: '' },
@@ -239,7 +239,7 @@ export default async function handler(req, res) {
       { NAME: 'Submitted',        STATUS_ID: 'SUBMITTED',        SORT: 25, COLOR: '#10B981', SEMANTICS: '' },
     ];
     var STAGES = [
-      { NAME: 'Initialized-Reviewee Pending', STATUS_ID: 'INITIALIZEDREVIEWEEPENDING', SORT: 5,  COLOR: '#F59E0B', SEMANTICS: '' },
+      { NAME: 'Initialized-Reviewee Pending', STATUS_ID: 'INITIALIZED',                SORT: 5,  COLOR: '#F59E0B', SEMANTICS: '' },
       { NAME: 'Reviewer Pending',             STATUS_ID: 'REVIEWERPENDING',            SORT: 15, COLOR: '#2FC6F6', SEMANTICS: '' },
       { NAME: 'Partner Pending',              STATUS_ID: 'PARTNERPENDING',             SORT: 20, COLOR: '#8B5CF6', SEMANTICS: '' },
       { NAME: 'Submitted',                    STATUS_ID: 'SUBMITTED',                  SORT: 25, COLOR: '#10B981', SEMANTICS: '' },

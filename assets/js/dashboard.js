@@ -13,7 +13,7 @@ const stageFilterId = (categoryId, statusId) => (categoryId === 'dev' ? statusId
 
 // Stage ID → display info mapping (matches STATUS_IDs created on install)
 const STAGE_MAP = {
-  'INITIALIZEDREVIEWEEPENDING': { phase: 'self',     label: 'Reviewee Pending', cls: 'bg-amber-100 text-amber-700' },
+  'INITIALIZED':                { phase: 'self',     label: 'Reviewee Pending', cls: 'bg-amber-100 text-amber-700' },
   'REVIEWEEPENDING':            { phase: 'self',     label: 'Reviewee Pending', cls: 'bg-amber-100 text-amber-700' },
   'REVIEWERPENDING':            { phase: 'reviewer', label: 'Reviewer Pending', cls: 'bg-blue-100 text-blue-700' },
   'PARTNERPENDING':             { phase: 'partner',  label: 'Partner Pending',  cls: 'bg-purple-100 text-purple-700' },
@@ -176,9 +176,9 @@ async function loadPendingTasks() {
   const warning = document.getElementById('pending-load-warning');
 
   // Pending task stage(s) for each role.
-  // self accepts both IDs: INITIALIZEDREVIEWEEPENDING (SPA) and REVIEWEEPENDING (deal mode).
+  // self accepts both IDs: INITIALIZED (SPA) and REVIEWEEPENDING (deal mode).
   const PENDING_STAGE = {
-    self:     ['INITIALIZEDREVIEWEEPENDING', 'REVIEWEEPENDING'],
+    self:     ['INITIALIZED', 'REVIEWEEPENDING'],
     reviewer: ['REVIEWERPENDING'],
     partner:  ['PARTNERPENDING'],
   };

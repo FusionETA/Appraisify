@@ -24,7 +24,7 @@ function extractTemplateIdFromDeal(deal) {
 function stageLabel(stageId) {
   const short = String(stageId || '').includes(':') ? String(stageId).split(':')[1] : String(stageId || '');
   const map = {
-    INITIALIZEDREVIEWEEPENDING: 'Initialized - Reviewee Pending',
+    INITIALIZED: 'Initialized - Reviewee Pending',
     REVIEWERPENDING:            'Reviewer Pending',
     PARTNERPENDING:             'Partner Pending',
     SUBMITTED:                  'Submitted',
