@@ -45,10 +45,26 @@ const AppraisifyMetaOptions = (() => {
     selectEl.appendChild(opt);
   }
 
+  function deduplicateKind(store, kind) {
+    if (!Array.isArray(store[kind])) return;
+    const seen = new Set();
+    const cleaned = store[kind].filter(item => {
+      const key = String(item.label || '').trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (cleaned.length !== store[kind].length) {
+      store[kind] = cleaned;
+      writeStore(store);
+    }
+  }
+
   function load(selectId, kind) {
     const selectEl = document.getElementById(selectId);
     if (!selectEl) return;
     const store = readStore();
+    deduplicateKind(store, kind);
     (store[kind] || []).forEach(item => {
       ensureOption(selectEl, item.value, item.label);
     });
