@@ -115,17 +115,9 @@
         <div class="p-6 space-y-5">
 
           <div>
-            <div class="flex items-center justify-between mb-1.5">
-              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Appraisal Type</label>
-              <div class="flex items-center gap-3 normal-case tracking-normal">
-                <button type="button" onclick="addCustomCycleType()" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
-              </div>
-            </div>
-            <select id="cycle-type" class="w-full rounded-lg border-slate-200 focus:ring-primary focus:border-primary bg-white text-sm font-medium">
-              <option value="annual">Annual Review</option>
-              <option value="semi">Semi-Annual Review</option>
-              <option value="quarterly">Quarterly Review</option>
-              <option value="probation">Probation Review</option>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Appraisal Type</label>
+            <select id="cycle-type" disabled class="w-full rounded-lg border-slate-200 focus:ring-primary focus:border-primary bg-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+              <option value="">— Loading… —</option>
             </select>
           </div>
 
@@ -603,7 +595,6 @@
     if (_u.APP_ROLE !== 'admin') { window.location.replace('dashboard.html'); return; }
     allUsers = await BX24App.getUsers();
     populateCycleYearOptions();
-    AppraisifyMetaOptions.load('cycle-type', 'type');
     await loadQuestionSets();
     initDefaultPickers();
     loadEmployeesFromStorage();
@@ -672,6 +663,32 @@
     const items = AppraisifyMetaOptions.listCustom(kind);
     const found = items.find(i => i.value === value);
     return found ? found.label : value;
+  }
+
+  function refreshTypeDropdown() {
+    const typeSelect = document.getElementById('cycle-type');
+    const teamSelect = document.getElementById('cycle-filter-team');
+    const roleSelect = document.getElementById('cycle-filter-role');
+    if (!typeSelect) return;
+
+    const types = new Set();
+    templatesCache.forEach((tpl) => {
+      const type = String(tpl.type || '').trim();
+      if (type) types.add(type);
+    });
+
+    if (types.size) {
+      typeSelect.innerHTML = '<option value="">— Select type —</option>' +
+        [...types].map(v => `<option value="${v}">${getLabelForValue('type', v)}</option>`).join('');
+      typeSelect.disabled = false;
+    } else {
+      typeSelect.innerHTML = '<option value="">— No types available —</option>';
+      typeSelect.disabled = true;
+    }
+
+    // Reset downstream cascade
+    if (teamSelect) { teamSelect.innerHTML = '<option value="">— Select type first —</option>'; teamSelect.disabled = true; }
+    if (roleSelect) { roleSelect.innerHTML = '<option value="">— Select team first —</option>'; roleSelect.disabled = true; }
   }
 
   function refreshTeamDropdown() {
@@ -747,8 +764,8 @@
       if (role) roles.add(role);
     });
 
-    // Persist custom values to localStorage; only add to type dropdown (team/role are dynamic)
-    types.forEach((v) => { AppraisifyMetaOptions.addCustomValue('type', v); AppraisifyMetaOptions.ensureOptionValue('cycle-type', v, v); });
+    // Persist to localStorage for settings page and question-builder (all three dropdowns are now fully dynamic)
+    types.forEach((v) => { AppraisifyMetaOptions.addCustomValue('type', v); });
     teams.forEach((v) => { AppraisifyMetaOptions.addCustomValue('team', v); });
     roles.forEach((v) => { AppraisifyMetaOptions.addCustomValue('role', v); });
   }
@@ -760,6 +777,7 @@
       templateMap = {};
       templatesCache.forEach(t => { templateMap[t.id] = t; });
       hydrateFilterOptionsFromTemplates(templatesCache);
+      refreshTypeDropdown();
       refreshTeamDropdown();
       refreshRoleDropdown();
       renderFilteredQuestionSets();
