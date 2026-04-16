@@ -183,12 +183,20 @@
           <p class="text-sm font-semibold text-slate-800 truncate">${escapeHtml(item.label)}</p>
           <p class="text-xs text-slate-400 truncate">${escapeHtml(item.value)}</p>
         </div>
-        <button type="button"
-          onclick="deleteCustomValue('${kind}','${escapeJsSingleQuoted(item.value)}','${escapeJsSingleQuoted(item.label)}')"
-          class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs font-bold hover:bg-red-50 transition-colors shrink-0">
-          <span class="material-symbols-outlined text-sm">delete</span>
-          Delete
-        </button>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button type="button"
+            onclick="renameSettingValue('${kind}','${escapeJsSingleQuoted(item.value)}','${escapeJsSingleQuoted(item.label)}')"
+            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-100 transition-colors">
+            <span class="material-symbols-outlined text-sm">edit</span>
+            Rename
+          </button>
+          <button type="button"
+            onclick="deleteCustomValue('${kind}','${escapeJsSingleQuoted(item.value)}','${escapeJsSingleQuoted(item.label)}')"
+            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs font-bold hover:bg-red-50 transition-colors">
+            <span class="material-symbols-outlined text-sm">delete</span>
+            Delete
+          </button>
+        </div>
       </div>`).join('');
   }
 
@@ -196,6 +204,33 @@
     renderList('type', 'Types');
     renderList('team', 'Teams');
     renderList('role', 'Roles');
+  }
+
+  async function renameSettingValue(kind, value, currentLabel) {
+    const newLabel = window.prompt(`Rename "${currentLabel}" to:`, currentLabel);
+    if (!newLabel || newLabel.trim() === currentLabel) return;
+    const result = AppraisifyMetaOptions.renameCustomValue(kind, value, newLabel);
+    if (!result.ok) {
+      showFeedback(`Rename failed: ${result.reason}.`, 'error');
+      return;
+    }
+    // Update matching templates in the database
+    const matching = cachedTemplates.filter((tpl) => {
+      const v = String(tpl[kind] || '').trim();
+      return v.toLowerCase() === currentLabel.toLowerCase() || v === value;
+    });
+    if (matching.length) {
+      const results = await Promise.allSettled(matching.map((tpl) =>
+        TemplatesAPI.updateTemplate(tpl.id, { [kind]: result.label })
+          .then(() => { tpl[kind] = result.label; })
+      ));
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed) showFeedback(`Renamed locally but ${failed} template(s) failed to update.`, 'error');
+      else showFeedback(`Renamed to "${result.label}" and updated ${matching.length} template(s).`, 'ok');
+    } else {
+      showFeedback(`Renamed to "${result.label}".`, 'ok');
+    }
+    renderLists();
   }
 
   function addCustomSettingValue(kind, promptLabel) {

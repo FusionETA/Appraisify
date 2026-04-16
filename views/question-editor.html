@@ -115,7 +115,10 @@
         <div>
           <div class="flex items-center justify-between mb-1.5">
             <label class="block text-xs font-semibold text-slate-600">Appraisal Type</label>
-            <button type="button" onclick="addCustomMetaOption('type')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="renameMetaOption('type')" class="text-xs text-slate-500 font-semibold hover:underline">Rename</button>
+              <button type="button" onclick="addCustomMetaOption('type')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
+            </div>
           </div>
           <select id="edit-type" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
             <option value="">— Select type —</option>
@@ -124,7 +127,10 @@
         <div>
           <div class="flex items-center justify-between mb-1.5">
             <label class="block text-xs font-semibold text-slate-600">Target Team</label>
-            <button type="button" onclick="addCustomMetaOption('team')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="renameMetaOption('team')" class="text-xs text-slate-500 font-semibold hover:underline">Rename</button>
+              <button type="button" onclick="addCustomMetaOption('team')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
+            </div>
           </div>
           <select id="edit-team" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
             <option value="">— Select team —</option>
@@ -133,7 +139,10 @@
         <div>
           <div class="flex items-center justify-between mb-1.5">
             <label class="block text-xs font-semibold text-slate-600">Role Level</label>
-            <button type="button" onclick="addCustomMetaOption('role')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="renameMetaOption('role')" class="text-xs text-slate-500 font-semibold hover:underline">Rename</button>
+              <button type="button" onclick="addCustomMetaOption('role')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
+            </div>
           </div>
           <select id="edit-role" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
             <option value="">— Select role —</option>
@@ -472,6 +481,39 @@
       alert(`Save failed: ${e.message || e}`);
       btn.disabled = false;
     }
+  }
+
+  async function renameMetaOption(kind) {
+    const map = {
+      type: { id: 'edit-type' },
+      team: { id: 'edit-team' },
+      role: { id: 'edit-role' },
+    };
+    const cfg = map[kind];
+    if (!cfg) return;
+    const selectEl = document.getElementById(cfg.id);
+    const selected = selectEl?.options[selectEl.selectedIndex];
+    if (!selected || !selected.value) { alert('Select an option to rename first.'); return; }
+    const oldLabel = selected.text;
+    const oldValue = selected.value;
+    const newLabel = window.prompt(`Rename "${oldLabel}" to:`, oldLabel);
+    if (!newLabel || newLabel.trim() === oldLabel) return;
+    const result = AppraisifyMetaOptions.renameCustomValue(kind, oldValue, newLabel);
+    if (!result.ok) { alert(`Rename failed: ${result.reason}`); return; }
+    // Update matching templates in the database
+    const matching = templatesCache.filter((tpl) => {
+      const v = String(tpl[kind] || '').trim();
+      return v.toLowerCase() === oldLabel.toLowerCase() || v === oldValue;
+    });
+    await Promise.allSettled(matching.map((tpl) =>
+      TemplatesAPI.updateTemplate(tpl.id, { [kind]: result.label })
+        .then(() => { tpl[kind] = result.label; })
+    ));
+    // Update DOM
+    selected.text = result.label;
+    const filterOpt = Array.from(document.getElementById(`filter-${kind}`)?.options || []).find(o => o.value === oldValue);
+    if (filterOpt) filterOpt.text = result.label;
+    markDirty();
   }
 
   function addCustomMetaOption(kind) {

@@ -152,6 +152,19 @@ const AppraisifyMetaOptions = (() => {
     return { ok: true, value };
   }
 
+  function renameCustomValue(kind, value, newLabel) {
+    if (!kind || !value) return { ok: false, reason: 'missing_args' };
+    const trimmed = String(newLabel || '').trim();
+    if (!trimmed) return { ok: false, reason: 'empty_label' };
+    const store = readStore();
+    if (!Array.isArray(store[kind])) return { ok: false, reason: 'not_found' };
+    const item = store[kind].find(i => i.value === value);
+    if (!item) return { ok: false, reason: 'not_found' };
+    item.label = trimmed;
+    writeStore(store);
+    return { ok: true, value, label: trimmed };
+  }
+
   function listCustom(kind) {
     const store = readStore();
     return Array.isArray(store[kind]) ? store[kind] : [];
@@ -199,6 +212,7 @@ const AppraisifyMetaOptions = (() => {
     addCustom,
     addCustomValue,
     seedDefaults,
+    renameCustomValue,
     ensureValue,
     ensureOptionValue,
     removeCustom,
