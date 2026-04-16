@@ -114,6 +114,28 @@
   BX24App.init(async () => {
     const user = await BX24App.getUser();
     if (user.APP_ROLE !== 'admin') { window.location.replace('dashboard.html'); return; }
+    AppraisifyMetaOptions.seedDefaults({
+      type: [
+        { value: 'annual',    label: 'Annual Review' },
+        { value: 'semi',      label: 'Semi-Annual Review' },
+        { value: 'quarterly', label: 'Quarterly Review' },
+        { value: 'probation', label: 'Probation Review' },
+      ],
+      team: [
+        { value: 'engineering', label: 'Engineering' },
+        { value: 'marketing',   label: 'Marketing' },
+        { value: 'operations',  label: 'Operations' },
+        { value: 'sales',       label: 'Sales' },
+        { value: 'all',         label: 'All Teams' },
+      ],
+      role: [
+        { value: 'junior',  label: 'Junior' },
+        { value: 'mid',     label: 'Mid-level' },
+        { value: 'senior',  label: 'Senior' },
+        { value: 'lead',    label: 'Lead / Manager' },
+        { value: 'all',     label: 'All Roles' },
+      ],
+    });
     renderLists();
   });
 

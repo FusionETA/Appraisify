@@ -157,6 +157,24 @@ const AppraisifyMetaOptions = (() => {
     return Array.isArray(store[kind]) ? store[kind] : [];
   }
 
+  function seedDefaults(defaults) {
+    const SEED_KEY = 'appraisify_defaults_seeded_v1';
+    if (localStorage.getItem(SEED_KEY)) return;
+    const store = readStore();
+    ['type', 'team', 'role'].forEach((kind) => {
+      if (!Array.isArray(defaults[kind])) return;
+      if (!Array.isArray(store[kind])) store[kind] = [];
+      defaults[kind].forEach(({ value, label }) => {
+        if (!value || !label) return;
+        if (!store[kind].some(item => item.value === value)) {
+          store[kind].push({ value, label });
+        }
+      });
+    });
+    writeStore(store);
+    localStorage.setItem(SEED_KEY, '1');
+  }
+
   function addCustomValue(kind, label) {
     if (!kind) return { ok: false, reason: 'missing_kind' };
     const trimmed = String(label || '').trim();
@@ -180,6 +198,7 @@ const AppraisifyMetaOptions = (() => {
     load,
     addCustom,
     addCustomValue,
+    seedDefaults,
     ensureValue,
     ensureOptionValue,
     removeCustom,
