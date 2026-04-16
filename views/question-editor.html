@@ -118,10 +118,7 @@
             <button type="button" onclick="addCustomMetaOption('type')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
           </div>
           <select id="edit-type" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
-            <option value="annual">Annual Review</option>
-            <option value="semi">Semi-Annual Review</option>
-            <option value="quarterly">Quarterly Review</option>
-            <option value="probation">Probation Review</option>
+            <option value="">— Select type —</option>
           </select>
         </div>
         <div>
@@ -130,10 +127,7 @@
             <button type="button" onclick="addCustomMetaOption('team')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
           </div>
           <select id="edit-team" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
-            <option value="engineering">Engineering</option>
-            <option value="marketing">Marketing</option>
-            <option value="operations">Operations</option>
-            <option value="all">All Teams</option>
+            <option value="">— Select team —</option>
           </select>
         </div>
         <div>
@@ -142,11 +136,7 @@
             <button type="button" onclick="addCustomMetaOption('role')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
           </div>
           <select id="edit-role" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
-            <option value="all">All Levels</option>
-            <option value="junior">Junior</option>
-            <option value="mid">Mid-level</option>
-            <option value="senior">Senior</option>
-            <option value="lead">Lead / Manager</option>
+            <option value="">— Select role —</option>
           </select>
         </div>
       </div>
@@ -254,6 +244,21 @@
     }, { scope: [], engagement: [] });
   }
 
+  function resolveMetaSelect(selectId, tplValue) {
+    if (!tplValue) return;
+    const selectEl = document.getElementById(selectId);
+    if (!selectEl) return;
+    const norm = String(tplValue).trim().toLowerCase();
+    const match = Array.from(selectEl.options).find(o =>
+      o.value === tplValue ||
+      o.value.toLowerCase() === norm ||
+      o.textContent.trim().toLowerCase() === norm
+    );
+    if (match) { selectEl.value = match.value; return; }
+    // Value not in list — add it as a new option and select it
+    AppraisifyMetaOptions.ensureValue(selectId, tplValue, tplValue);
+  }
+
   function getFilterCriteria() {
     return {
       type: document.getElementById('filter-type')?.value || '',
@@ -342,9 +347,9 @@
     document.getElementById('btn-delete-set').classList.remove('hidden');
     document.getElementById('btn-save-changes').disabled = true;
 
-    AppraisifyMetaOptions.ensureValue('edit-type', tpl.type, tpl.type);
-    AppraisifyMetaOptions.ensureValue('edit-team', tpl.team, tpl.team);
-    AppraisifyMetaOptions.ensureValue('edit-role', tpl.role, tpl.role);
+    resolveMetaSelect('edit-type', tpl.type);
+    resolveMetaSelect('edit-team', tpl.team);
+    resolveMetaSelect('edit-role', tpl.role);
 
     const scope = Array.isArray(tpl.sections?.scope) ? tpl.sections.scope : [];
     const engagement = Array.isArray(tpl.sections?.engagement) ? tpl.sections.engagement : [];
