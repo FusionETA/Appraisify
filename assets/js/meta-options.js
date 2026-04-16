@@ -198,7 +198,8 @@ const AppraisifyMetaOptions = (() => {
 
     const store = readStore();
     if (!Array.isArray(store[kind])) store[kind] = [];
-    if (store[kind].some(item => item.value === value)) {
+    const normLabel = trimmed.toLowerCase();
+    if (store[kind].some(item => item.value === value || item.label.toLowerCase() === normLabel)) {
       return { ok: false, reason: 'duplicate', value, label: trimmed };
     }
 
