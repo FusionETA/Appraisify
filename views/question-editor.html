@@ -52,32 +52,18 @@
         <label class="block text-xs font-semibold text-slate-600 mb-1.5">Filter Type</label>
         <select id="filter-type" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
           <option value="">All Types</option>
-          <option value="annual">Annual Review</option>
-          <option value="semi">Semi-Annual Review</option>
-          <option value="quarterly">Quarterly Review</option>
-          <option value="probation">Probation Review</option>
         </select>
       </div>
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1.5">Filter Team</label>
         <select id="filter-team" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
           <option value="">All Teams</option>
-          <option value="engineering">Engineering</option>
-          <option value="marketing">Marketing</option>
-          <option value="operations">Operations</option>
-          <option value="sales">Sales</option>
-          <option value="all">Generic (All Teams)</option>
         </select>
       </div>
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1.5">Filter Role</label>
         <select id="filter-role" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm">
           <option value="">All Roles</option>
-          <option value="junior">Junior</option>
-          <option value="mid">Mid-level</option>
-          <option value="senior">Senior</option>
-          <option value="lead">Lead / Manager</option>
-          <option value="all">Generic (All Roles)</option>
         </select>
       </div>
       <label class="flex items-center gap-2 text-xs font-medium text-slate-600 self-end pb-2 cursor-pointer">
@@ -310,9 +296,18 @@
       if (role) roles.add(role);
     });
 
-    types.forEach((v) => AppraisifyMetaOptions.ensureOptionValue('filter-type', v, v));
-    teams.forEach((v) => AppraisifyMetaOptions.ensureOptionValue('filter-team', v, v));
-    roles.forEach((v) => AppraisifyMetaOptions.ensureOptionValue('filter-role', v, v));
+    function syncKind(values, kind, filterId) {
+      values.forEach((v) => {
+        AppraisifyMetaOptions.addCustomValue(kind, v);
+        const entry = AppraisifyMetaOptions.listCustom(kind)
+          .find(i => i.label.toLowerCase() === v.toLowerCase() || i.value === v);
+        if (entry) AppraisifyMetaOptions.ensureOptionValue(filterId, entry.value, entry.label);
+      });
+    }
+
+    syncKind(types, 'type', 'filter-type');
+    syncKind(teams, 'team', 'filter-team');
+    syncKind(roles, 'role', 'filter-role');
   }
 
   async function loadTemplateOptions() {
