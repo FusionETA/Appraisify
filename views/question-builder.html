@@ -53,44 +53,21 @@
     <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Template Scope</p>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div>
-        <div class="flex items-center justify-between mb-1.5">
-          <label class="block text-xs font-semibold text-slate-600">Appraisal Type</label>
-          <button type="button" onclick="addCustomMetaOption('type')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
-        </div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Appraisal Type</label>
         <select id="meta-type" onchange="onTypeChange()" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm font-medium">
-          <option value="">— Select type —</option>
-          <option value="annual">Annual Review</option>
-          <option value="semi">Semi-Annual Review</option>
-          <option value="quarterly">Quarterly Review</option>
-          <option value="probation">Probation Review</option>
+          <option value="">— Loading… —</option>
         </select>
       </div>
       <div>
-        <div class="flex items-center justify-between mb-1.5">
-          <label class="block text-xs font-semibold text-slate-600">Target Team</label>
-          <button type="button" onclick="addCustomMetaOption('team')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
-        </div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Target Team</label>
         <select id="meta-team" onchange="onTeamChange()" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm font-medium" disabled>
-          <option value="">— Select team —</option>
-          <option value="engineering">Engineering</option>
-          <option value="marketing">Marketing</option>
-          <option value="operations">Operations</option>
-          <option value="sales">Sales</option>
-          <option value="all">All Teams</option>
+          <option value="">— Select type first —</option>
         </select>
       </div>
       <div>
-        <div class="flex items-center justify-between mb-1.5">
-          <label class="block text-xs font-semibold text-slate-600">Role Level</label>
-          <button type="button" onclick="addCustomMetaOption('role')" class="text-xs text-primary font-semibold hover:underline">+ Add custom</button>
-        </div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Role Level</label>
         <select id="meta-role" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm font-medium" disabled>
-          <option value="">— Select level —</option>
-          <option value="junior">Junior</option>
-          <option value="mid">Mid-level</option>
-          <option value="senior">Senior</option>
-          <option value="lead">Lead / Manager</option>
-          <option value="all">All Levels</option>
+          <option value="">— Select team first —</option>
         </select>
       </div>
     </div>
@@ -207,35 +184,91 @@
 
 <script src="//api.bitrix24.com/api/v1/"></script>
 <script src="../assets/js/bx24.js"></script>
-<script src="../assets/js/meta-options.js"></script>
 <script src="../assets/js/templates-api.js"></script>
 <script src="../assets/js/builder.js"></script>
 <script>
+  let _templatesCache = [];
+
   BX24App.init(async () => {
     const _u = await BX24App.getUser();
     if (_u.APP_ROLE !== 'admin') { window.location.replace('dashboard.html'); return; }
-    // Page-specific init
     refreshSectionDropdown();
-    AppraisifyMetaOptions.load('meta-type', 'type');
-    AppraisifyMetaOptions.load('meta-team', 'team');
-    AppraisifyMetaOptions.load('meta-role', 'role');
+    try { _templatesCache = await TemplatesAPI.listTemplates(); } catch (_) { _templatesCache = []; }
+    populateMetaDropdownsFromTemplates();
   });
+
+  function getUniqueMetaValues(kind) {
+    const seen = new Set();
+    const result = [];
+    _templatesCache.forEach((tpl) => {
+      const v = String(tpl[kind] || '').trim();
+      if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); result.push(v); }
+    });
+    return result.sort();
+  }
+
+  function populateMetaDropdownsFromTemplates() {
+    const typeEl = document.getElementById('meta-type');
+    const types = getUniqueMetaValues('type');
+    typeEl.innerHTML = '<option value="">— Select type —</option>' +
+      types.map(v => `<option value="${v}">${v}</option>`).join('');
+    typeEl.disabled = false;
+    document.getElementById('meta-team').innerHTML = '<option value="">— Select type first —</option>';
+    document.getElementById('meta-team').disabled = true;
+    document.getElementById('meta-role').innerHTML = '<option value="">— Select team first —</option>';
+    document.getElementById('meta-role').disabled = true;
+  }
 
   function onTypeChange() {
     const type = document.getElementById('meta-type').value;
-    document.getElementById('meta-team').disabled = !type;
+    const teamEl = document.getElementById('meta-team');
+    const roleEl = document.getElementById('meta-role');
     if (!type) {
-      document.getElementById('meta-team').value = '';
-      document.getElementById('meta-role').disabled = true;
-      document.getElementById('meta-role').value = '';
+      teamEl.innerHTML = '<option value="">— Select type first —</option>';
+      teamEl.disabled = true;
+      roleEl.innerHTML = '<option value="">— Select team first —</option>';
+      roleEl.disabled = true;
+    } else {
+      const seen = new Set();
+      const teams = [];
+      _templatesCache.forEach((tpl) => {
+        if (String(tpl.type || '').trim().toLowerCase() === type.toLowerCase()) {
+          const v = String(tpl.team || '').trim();
+          if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); teams.push(v); }
+        }
+      });
+      teamEl.innerHTML = '<option value="">— Select team —</option>' +
+        teams.sort().map(v => `<option value="${v}">${v}</option>`).join('');
+      teamEl.disabled = false;
+      roleEl.innerHTML = '<option value="">— Select team first —</option>';
+      roleEl.disabled = true;
     }
     updateTemplateName();
   }
 
   function onTeamChange() {
+    const type = document.getElementById('meta-type').value;
     const team = document.getElementById('meta-team').value;
-    document.getElementById('meta-role').disabled = !team;
-    if (!team) document.getElementById('meta-role').value = '';
+    const roleEl = document.getElementById('meta-role');
+    if (!team) {
+      roleEl.innerHTML = '<option value="">— Select team first —</option>';
+      roleEl.disabled = true;
+    } else {
+      const seen = new Set();
+      const roles = [];
+      _templatesCache.forEach((tpl) => {
+        if (
+          String(tpl.type || '').trim().toLowerCase() === type.toLowerCase() &&
+          String(tpl.team || '').trim().toLowerCase() === team.toLowerCase()
+        ) {
+          const v = String(tpl.role || '').trim();
+          if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); roles.push(v); }
+        }
+      });
+      roleEl.innerHTML = '<option value="">— Select role —</option>' +
+        roles.sort().map(v => `<option value="${v}">${v}</option>`).join('');
+      roleEl.disabled = false;
+    }
     updateTemplateName();
   }
 
@@ -255,19 +288,6 @@
     setWorkspace(tab);
   }
 
-  function addCustomMetaOption(kind) {
-    const map = {
-      type: { id: 'meta-type', label: 'appraisal type' },
-      team: { id: 'meta-team', label: 'team' },
-      role: { id: 'meta-role', label: 'role level' },
-    };
-    const cfg = map[kind];
-    if (!cfg) return;
-    AppraisifyMetaOptions.addCustom(cfg.id, kind, cfg.label);
-    if (kind === 'type') onTypeChange();
-    if (kind === 'team') onTeamChange();
-    updateTemplateName();
-  }
 </script>
 </body>
 </html>
