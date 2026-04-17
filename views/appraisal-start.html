@@ -303,7 +303,6 @@
 
 <script src="//api.bitrix24.com/api/v1/"></script>
 <script src="../assets/js/bx24.js"></script>
-<script src="../assets/js/meta-options.js"></script>
 <script src="../assets/js/templates-api.js"></script>
 <script src="../assets/js/template-filters.js"></script>
 <script>
@@ -654,10 +653,10 @@
     hiddenInput.value = resolved ? String(resolved.id) : '';
   }
 
+  // Templates store display-friendly names directly (e.g. "Annual", "Probation")
+  // so the value IS the label — no localStorage lookup needed.
   function getLabelForValue(kind, value) {
-    const items = AppraisifyMetaOptions.listCustom(kind);
-    const found = items.find(i => i.value === value);
-    return found ? found.label : value;
+    return value;
   }
 
   function refreshTypeDropdown() {
@@ -744,25 +743,8 @@
   }
 
   function hydrateFilterOptionsFromTemplates(templates) {
-    if (!Array.isArray(templates)) return;
-
-    const types = new Set();
-    const teams = new Set();
-    const roles = new Set();
-
-    templates.forEach((tpl) => {
-      const type = String(tpl?.type || '').trim();
-      const team = String(tpl?.team || '').trim();
-      const role = String(tpl?.role || '').trim();
-      if (type) types.add(type);
-      if (team) teams.add(team);
-      if (role) roles.add(role);
-    });
-
-    // Persist to localStorage for settings page and question-builder (all three dropdowns are now fully dynamic)
-    types.forEach((v) => { AppraisifyMetaOptions.addCustomValue('type', v); });
-    teams.forEach((v) => { AppraisifyMetaOptions.addCustomValue('team', v); });
-    roles.forEach((v) => { AppraisifyMetaOptions.addCustomValue('role', v); });
+    // No-op: type/team/role values are derived from templatesCache on demand.
+    // Dropdowns are rebuilt dynamically — no localStorage persistence needed.
   }
 
   async function loadQuestionSets() {
@@ -954,13 +936,6 @@
     window.location.href = 'dashboard.html?launched=1';
   }
 
-  function addCustomCycleType() {
-    const added = AppraisifyMetaOptions.addCustom('cycle-type', 'type', 'appraisal type');
-    if (added) {
-      updateSummary();
-      renderFilteredQuestionSets();
-    }
-  }
 </script>
 </body>
 </html>
