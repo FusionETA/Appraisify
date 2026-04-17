@@ -211,13 +211,7 @@
   BX24App.init(async () => {
     const _u = await BX24App.getUser();
     if (_u.APP_ROLE !== 'admin') { window.location.replace('dashboard.html'); return; }
-    AppraisifyMetaOptions.load('filter-type', 'type');
-    AppraisifyMetaOptions.load('filter-team', 'team');
-    AppraisifyMetaOptions.load('filter-role', 'role');
-    AppraisifyMetaOptions.load('edit-type', 'type');
-    AppraisifyMetaOptions.load('edit-team', 'team');
-    AppraisifyMetaOptions.load('edit-role', 'role');
-    ['filter-type', 'filter-team', 'filter-role', 'filter-include-generic'].forEach((id) => {
+['filter-type', 'filter-team', 'filter-role', 'filter-include-generic'].forEach((id) => {
       document.getElementById(id)?.addEventListener('change', applyTemplateFilters);
     });
     ['edit-type', 'edit-team', 'edit-role'].forEach((id) => {
@@ -250,8 +244,11 @@
       o.textContent.trim().toLowerCase() === norm
     );
     if (match) { selectEl.value = match.value; return; }
-    // Value not in list — add it as a new option and select it
-    AppraisifyMetaOptions.ensureValue(selectId, tplValue, tplValue);
+    // Value not in list yet — add it temporarily and select it
+    const opt = document.createElement('option');
+    opt.value = tplValue; opt.textContent = tplValue;
+    selectEl.appendChild(opt);
+    selectEl.value = tplValue;
   }
 
   function getFilterCriteria() {
@@ -288,26 +285,33 @@
     const roles = new Set();
 
     templates.forEach((tpl) => {
-      const type = String(tpl?.type || '').trim();
-      const team = String(tpl?.team || '').trim();
-      const role = String(tpl?.role || '').trim();
-      if (type) types.add(type);
-      if (team) teams.add(team);
-      if (role) roles.add(role);
+      if (tpl?.type) types.add(String(tpl.type).trim());
+      if (tpl?.team) teams.add(String(tpl.team).trim());
+      if (tpl?.role) roles.add(String(tpl.role).trim());
     });
 
-    function syncKind(values, kind, filterId) {
-      values.forEach((v) => {
-        AppraisifyMetaOptions.addCustomValue(kind, v);
-        const entry = AppraisifyMetaOptions.listCustom(kind)
-          .find(i => i.label.toLowerCase() === v.toLowerCase() || i.value === v);
-        if (entry) AppraisifyMetaOptions.ensureOptionValue(filterId, entry.value, entry.label);
+    function populate(values, filterId, editId, allLabel, editPlaceholder) {
+      const filterEl = document.getElementById(filterId);
+      const editEl = document.getElementById(editId);
+      if (filterEl) filterEl.innerHTML = `<option value="">${allLabel}</option>`;
+      if (editEl) editEl.innerHTML = `<option value="">${editPlaceholder}</option>`;
+      [...values].sort().forEach((v) => {
+        if (filterEl) {
+          const opt = document.createElement('option');
+          opt.value = v; opt.textContent = v;
+          filterEl.appendChild(opt);
+        }
+        if (editEl) {
+          const opt = document.createElement('option');
+          opt.value = v; opt.textContent = v;
+          editEl.appendChild(opt);
+        }
       });
     }
 
-    syncKind(types, 'type', 'filter-type');
-    syncKind(teams, 'team', 'filter-team');
-    syncKind(roles, 'role', 'filter-role');
+    populate(types, 'filter-type', 'edit-type', 'All Types',       '— Select type —');
+    populate(teams, 'filter-team', 'edit-team', 'All Teams',       '— Select team —');
+    populate(roles, 'filter-role', 'edit-role', 'All Roles', '— Select role level —');
   }
 
   async function loadTemplateOptions() {
@@ -479,51 +483,52 @@
   }
 
   async function renameMetaOption(kind) {
-    const map = {
-      type: { id: 'edit-type' },
-      team: { id: 'edit-team' },
-      role: { id: 'edit-role' },
-    };
-    const cfg = map[kind];
-    if (!cfg) return;
-    const selectEl = document.getElementById(cfg.id);
+    const selectEl = document.getElementById(`edit-${kind}`);
     const selected = selectEl?.options[selectEl.selectedIndex];
     if (!selected || !selected.value) { alert('Select an option to rename first.'); return; }
     const oldLabel = selected.text;
     const oldValue = selected.value;
     const newLabel = window.prompt(`Rename "${oldLabel}" to:`, oldLabel);
     if (!newLabel || newLabel.trim() === oldLabel) return;
-    const result = AppraisifyMetaOptions.renameCustomValue(kind, oldValue, newLabel);
-    if (!result.ok) { alert(`Rename failed: ${result.reason}`); return; }
-    // Update matching templates in the database
-    const matching = templatesCache.filter((tpl) => {
-      const v = String(tpl[kind] || '').trim();
-      return v.toLowerCase() === oldLabel.toLowerCase() || v === oldValue;
-    });
-    await Promise.allSettled(matching.map((tpl) =>
-      TemplatesAPI.updateTemplate(tpl.id, { [kind]: result.label })
-        .then(() => { tpl[kind] = result.label; })
+    const trimmed = newLabel.trim();
+    // Patch all matching templates in the database
+    const matching = templatesCache.filter((tpl) =>
+      String(tpl[kind] || '').trim().toLowerCase() === oldLabel.toLowerCase() || String(tpl[kind] || '').trim() === oldValue
+    );
+    const results = await Promise.allSettled(matching.map((tpl) =>
+      TemplatesAPI.updateTemplate(tpl.id, { [kind]: trimmed }).then(() => { tpl[kind] = trimmed; })
     ));
-    // Update DOM
-    selected.text = result.label;
-    const filterOpt = Array.from(document.getElementById(`filter-${kind}`)?.options || []).find(o => o.value === oldValue);
-    if (filterOpt) filterOpt.text = result.label;
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed) alert(`Renamed locally but ${failed} template(s) failed to update.`);
+    // Update DOM in edit and filter dropdowns
+    selected.value = trimmed; selected.text = trimmed;
+    const filterEl = document.getElementById(`filter-${kind}`);
+    const filterOpt = Array.from(filterEl?.options || []).find((o) => o.value === oldValue);
+    if (filterOpt) { filterOpt.value = trimmed; filterOpt.text = trimmed; }
     markDirty();
   }
 
   function addCustomMetaOption(kind) {
-    const map = {
-      type: { id: 'edit-type', label: 'appraisal type' },
-      team: { id: 'edit-team', label: 'team' },
-      role: { id: 'edit-role', label: 'role level' },
-    };
-    const cfg = map[kind];
-    if (!cfg) return;
-    const added = AppraisifyMetaOptions.addCustom(cfg.id, kind, cfg.label);
-    if (added) {
-      AppraisifyMetaOptions.ensureValue(`filter-${kind}`, added.value, added.label);
-      markDirty();
+    const kindLabel = kind === 'type' ? 'appraisal type' : kind === 'team' ? 'team' : 'role level';
+    const label = window.prompt(`Enter custom ${kindLabel}:`);
+    if (!label?.trim()) return;
+    const trimmed = label.trim();
+    // Add to edit dropdown and select it
+    const editEl = document.getElementById(`edit-${kind}`);
+    if (editEl && !Array.from(editEl.options).some((o) => o.textContent.trim().toLowerCase() === trimmed.toLowerCase())) {
+      const opt = document.createElement('option');
+      opt.value = trimmed; opt.textContent = trimmed;
+      editEl.appendChild(opt);
     }
+    if (editEl) editEl.value = trimmed;
+    // Mirror into filter dropdown
+    const filterEl = document.getElementById(`filter-${kind}`);
+    if (filterEl && !Array.from(filterEl.options).some((o) => o.textContent.trim().toLowerCase() === trimmed.toLowerCase())) {
+      const opt = document.createElement('option');
+      opt.value = trimmed; opt.textContent = trimmed;
+      filterEl.appendChild(opt);
+    }
+    markDirty();
   }
 </script>
 </body>
