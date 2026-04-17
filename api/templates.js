@@ -89,7 +89,16 @@ function validateTemplatePayload(payload, { partial = false } = {}) {
   if (!partial || Object.prototype.hasOwnProperty.call(payload, 'scopeItems')) {
     const items = Array.isArray(payload.scopeItems) ? payload.scopeItems : [];
     out.scopeItems = items
-      .map(i => String(i || '').trim())
+      .map(i => {
+        if (i && typeof i === 'object') {
+          const text = String(i.text || '').trim();
+          const desc = String(i.desc || '').trim();
+          return text ? { text, desc } : null;
+        }
+        // legacy string
+        const text = String(i || '').trim();
+        return text ? { text, desc: '' } : null;
+      })
       .filter(Boolean)
       .slice(0, 100);
   }
@@ -136,7 +145,13 @@ function fromStoredTemplate(raw, domain) {
     type: String(raw.type || 'annual'),
     team: String(raw.team || 'all'),
     role: String(raw.role || 'all'),
-    scopeItems: Array.isArray(raw.scopeItems) ? raw.scopeItems : [],
+    scopeItems: Array.isArray(raw.scopeItems) ? raw.scopeItems
+      .map(i => {
+        if (i && typeof i === 'object') return { text: String(i.text||'').trim(), desc: String(i.desc||'').trim() };
+        const text = String(i||'').trim();
+        return text && text !== '[object Object]' ? { text, desc: '' } : null;
+      })
+      .filter(Boolean) : [],
     sections: {
       scope: Array.isArray(raw.sections?.scope) ? raw.sections.scope : [],
       engagement: Array.isArray(raw.sections?.engagement) ? raw.sections.engagement : [],
