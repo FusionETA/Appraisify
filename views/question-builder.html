@@ -53,19 +53,28 @@
     <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Template Scope</p>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Appraisal Type</label>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-xs font-semibold text-slate-600">Appraisal Type</label>
+          <button type="button" onclick="addNewMetaValue('type')" class="text-xs text-primary font-semibold hover:underline">+ New</button>
+        </div>
         <select id="meta-type" onchange="onTypeChange()" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm font-medium">
           <option value="">— Loading… —</option>
         </select>
       </div>
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Target Team</label>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-xs font-semibold text-slate-600">Target Team</label>
+          <button type="button" onclick="addNewMetaValue('team')" class="text-xs text-primary font-semibold hover:underline">+ New</button>
+        </div>
         <select id="meta-team" onchange="onTeamChange()" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm font-medium" disabled>
           <option value="">— Select type first —</option>
         </select>
       </div>
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Role Level</label>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-xs font-semibold text-slate-600">Role Level</label>
+          <button type="button" onclick="addNewMetaValue('role')" class="text-xs text-primary font-semibold hover:underline">+ New</button>
+        </div>
         <select id="meta-role" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm font-medium" disabled>
           <option value="">— Select team first —</option>
         </select>
@@ -286,6 +295,46 @@
     const sel = document.getElementById('workspace-select');
     if (sel) sel.value = tab;
     setWorkspace(tab);
+  }
+
+  function addNewMetaValue(kind) {
+    const kindLabel = kind === 'type' ? 'appraisal type' : kind === 'team' ? 'team' : 'role level';
+
+    if (kind === 'team') {
+      const currentType = document.getElementById('meta-type').value;
+      if (!currentType) { alert('Please select an appraisal type first.'); return; }
+    }
+    if (kind === 'role') {
+      const currentTeam = document.getElementById('meta-team').value;
+      if (!currentTeam) { alert('Please select a team first.'); return; }
+    }
+
+    const label = window.prompt(`Enter new ${kindLabel} name:`);
+    if (!label?.trim()) return;
+    const trimmed = label.trim();
+
+    const selectEl = document.getElementById(`meta-${kind}`);
+    // Check for duplicate in current options
+    const exists = Array.from(selectEl.options).some(
+      o => o.value.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (exists) {
+      selectEl.value = Array.from(selectEl.options).find(
+        o => o.value.toLowerCase() === trimmed.toLowerCase()
+      ).value;
+      return;
+    }
+
+    const opt = document.createElement('option');
+    opt.value = trimmed;
+    opt.textContent = trimmed;
+    selectEl.appendChild(opt);
+    selectEl.value = trimmed;
+    selectEl.disabled = false;
+
+    if (kind === 'type') onTypeChange();
+    else if (kind === 'team') onTeamChange();
+    updateTemplateName();
   }
 
 </script>
