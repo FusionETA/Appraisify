@@ -128,6 +128,32 @@
       </div>
     </div>
 
+    <!-- Scope of Work (editable) -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-lg">work</span>
+          Scope of Work
+        </h3>
+        <div class="flex items-center gap-3">
+          <button onclick="migrateScopeQuestionsToScopeItems()" class="text-xs text-slate-500 font-semibold hover:underline">Migrate from questions</button>
+          <button onclick="toggleScopeEditor()" class="text-xs text-primary font-semibold hover:underline" id="btn-toggle-scope">+ Add item</button>
+        </div>
+      </div>
+      <div id="edit-scope-list" class="divide-y divide-slate-100">
+        <!-- populated by JS -->
+      </div>
+      <div id="scope-editor-form" class="hidden px-6 py-4 border-t border-slate-100 space-y-2 bg-slate-50">
+        <input id="scope-edit-text" type="text" placeholder="Responsibility title e.g. Task Quality" maxlength="80"
+          class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm"/>
+        <textarea id="scope-edit-desc" rows="2" placeholder="Description e.g. How well do you manage tasks…"
+          class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm resize-none"></textarea>
+        <button onclick="addEditScopeItem()" class="px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors">
+          + Add
+        </button>
+      </div>
+    </div>
+
     <!-- Question list (editable) -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -354,8 +380,11 @@
     const engagement = Array.isArray(tpl.sections?.engagement) ? tpl.sections.engagement : [];
     editState.questions = scope.map(q => ({ ...q, _workspace: 'scope', _uid: q._uid || Math.random().toString(36).slice(2) }))
       .concat(engagement.map(q => ({ ...q, _workspace: 'engagement', _uid: q._uid || Math.random().toString(36).slice(2) })));
-    editState.scopeItems = Array.isArray(tpl.scopeItems) ? tpl.scopeItems : [];
+    editState.scopeItems = Array.isArray(tpl.scopeItems) ? tpl.scopeItems.map(i =>
+      typeof i === 'string' ? { text: i, desc: '' } : i
+    ) : [];
     editState.dirty = false;
+    renderEditScopeList();
     renderEditList();
   }
 
@@ -396,6 +425,79 @@
             </button>
           </div>`).join('')}
       </div>`).join('');
+  }
+
+  // ── Scope of Work editing ────────────────────────────────────────────────
+
+  function renderEditScopeList() {
+    const list = document.getElementById('edit-scope-list');
+    if (!list) return;
+    const items = editState.scopeItems || [];
+    if (!items.length) {
+      list.innerHTML = '<div class="px-6 py-4 text-sm text-slate-400 italic">No scope items yet.</div>';
+      return;
+    }
+    list.innerHTML = items.map((item, i) => `
+      <div class="flex items-start gap-4 px-6 py-4 hover:bg-slate-50/50 group">
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-slate-800">${item.text}</p>
+          ${item.desc ? `<p class="text-xs text-slate-500 mt-0.5">${item.desc}</p>` : ''}
+        </div>
+        <button onclick="removeEditScopeItem(${i})"
+          class="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 shrink-0 mt-0.5">
+          <span class="material-symbols-outlined text-base">delete</span>
+        </button>
+      </div>`).join('');
+  }
+
+  function toggleScopeEditor() {
+    const form = document.getElementById('scope-editor-form');
+    const btn = document.getElementById('btn-toggle-scope');
+    const hidden = form.classList.toggle('hidden');
+    btn.textContent = hidden ? '+ Add item' : 'Close';
+  }
+
+  function addEditScopeItem() {
+    const text = document.getElementById('scope-edit-text')?.value.trim();
+    const desc = document.getElementById('scope-edit-desc')?.value.trim() || '';
+    if (!text) return;
+    if (!editState.scopeItems) editState.scopeItems = [];
+    if (editState.scopeItems.some(i => i.text.toLowerCase() === text.toLowerCase())) return;
+    editState.scopeItems.push({ text, desc });
+    document.getElementById('scope-edit-text').value = '';
+    document.getElementById('scope-edit-desc').value = '';
+    markDirty();
+    renderEditScopeList();
+  }
+
+  function removeEditScopeItem(idx) {
+    editState.scopeItems.splice(idx, 1);
+    markDirty();
+    renderEditScopeList();
+  }
+
+  // ── Migration: convert "Scope of Work" questions → scopeItems ────────────
+  // For existing templates that stored scope items as questions under a
+  // section whose name contains "scope" or "scope of work".
+  function migrateScopeQuestionsToScopeItems() {
+    const scopeSectionPattern = /scope of work|scope/i;
+    const toMigrate = editState.questions.filter(q => scopeSectionPattern.test(q.section));
+    if (!toMigrate.length) {
+      alert('No questions found in a "Scope of Work" section to migrate.');
+      return;
+    }
+    if (!confirm(`Convert ${toMigrate.length} question(s) from the Scope of Work section into scope items?\n\nThey will be removed from the question list and shown as context on the appraisal form instead.`)) return;
+    if (!editState.scopeItems) editState.scopeItems = [];
+    toMigrate.forEach(q => {
+      if (!editState.scopeItems.some(i => i.text.toLowerCase() === q.text.toLowerCase())) {
+        editState.scopeItems.push({ text: q.text, desc: q.desc || '' });
+      }
+    });
+    editState.questions = editState.questions.filter(q => !scopeSectionPattern.test(q.section));
+    markDirty();
+    renderEditScopeList();
+    renderEditList();
+    alert(`Migrated ${toMigrate.length} item(s) to Scope of Work. Save to apply.`);
   }
 
   function addInlineQuestion() {

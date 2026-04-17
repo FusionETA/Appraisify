@@ -89,6 +89,15 @@
     <!-- More tabs injected by JS -->
   </div>
 
+  <!-- Scope of Work -->
+  <div id="scope-items-block" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
+    <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+      <span class="material-symbols-outlined text-slate-400 text-base">work</span>
+      Scope of Work
+    </h3>
+    <div id="scope-items-tags" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+  </div>
+
   <!-- Appraisal form -->
   <div id="form-sections" class="space-y-6">
     <!-- populated by JS -->
@@ -154,7 +163,8 @@
     ref: '#APR-2024-0001',
     cycle: 'Annual Cycle 2024',
     year: '2024',
-    sections: []
+    sections: [],
+    scopeItems: []
   };
 
   function slugifySection(text) {
@@ -306,6 +316,7 @@
       const template = await TemplatesAPI.getTemplate(templateId);
       if (!template) throw new Error('Template not found for this appraisal.');
       APPRAISAL_DATA.sections = buildSectionsFromTemplate(template);
+      APPRAISAL_DATA.scopeItems = Array.isArray(template.scopeItems) ? template.scopeItems : [];
     } catch (e) {
       if (BX24App.DEV_MODE) {
         APPRAISAL_DATA.sections = devFallbackSections();
@@ -329,11 +340,29 @@
       return;
     }
 
+    renderScopeItems();
     renderForm(APPRAISAL_DATA.sections);
     renderSectionTabs(APPRAISAL_DATA.sections);
     initAppraisalForm({ role: 'reviewee', appraisalId: APPRAISAL_DATA.id });
     loadDraft();
   });
+
+  function renderScopeItems() {
+    const container = document.getElementById('scope-items-block');
+    if (!container) return;
+    const items = APPRAISAL_DATA.scopeItems || [];
+    if (!items.length) { container.classList.add('hidden'); return; }
+    container.classList.remove('hidden');
+    function esc(v) { return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    document.getElementById('scope-items-tags').innerHTML = items.map(item => {
+      const text = typeof item === 'string' ? item : (item.text || '');
+      const desc = typeof item === 'string' ? '' : (item.desc || '');
+      return `<div class="rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 min-w-0">
+      <p class="text-sm font-semibold text-primary">${esc(text)}</p>
+      ${desc ? `<p class="text-xs text-slate-500 mt-0.5">${esc(desc)}</p>` : ''}
+    </div>`;
+    }).join('');
+  }
 
   function renderSectionTabs(sections) {
     const tabBar = document.querySelector('.flex.items-center.gap-2.mb-6');

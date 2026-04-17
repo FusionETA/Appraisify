@@ -8,7 +8,7 @@ let _questionsMap = {
   scope:       [],  // [{ _uid, section, text, desc }]
   engagement:  [],
 };
-let _scopeItems   = [];         // strings
+let _scopeItems   = [];         // [{ text, desc }]
 let _sectionCatalog = {
   scope: [],
   engagement: [],
@@ -23,12 +23,17 @@ function setWorkspace(ws) {
 
 // ── Scope of work items ───────────────────────────────────────────────────
 function addScopeItem() {
-  const input = document.getElementById('scope-input');
-  const val   = input?.value.trim();
-  if (!val) return;
-  if (_scopeItems.includes(val)) { input.value = ''; return; }
-  _scopeItems.push(val);
-  input.value = '';
+  const textInput = document.getElementById('scope-input');
+  const descInput = document.getElementById('scope-input-desc');
+  const text = textInput?.value.trim();
+  if (!text) return;
+  const desc = descInput?.value.trim() || '';
+  if (_scopeItems.some(i => i.text.toLowerCase() === text.toLowerCase())) {
+    textInput.value = ''; if (descInput) descInput.value = ''; return;
+  }
+  _scopeItems.push({ text, desc });
+  textInput.value = '';
+  if (descInput) descInput.value = '';
   renderScopeItems();
 }
 
@@ -41,12 +46,15 @@ function renderScopeItems() {
   const container = document.getElementById('scope-items');
   if (!container) return;
   container.innerHTML = _scopeItems.map((item, i) => `
-    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-      ${item}
-      <button onclick="removeScopeItem(${i})" class="ml-1 text-primary/60 hover:text-primary">
-        <span class="material-symbols-outlined text-sm">close</span>
+    <div class="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-slate-800">${item.text}</p>
+        ${item.desc ? `<p class="text-xs text-slate-500 mt-0.5">${item.desc}</p>` : ''}
+      </div>
+      <button onclick="removeScopeItem(${i})" class="text-slate-400 hover:text-red-500 shrink-0 mt-0.5">
+        <span class="material-symbols-outlined text-base">delete</span>
       </button>
-    </span>`).join('');
+    </div>`).join('');
 }
 
 // ── Section management ────────────────────────────────────────────────────
