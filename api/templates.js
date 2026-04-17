@@ -155,172 +155,105 @@ function scopeQuestions(section, questions) {
 
 function getDefaultTemplateSeeds() {
   return [
+    // ── Annual Review ────────────────────────────────────────────────────────
+    // Generic template suitable for all teams and roles.
+    // For mid-year / quarterly cycles, use the Year field (e.g. "2026 H1", "2026 Q3")
+    // rather than creating separate template types.
     {
-      name: 'General Performance (All Teams, All Roles)',
-      type: 'annual',
+      name: 'Annual Review',
+      type: 'Annual',
       team: 'all',
       role: 'all',
       scopeItems: [],
       sections: {
-        scope: scopeQuestions('Core Performance', [
-          'Quality of work consistently meets expected standards.',
-          'Completes assigned tasks on time and follows through on commitments.',
-          'Communicates clearly with teammates and stakeholders.',
-          'Shows ownership and accountability for outcomes.',
-          'Adapts well to changes in priorities or requirements.',
-          'Collaborates effectively and contributes to team goals.',
-          'Identifies problems early and proposes practical solutions.',
-          'Demonstrates professional behavior and reliability.',
+        scope: [
+          ...scopeQuestions('Core Performance', [
+            'Consistently delivers work that meets or exceeds quality standards.',
+            'Completes tasks on time and follows through on commitments.',
+            'Takes ownership of outcomes and holds themselves accountable.',
+            'Adapts effectively to changing priorities and circumstances.',
+          ]),
+          ...scopeQuestions('Collaboration & Communication', [
+            'Communicates clearly and proactively with the team and stakeholders.',
+            'Contributes positively to team goals and supports colleagues.',
+            'Gives and receives feedback constructively.',
+            'Maintains professional conduct and a reliable work ethic.',
+          ]),
+          ...scopeQuestions('Growth & Initiative', [
+            'Identifies problems early and proposes practical solutions.',
+            'Continuously develops skills relevant to the role.',
+            'Shows initiative beyond core responsibilities when appropriate.',
+          ]),
+        ],
+        engagement: scopeQuestions('Employee Engagement', [
+          'Feels motivated and engaged in day-to-day work.',
+          'Has the tools and resources needed to perform effectively.',
+          'Feels their contributions are recognised and valued.',
+          'Would recommend this organisation as a great place to work.',
         ]),
-        engagement: [],
       },
     },
+
+    // ── Probation Review ─────────────────────────────────────────────────────
+    // Used for employees completing their probationary period.
     {
-      name: 'Engineering (Individual Contributor)',
-      type: 'annual',
-      team: 'engineering',
-      role: 'all',
-      scopeItems: [],
-      sections: {
-        scope: scopeQuestions('Engineering Delivery', [
-          'Writes clean, maintainable, and testable code.',
-          'Uses sound technical judgment when choosing solutions.',
-          'Delivers features with appropriate quality and performance.',
-          'Handles debugging and root-cause analysis effectively.',
-          'Participates in code reviews constructively.',
-          'Communicates technical tradeoffs clearly.',
-          'Improves systems through refactoring or automation.',
-          'Documents technical decisions and implementation details.',
-          'Collaborates well across product, design, and QA.',
-          'Balances delivery speed with long-term maintainability.',
-        ]),
-        engagement: [],
-      },
-    },
-    {
-      name: 'Engineering (Lead/Manager)',
-      type: 'annual',
-      team: 'engineering',
-      role: 'lead',
-      scopeItems: [],
-      sections: {
-        scope: scopeQuestions('Leadership & Execution', [
-          'Sets clear technical direction for the team.',
-          'Helps team members prioritize and unblock effectively.',
-          'Maintains high engineering standards through coaching and reviews.',
-          'Makes balanced architecture decisions under constraints.',
-          'Coordinates cross-team dependencies proactively.',
-          'Supports growth and development of engineers.',
-          'Manages project risks and communicates status transparently.',
-          'Improves team process, delivery predictability, and quality.',
-        ]),
-        engagement: [],
-      },
-    },
-    {
-      name: 'Sales (Account Executive/BD)',
-      type: 'annual',
-      team: 'sales',
-      role: 'all',
-      scopeItems: [],
-      sections: {
-        scope: scopeQuestions('Sales Performance', [
-          'Meets or exceeds pipeline generation expectations.',
-          'Progresses opportunities effectively through the sales cycle.',
-          'Demonstrates strong customer discovery and qualification.',
-          'Communicates value proposition clearly to prospects.',
-          'Manages follow-ups and CRM hygiene consistently.',
-          'Handles objections professionally and effectively.',
-          'Collaborates with pre-sales, marketing, and CS teams.',
-          'Maintains forecast accuracy and deal transparency.',
-          'Builds trusted relationships with key customer stakeholders.',
-        ]),
-        engagement: [],
-      },
-    },
-    {
-      name: 'Marketing (General)',
-      type: 'annual',
-      team: 'marketing',
-      role: 'all',
-      scopeItems: [],
-      sections: {
-        scope: scopeQuestions('Marketing Execution', [
-          'Plans and executes campaigns aligned with business goals.',
-          'Produces high-quality content with clear messaging.',
-          'Uses data to evaluate campaign performance and improve outcomes.',
-          'Manages timelines and deliverables reliably.',
-          'Collaborates effectively with sales/product/design.',
-          'Demonstrates creativity while maintaining brand consistency.',
-          'Prioritizes initiatives based on impact and resources.',
-          'Communicates campaign insights and recommendations clearly.',
-          'Improves processes for campaign execution efficiency.',
-        ]),
-        engagement: [],
-      },
-    },
-    {
-      name: 'Operations (General)',
-      type: 'annual',
-      team: 'operations',
-      role: 'all',
-      scopeItems: [],
-      sections: {
-        scope: scopeQuestions('Operational Excellence', [
-          'Maintains process accuracy and operational consistency.',
-          'Resolves operational issues quickly and effectively.',
-          'Identifies bottlenecks and drives process improvements.',
-          'Coordinates smoothly with other teams and functions.',
-          'Maintains clear documentation and operational records.',
-          'Demonstrates reliability under high workload.',
-          'Uses data to monitor performance and improve operations.',
-          'Escalates risks appropriately and proposes solutions.',
-          'Contributes to overall service quality and efficiency.',
-        ]),
-        engagement: [],
-      },
-    },
-    {
-      name: 'IT (General IT Support/Infrastructure)',
-      type: 'annual',
-      team: 'it',
-      role: 'all',
-      scopeItems: [],
-      sections: {
-        scope: scopeQuestions('IT Service Delivery', [
-          'Resolves incidents within expected SLA timelines.',
-          'Diagnoses technical issues accurately and efficiently.',
-          'Communicates issue status and resolutions clearly to users.',
-          'Follows change management and deployment procedures.',
-          'Maintains system reliability, uptime, and service continuity.',
-          'Manages access control and security practices responsibly.',
-          'Documents troubleshooting steps and technical fixes clearly.',
-          'Proactively identifies recurring issues and prevents repeats.',
-          'Collaborates effectively with engineering/vendor teams.',
-          'Prioritizes tasks appropriately during high-severity incidents.',
-        ]),
-        engagement: [],
-      },
-    },
-    {
-      name: 'PIP (Performance Improvement Plan)',
-      type: 'pip',
+      name: 'Probation Review',
+      type: 'Probation',
       team: 'all',
       role: 'all',
       scopeItems: [],
       sections: {
-        scope: scopeQuestions('PIP Progress', [
-          'Shows measurable progress on defined PIP goals.',
-          'Completes agreed action items by target dates.',
-          'Demonstrates consistent improvement in work quality.',
-          'Responds constructively to coaching and feedback.',
-          'Improves communication with manager and stakeholders.',
-          'Demonstrates ownership and accountability for commitments.',
-          'Applies recommended process/behavior changes consistently.',
-          'Reduces repeat issues previously identified.',
-          'Shows reliability in attendance, responsiveness, and follow-through.',
-          'Meets the performance expectations defined for the role.',
-        ]),
+        scope: [
+          ...scopeQuestions('Role Readiness', [
+            'Demonstrates a clear understanding of role responsibilities.',
+            'Completes assigned tasks independently within expected timeframes.',
+            'Has acquired the foundational knowledge and skills required for the role.',
+            'Shows progress toward meeting full role competency benchmarks.',
+          ]),
+          ...scopeQuestions('Workplace Integration', [
+            'Adapts to company culture, processes, and ways of working.',
+            'Collaborates effectively with teammates and cross-functional colleagues.',
+            'Communicates proactively with their manager and team.',
+            'Receives and acts on feedback in a constructive manner.',
+          ]),
+          ...scopeQuestions('Reliability & Conduct', [
+            'Maintains acceptable attendance, punctuality, and responsiveness.',
+            'Demonstrates alignment with company values and professional standards.',
+            'Shows initiative in learning and asking the right questions.',
+          ]),
+        ],
+        engagement: [],
+      },
+    },
+
+    // ── PIP Review ───────────────────────────────────────────────────────────
+    // Used during a Performance Improvement Plan cycle.
+    {
+      name: 'PIP Review',
+      type: 'PIP',
+      team: 'all',
+      role: 'all',
+      scopeItems: [],
+      sections: {
+        scope: [
+          ...scopeQuestions('PIP Progress', [
+            'Shows measurable progress on the goals defined in the PIP.',
+            'Completes agreed action items by their target dates.',
+            'Demonstrates consistent improvement in the identified areas of concern.',
+            'Applies recommended process or behaviour changes consistently.',
+          ]),
+          ...scopeQuestions('Accountability & Conduct', [
+            'Takes ownership and accountability for commitments made.',
+            'Responds constructively to coaching and managerial feedback.',
+            'Improves communication and follow-through with manager and stakeholders.',
+            'Reduces recurrence of issues previously identified.',
+          ]),
+          ...scopeQuestions('Outcome Assessment', [
+            'Meets the minimum performance expectations defined for the role.',
+            'Shows reliability in attendance, responsiveness, and delivery.',
+            'Demonstrates readiness to exit the PIP and return to standard performance management.',
+          ]),
+        ],
         engagement: [],
       },
     },
@@ -418,6 +351,27 @@ export default async function handler(req, res) {
       await seedDefaultTemplatesIfEmpty(domain);
       const templates = await listTemplatesForDomain(domain, { includeArchived });
       return res.status(200).json({ templates });
+    }
+
+    if (method === 'POST' && body.action === 'reset_to_defaults') {
+      // Archive every active template for this domain, then re-seed defaults
+      const allBlobs = await blobList(templatePrefix(domain));
+      if (allBlobs.length > 0) {
+        const docs = await Promise.all(allBlobs.map(b => blobGet(b.url).catch(() => null)));
+        await Promise.all(docs.map(async (doc) => {
+          if (doc && !doc.archived) {
+            await blobPut(templatePath(domain, doc.id), {
+              ...doc,
+              archived: true,
+              updatedAt: new Date().toISOString(),
+              version: Number(doc.version || 1) + 1,
+            });
+          }
+        }));
+      }
+      await seedDefaultTemplatesIfEmpty(domain);
+      const templates = await listTemplatesForDomain(domain);
+      return res.status(200).json({ ok: true, templates });
     }
 
     if (method === 'POST') {

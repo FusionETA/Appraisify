@@ -50,6 +50,18 @@
 
   <div id="settings-feedback" class="hidden rounded-xl border px-4 py-3 text-sm font-semibold"></div>
 
+  <!-- Danger zone -->
+  <div class="bg-white rounded-2xl border border-red-200 shadow-sm p-5 flex items-center justify-between gap-4">
+    <div>
+      <p class="font-bold text-slate-900 text-sm">Reset Question Templates to Defaults</p>
+      <p class="text-xs text-slate-500 mt-0.5">Archives all existing templates and restores the 3 built-in templates (Annual, Probation, PIP). Cannot be undone.</p>
+    </div>
+    <button type="button" onclick="resetTemplatesToDefaults()"
+      class="shrink-0 px-4 py-2 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors">
+      Reset to defaults
+    </button>
+  </div>
+
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
@@ -119,24 +131,17 @@
     if (user.APP_ROLE !== 'admin') { window.location.replace('dashboard.html'); return; }
     AppraisifyMetaOptions.seedDefaults({
       type: [
-        { value: 'annual',    label: 'Annual Review' },
-        { value: 'semi',      label: 'Semi-Annual Review' },
-        { value: 'quarterly', label: 'Quarterly Review' },
-        { value: 'probation', label: 'Probation Review' },
+        // Semi-Annual and Quarterly are not separate types — use the Year field
+        // on the start page to capture the period (e.g. "2026 H1", "2026 Q3").
+        { value: 'Annual',    label: 'Annual Review' },
+        { value: 'Probation', label: 'Probation Review' },
+        { value: 'PIP',       label: 'PIP Review' },
       ],
       team: [
-        { value: 'engineering', label: 'Engineering' },
-        { value: 'marketing',   label: 'Marketing' },
-        { value: 'operations',  label: 'Operations' },
-        { value: 'sales',       label: 'Sales' },
-        { value: 'all',         label: 'All Teams' },
+        { value: 'all', label: 'All Teams' },
       ],
       role: [
-        { value: 'junior',  label: 'Junior' },
-        { value: 'mid',     label: 'Mid-level' },
-        { value: 'senior',  label: 'Senior' },
-        { value: 'lead',    label: 'Lead / Manager' },
-        { value: 'all',     label: 'All Roles' },
+        { value: 'all', label: 'All Roles' },
       ],
     });
     try { cachedTemplates = await TemplatesAPI.listTemplates(); } catch (_) { cachedTemplates = []; }
@@ -250,6 +255,20 @@
     }
     showFeedback(`Added "${result.label}" to custom ${kind} options.`, 'ok');
     renderLists();
+  }
+
+  async function resetTemplatesToDefaults() {
+    const confirmed = window.confirm(
+      'Reset all question templates to defaults?\n\nThis will archive every existing template and replace them with the 3 built-in templates (Annual Review, Probation Review, PIP Review). This cannot be undone.'
+    );
+    if (!confirmed) return;
+    showFeedback('Resetting templates…', 'ok');
+    try {
+      cachedTemplates = await TemplatesAPI.resetToDefaults();
+      showFeedback(`Done — ${cachedTemplates.length} default template(s) restored.`, 'ok');
+    } catch (e) {
+      showFeedback(`Reset failed: ${e.message || e}`, 'error');
+    }
   }
 
   async function deleteCustomValue(kind, value, label) {

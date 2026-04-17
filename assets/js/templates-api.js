@@ -129,6 +129,21 @@ const TemplatesAPI = (() => {
     return json.ok === true;
   }
 
+  async function resetToDefaults() {
+    const url = buildUrl('');
+    const domain = new URL(url, window.location.origin).searchParams.get('domain');
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-appraisify-domain': domain,
+      },
+      body: JSON.stringify({ action: 'reset_to_defaults', domain }),
+    });
+    const json = await parseJson(resp);
+    return Array.isArray(json.templates) ? json.templates : [];
+  }
+
   async function getTemplateForDeal(dealId) {
     const url = buildUrl('');
     const domain = new URL(url, window.location.origin).searchParams.get('domain');
@@ -159,6 +174,7 @@ const TemplatesAPI = (() => {
     createTemplate,
     updateTemplate,
     deleteTemplate,
+    resetToDefaults,
     getTemplateForDeal,
     setTemplateForDeal,
     getDomainFromContext,
