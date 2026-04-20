@@ -86,7 +86,7 @@
   </div>
 
   <!-- Bulk actions -->
-  <div class="bg-white rounded-2xl border border-amber-200 shadow-sm p-4 mb-6 flex items-center gap-4">
+  <div class="hidden bg-white rounded-2xl border border-amber-200 shadow-sm p-4 mb-6 flex items-center gap-4">
     <span class="material-symbols-outlined text-amber-500 text-2xl shrink-0">auto_fix_high</span>
     <div class="flex-1 min-w-0">
       <p class="text-sm font-bold text-slate-800">Bulk Migrate Scope Items</p>
@@ -150,7 +150,7 @@
           Scope of Work
         </h3>
         <div class="flex items-center gap-3">
-          <button onclick="migrateScopeQuestionsToScopeItems()" class="text-xs text-slate-500 font-semibold hover:underline">Migrate from questions</button>
+          <button onclick="migrateScopeQuestionsToScopeItems()" class="hidden text-xs text-slate-500 font-semibold hover:underline">Migrate from questions</button>
           <button onclick="toggleScopeEditor()" class="text-xs text-primary font-semibold hover:underline" id="btn-toggle-scope">+ Add item</button>
         </div>
       </div>
