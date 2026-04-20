@@ -85,6 +85,20 @@
     </div>
   </div>
 
+  <!-- Bulk actions -->
+  <div class="bg-white rounded-2xl border border-amber-200 shadow-sm p-4 mb-6 flex items-center gap-4">
+    <span class="material-symbols-outlined text-amber-500 text-2xl shrink-0">auto_fix_high</span>
+    <div class="flex-1 min-w-0">
+      <p class="text-sm font-bold text-slate-800">Bulk Migrate Scope Items</p>
+      <p class="text-xs text-slate-500 mt-0.5">Scans every template for questions in a &ldquo;Scope of Work&rdquo; section and converts them into scope items automatically.</p>
+    </div>
+    <button id="btn-bulk-migrate" onclick="bulkMigrateAllScopeItems()"
+      class="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-colors">
+      <span class="material-symbols-outlined text-base">play_arrow</span>
+      Run migration
+    </button>
+  </div>
+
   <!-- Empty state -->
   <div id="empty-state" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
     <span class="material-symbols-outlined text-4xl text-slate-300 block mb-3">edit_note</span>
@@ -622,6 +636,123 @@
       filterEl.appendChild(opt);
     }
     markDirty();
+  }
+
+  // ── Bulk migrate: promote "Scope of Work" questions → scopeItems ──────────
+  // Scans every cached template and, for any template that has questions
+  // sitting inside a section whose name matches /scope of work|scope/i,
+  // promotes those questions to scopeItems (merging with existing ones) and
+  // removes them from the question list, then PATCHes the template in one go.
+  async function bulkMigrateAllScopeItems() {
+    const scopeSectionPattern = /scope of work|scope/i;
+
+    // Reload to make sure templatesCache is current before we start
+    const btn = document.getElementById('btn-bulk-migrate');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">progress_activity</span> Scanning…'; }
+
+    let freshTemplates;
+    try {
+      freshTemplates = await TemplatesAPI.listTemplates();
+      templatesCache = freshTemplates;
+    } catch (e) {
+      alert(`Failed to load templates: ${e.message}`);
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-base">play_arrow</span> Run migration'; }
+      return;
+    }
+
+    // Find templates that have questions in a scope-named section
+    const toProcess = freshTemplates.filter(tpl => {
+      const scope = Array.isArray(tpl.sections?.scope) ? tpl.sections.scope : [];
+      const engagement = Array.isArray(tpl.sections?.engagement) ? tpl.sections.engagement : [];
+      return [...scope, ...engagement].some(q => scopeSectionPattern.test(q.section));
+    });
+
+    if (!toProcess.length) {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-base">play_arrow</span> Run migration'; }
+      alert('✅ Nothing to migrate — no templates have questions in a "Scope of Work" section.');
+      return;
+    }
+
+    const preview = toProcess.map(t => `• ${t.name}`).join('\n');
+    if (!confirm(
+      `Found ${toProcess.length} template(s) with Scope of Work questions:\n\n${preview}\n\n` +
+      `Each template's "Scope of Work" questions will be converted to scope items and removed from the question list.\n\nContinue?`
+    )) {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-base">play_arrow</span> Run migration'; }
+      return;
+    }
+
+    if (btn) btn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">progress_activity</span> Migrating…';
+
+    let succeeded = 0;
+    let skipped  = 0;
+    let failed   = 0;
+    const errors = [];
+
+    for (const tpl of toProcess) {
+      try {
+        const scopeQs      = Array.isArray(tpl.sections?.scope)      ? tpl.sections.scope      : [];
+        const engagementQs = Array.isArray(tpl.sections?.engagement)  ? tpl.sections.engagement : [];
+
+        const allQs = [
+          ...scopeQs.map(q      => ({ ...q, _workspace: 'scope' })),
+          ...engagementQs.map(q => ({ ...q, _workspace: 'engagement' })),
+        ];
+
+        const toMigrate = allQs.filter(q => scopeSectionPattern.test(q.section));
+        if (!toMigrate.length) { skipped++; continue; }
+
+        const remaining = allQs.filter(q => !scopeSectionPattern.test(q.section));
+
+        // Merge with existing scopeItems, deduplicate by lowercase text
+        const existing = Array.isArray(tpl.scopeItems)
+          ? tpl.scopeItems.map(i => typeof i === 'string' ? { text: i, desc: '' } : i).filter(i => i.text && i.text !== '[object Object]')
+          : [];
+
+        const merged = [...existing];
+        for (const q of toMigrate) {
+          const txt = String(q.text || '').trim();
+          if (txt && !merged.some(i => i.text.toLowerCase() === txt.toLowerCase())) {
+            merged.push({ text: txt, desc: String(q.desc || '').trim() });
+          }
+        }
+
+        const newScope      = remaining.filter(q => q._workspace === 'scope')
+          .map(({ _workspace, ...q }) => q);
+        const newEngagement = remaining.filter(q => q._workspace === 'engagement')
+          .map(({ _workspace, ...q }) => q);
+
+        await TemplatesAPI.updateTemplate(tpl.id, {
+          scopeItems: merged,
+          sections: { scope: newScope, engagement: newEngagement },
+        });
+
+        succeeded++;
+      } catch (e) {
+        failed++;
+        errors.push(`${tpl.name}: ${e.message || e}`);
+      }
+    }
+
+    // Refresh everything
+    try {
+      templatesCache = await TemplatesAPI.listTemplates();
+      hydrateFilterOptionsFromTemplates(templatesCache);
+      applyTemplateFilters();
+    } catch (_) {}
+
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-base">play_arrow</span> Run migration'; }
+
+    let msg = `Migration complete.\n✅ ${succeeded} template(s) updated.`;
+    if (skipped)  msg += `\n⏭ ${skipped} skipped (already clean).`;
+    if (failed)   msg += `\n❌ ${failed} failed:\n${errors.join('\n')}`;
+    alert(msg);
+
+    // Reload the currently displayed template if it was one of the processed ones
+    if (currentTemplateId && toProcess.some(t => t.id === currentTemplateId)) {
+      const sel = document.getElementById('template-select');
+      if (sel) { sel.value = currentTemplateId; loadSet(); }
+    }
   }
 </script>
 </body>
