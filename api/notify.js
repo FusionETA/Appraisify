@@ -20,19 +20,21 @@ function parseEmployeeName(title) {
   return t.split(/\s*[–\-]\s*/)[0].trim() || 'employee';
 }
 
-function buildNotificationMessage(type, deal) {
+function buildNotificationMessage(type, deal, domain) {
   const name   = parseEmployeeName(deal?.TITLE);
   const dealId = String(deal?.ID || '');
   const ref    = dealId ? `#APR-${dealId}` : 'this appraisal';
+  const appUrl = domain ? `https://${domain}/marketplace/app/fusion_eta.appraisify_v2/` : null;
+  const link   = appUrl ? `[URL=${appUrl}]Open Appraisify[/URL]` : 'Appraisify';
 
   const MAP = {
-    launch:             `Your appraisal cycle has started for ${name} (${ref}). Please open Appraisify to submit your self-assessment.`,
-    self_submitted:     `${name} has submitted their self-assessment (${ref}). Please open Appraisify to complete your reviewer evaluation.`,
-    reviewer_submitted: `The reviewer evaluation for ${name} is complete (${ref}). Please open Appraisify to submit your partner review.`,
-    partner_submitted:  `The appraisal cycle for ${name} is now complete (${ref}). Please open Appraisify to view the final review summary.`,
+    launch:             `Your appraisal cycle has started for ${name} (${ref}). Please ${link} to submit your self-assessment.`,
+    self_submitted:     `${name} has submitted their self-assessment (${ref}). Please ${link} to complete your reviewer evaluation.`,
+    reviewer_submitted: `The reviewer evaluation for ${name} is complete (${ref}). Please ${link} to submit your partner review.`,
+    partner_submitted:  `The appraisal cycle for ${name} is now complete (${ref}). Please ${link} to view the final review summary.`,
   };
 
-  return MAP[type] || `Appraisal update for ${name} (${ref}). Please open Appraisify for details.`;
+  return MAP[type] || `Appraisal update for ${name} (${ref}). Please ${link} for details.`;
 }
 
 function recipientIdsForEvent(type, deal) {
@@ -104,7 +106,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, type, dealId, notified: 0, skipped: true, reason: 'no_recipients' });
     }
 
-    const message = buildNotificationMessage(type, deal);
+    const message = buildNotificationMessage(type, deal, domain);
     const results = [];
 
     for (const uid of recipients) {
