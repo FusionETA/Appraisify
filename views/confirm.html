@@ -157,7 +157,13 @@
   }
 
   function downloadReport() {
-    alert('PDF download will be available once the backend is connected.');
+    const params = new URLSearchParams(window.location.search);
+    const dealId = params.get('ref') || '';
+    const domain = params.get('domain') || '';
+    if (!dealId) { alert('Unable to open report: missing appraisal reference.'); return; }
+    const next = new URLSearchParams({ appraisal: dealId });
+    if (domain) next.set('domain', domain);
+    window.open(`appraisal-report-preview.html?${next.toString()}`, '_blank');
   }
 
   init();

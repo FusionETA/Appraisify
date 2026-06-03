@@ -529,5 +529,8 @@ async function handleSubmit(opts) {
   }).catch(() => {});
 
   const ref = new URLSearchParams(window.location.search).get('appraisal') || '';
-  window.location.href = `confirm.html?phase=${opts.phase}&ref=${encodeURIComponent(ref)}`;
+  const confirmDomain = BX24App.getDomain() || '';
+  const confirmParams = new URLSearchParams({ phase: opts.phase, ref });
+  if (confirmDomain) confirmParams.set('domain', confirmDomain);
+  window.location.href = `confirm.html?${confirmParams.toString()}`;
 }

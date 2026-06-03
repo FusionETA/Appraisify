@@ -111,6 +111,8 @@ async function loadMyAppraisal(name) {
     // Prefer the newest active (non-SUBMITTED) deal. Falls back to the newest
     // submitted deal if all cycles are done — e.g. between appraisal cycles.
     const deal = sorted.find(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED') ?? sorted[0];
+    // Most recent completed deal — used for the download button (only available when done).
+    const submittedDeal = sorted.find(d => shortStageId(d.STAGE_ID) === 'SUBMITTED');
     const stageInfo = STAGE_MAP[shortStageId(deal.STAGE_ID)] || { phase: 'self', label: deal.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
 
     badge.textContent = stageInfo.label;
@@ -123,15 +125,20 @@ async function loadMyAppraisal(name) {
       if (btn) btn.onclick = () => { window.location.href = `appraisal-reviewee.html?appraisal=${deal.ID}`; };
     }
     if (btnDownload) {
-      btnDownload.disabled = false;
-      btnDownload.classList.remove('opacity-40', 'cursor-not-allowed');
-      btnDownload.onclick = () => {
-        const params = new URLSearchParams({ appraisal: String(deal.ID) });
-        const current = new URLSearchParams(window.location.search);
-        const domain = current.get('DOMAIN') || current.get('domain');
-        if (domain) params.set('domain', domain);
-        window.open(`appraisal-report-preview.html?${params.toString()}`, '_blank');
-      };
+      if (submittedDeal) {
+        btnDownload.disabled = false;
+        btnDownload.classList.remove('opacity-40', 'cursor-not-allowed');
+        btnDownload.onclick = () => {
+          const params = new URLSearchParams({ appraisal: String(submittedDeal.ID) });
+          const current = new URLSearchParams(window.location.search);
+          const domain = current.get('DOMAIN') || current.get('domain');
+          if (domain) params.set('domain', domain);
+          window.open(`appraisal-report-preview.html?${params.toString()}`, '_blank');
+        };
+      } else {
+        btnDownload.disabled = true;
+        btnDownload.classList.add('opacity-40', 'cursor-not-allowed');
+      }
     }
 
     if (stageInfo.phase === 'complete') {
