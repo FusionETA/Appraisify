@@ -69,7 +69,6 @@ BX24App.init(async () => {
   // Always show personal appraisal summary + pending task queue for everyone.
   showSection('section-employee');
   showSection('section-pending');
-  showSection('section-history');
   loadMyAppraisal(name);
   loadPendingTasks();
   loadEmployeeHistory();
@@ -761,6 +760,19 @@ function filterAdminHistory() {
         <td class="px-4 py-3">${dlBtn}</td>
       </tr>`;
   }).join('');
+}
+
+function switchEmployeeTab(tab) {
+  const isOverview = tab === 'overview';
+  document.getElementById('emp-tab-overview').classList.toggle('hidden', !isOverview);
+  document.getElementById('emp-tab-history').classList.toggle('hidden', isOverview);
+
+  const btnOv   = document.getElementById('emp-tab-btn-overview');
+  const btnHist = document.getElementById('emp-tab-btn-history');
+  const active   = 'px-4 py-2 text-sm font-semibold rounded-lg bg-primary/10 text-primary transition-colors';
+  const inactive = 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-500 hover:bg-slate-100 transition-colors';
+  btnOv.className   = isOverview ? active : inactive;
+  btnHist.className = isOverview ? inactive : active;
 }
 
 function switchAdminTab(tab) {

@@ -119,98 +119,84 @@
       </div>
     </div>
 
-    <!-- Status card -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-      <div class="flex items-center gap-5">
-        <div id="emp-avatar" class="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-2xl font-black overflow-hidden">A</div>
-        <div>
-          <h2 class="text-xl font-bold text-slate-900" id="emp-name">—</h2>
-          <p class="text-slate-500 text-sm" id="emp-role-team">—</p>
-          <div class="flex items-center gap-2 mt-2">
-            <span id="cycle-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">Annual Cycle 2024</span>
-            <span id="phase-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">Self-Assessment Due</span>
+    <!-- Tabbed card -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+
+      <!-- Tab bar -->
+      <div class="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-1">
+        <button id="emp-tab-btn-overview" onclick="switchEmployeeTab('overview')"
+          class="px-4 py-2 text-sm font-semibold rounded-lg bg-primary/10 text-primary transition-colors">
+          <span class="material-symbols-outlined align-middle mr-1" style="font-size:16px">person</span>Overview
+        </button>
+        <button id="emp-tab-btn-history" onclick="switchEmployeeTab('history')"
+          class="px-4 py-2 text-sm font-semibold rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
+          <span class="material-symbols-outlined align-middle mr-1" style="font-size:16px">history</span>History
+        </button>
+      </div>
+
+      <!-- Overview tab -->
+      <div id="emp-tab-overview">
+        <!-- Status row -->
+        <div class="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100">
+          <div class="flex items-center gap-5">
+            <div id="emp-avatar" class="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-2xl font-black overflow-hidden">A</div>
+            <div>
+              <h2 class="text-xl font-bold text-slate-900" id="emp-name">—</h2>
+              <p class="text-slate-500 text-sm" id="emp-role-team">—</p>
+              <div class="flex items-center gap-2 mt-2">
+                <span id="cycle-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">Annual Cycle 2024</span>
+                <span id="phase-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">Self-Assessment Due</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-3">
+            <button onclick="window.location.href='appraisal-reviewee.html'" id="btn-submit-appraisal"
+              class="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg font-bold text-sm shadow-sm shadow-primary/20 hover:bg-primary/90 transition-colors">
+              <span class="material-symbols-outlined text-lg">edit_note</span> Submit My Appraisal
+            </button>
+            <button id="btn-download-report" class="flex items-center gap-2 px-5 py-2.5 border border-slate-200 text-slate-600 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors">
+              <span class="material-symbols-outlined text-lg">download</span> Download PDF
+            </button>
+          </div>
+        </div>
+        <!-- Score cards (shown after appraisal complete) -->
+        <div id="score-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 hidden">
+          <div class="bg-slate-50 rounded-xl border border-slate-200 p-5">
+            <div class="flex justify-between items-start mb-3">
+              <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">My Score</p>
+              <span class="material-symbols-outlined text-primary bg-primary/10 p-1.5 rounded-lg text-lg">person</span>
+            </div>
+            <div class="text-3xl font-black text-slate-900 mb-3" id="score-self">—</div>
+            <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-primary h-full rounded-full" id="bar-self" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="bg-slate-50 rounded-xl border border-slate-200 p-5">
+            <div class="flex justify-between items-start mb-3">
+              <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Reviewer Score</p>
+              <span class="material-symbols-outlined text-indigo-500 bg-indigo-500/10 p-1.5 rounded-lg text-lg">visibility</span>
+            </div>
+            <div class="text-3xl font-black text-slate-900 mb-3" id="score-reviewer">—</div>
+            <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-indigo-500 h-full rounded-full" id="bar-reviewer" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="bg-slate-50 rounded-xl border border-slate-200 p-5">
+            <div class="flex justify-between items-start mb-3">
+              <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Partner Score</p>
+              <span class="material-symbols-outlined text-emerald-500 bg-emerald-500/10 p-1.5 rounded-lg text-lg">handshake</span>
+            </div>
+            <div class="text-3xl font-black text-slate-900 mb-3" id="score-partner">—</div>
+            <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-emerald-500 h-full rounded-full" id="bar-partner" style="width:0%"></div>
+            </div>
           </div>
         </div>
       </div>
-      <div class="flex flex-wrap gap-3">
-        <button onclick="window.location.href='appraisal-reviewee.html'" id="btn-submit-appraisal"
-          class="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg font-bold text-sm shadow-sm shadow-primary/20 hover:bg-primary/90 transition-colors">
-          <span class="material-symbols-outlined text-lg">edit_note</span> Submit My Appraisal
-        </button>
-        <button id="btn-download-report" class="flex items-center gap-2 px-5 py-2.5 border border-slate-200 text-slate-600 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors">
-          <span class="material-symbols-outlined text-lg">download</span> Download PDF
-        </button>
-      </div>
-    </div>
 
-    <!-- Score cards (shown after appraisal complete) -->
-    <div id="score-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <div class="flex justify-between items-start mb-3">
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">My Score</p>
-          <span class="material-symbols-outlined text-primary bg-primary/10 p-1.5 rounded-lg text-lg">person</span>
-        </div>
-        <div class="text-3xl font-black text-slate-900 mb-3" id="score-self">—</div>
-        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-          <div class="bg-primary h-full rounded-full" id="bar-self" style="width:0%"></div>
-        </div>
-      </div>
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <div class="flex justify-between items-start mb-3">
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Reviewer Score</p>
-          <span class="material-symbols-outlined text-indigo-500 bg-indigo-500/10 p-1.5 rounded-lg text-lg">visibility</span>
-        </div>
-        <div class="text-3xl font-black text-slate-900 mb-3" id="score-reviewer">—</div>
-        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-          <div class="bg-indigo-500 h-full rounded-full" id="bar-reviewer" style="width:0%"></div>
-        </div>
-      </div>
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <div class="flex justify-between items-start mb-3">
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Partner Score</p>
-          <span class="material-symbols-outlined text-emerald-500 bg-emerald-500/10 p-1.5 rounded-lg text-lg">handshake</span>
-        </div>
-        <div class="text-3xl font-black text-slate-900 mb-3" id="score-partner">—</div>
-        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-          <div class="bg-emerald-500 h-full rounded-full" id="bar-partner" style="width:0%"></div>
-        </div>
-      </div>
-    </div>
-
-  </section>
-
-  <!-- ── PENDING TASKS section ─────────────────────────────────────── -->
-  <section id="section-pending" class="hidden space-y-6">
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-2xl font-extrabold text-slate-900">Pending Appraisals</h2>
-        <p class="text-slate-500 text-sm mt-0.5">Tasks awaiting your submission</p>
-      </div>
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-2 text-center shrink-0">
-        <div id="pending-count" class="text-xl font-black text-primary">0</div>
-        <div class="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Pending</div>
-      </div>
-    </div>
-    <div id="pending-load-warning" class="hidden px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-sm font-medium"></div>
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-        <span class="text-sm font-bold text-slate-700">Submission Queue</span>
-      </div>
-      <div id="pending-list" class="divide-y divide-slate-100">
-        <div class="p-6 text-slate-400 text-sm italic">Checking pending submissions…</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── APPRAISAL HISTORY section ─────────────────────────────────── -->
-  <section id="section-history" class="hidden">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h3 class="font-bold text-slate-800">Appraisal History</h3>
-          <p class="text-xs text-slate-500 mt-0.5">All appraisals you have participated in</p>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
+      <!-- History tab -->
+      <div id="emp-tab-history" class="hidden">
+        <div class="px-6 py-3 border-b border-slate-100 bg-slate-50/30 flex items-center gap-2 flex-wrap">
           <div class="relative">
             <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" style="font-size:15px">search</span>
             <input id="emp-hist-search" type="text" placeholder="Search cycle…" oninput="filterEmployeeHistory()"
@@ -232,22 +218,46 @@
             <option value="partner">Partner</option>
           </select>
         </div>
+        <div class="overflow-auto max-h-[400px]">
+          <table class="w-full text-sm border-collapse">
+            <thead class="sticky top-0 z-10 bg-white">
+              <tr class="text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/30 border-b border-slate-100">
+                <th class="px-4 py-3 text-left">Cycle</th>
+                <th class="px-4 py-3 text-left">Your Role</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-left hidden sm:table-cell">Due Date</th>
+                <th class="px-4 py-3 text-left w-32"></th>
+              </tr>
+            </thead>
+            <tbody id="employee-history-table" class="divide-y divide-slate-100">
+              <tr><td colspan="5" class="px-6 py-8 text-center text-slate-400 text-sm">Loading history…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="overflow-auto max-h-[400px]">
-        <table class="w-full text-sm border-collapse">
-          <thead class="sticky top-0 z-10 bg-white">
-            <tr class="text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/30 border-b border-slate-100">
-              <th class="px-4 py-3 text-left">Cycle</th>
-              <th class="px-4 py-3 text-left">Your Role</th>
-              <th class="px-4 py-3 text-left">Status</th>
-              <th class="px-4 py-3 text-left hidden sm:table-cell">Due Date</th>
-              <th class="px-4 py-3 text-left w-32"></th>
-            </tr>
-          </thead>
-          <tbody id="employee-history-table" class="divide-y divide-slate-100">
-            <tr><td colspan="5" class="px-6 py-8 text-center text-slate-400 text-sm">Loading history…</td></tr>
-          </tbody>
-        </table>
+
+    </div>
+  </section>
+
+  <!-- ── PENDING TASKS section ─────────────────────────────────────── -->
+  <section id="section-pending" class="hidden space-y-6">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-2xl font-extrabold text-slate-900">Pending Appraisals</h2>
+        <p class="text-slate-500 text-sm mt-0.5">Tasks awaiting your submission</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-2 text-center shrink-0">
+        <div id="pending-count" class="text-xl font-black text-primary">0</div>
+        <div class="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Pending</div>
+      </div>
+    </div>
+    <div id="pending-load-warning" class="hidden px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-sm font-medium"></div>
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+        <span class="text-sm font-bold text-slate-700">Submission Queue</span>
+      </div>
+      <div id="pending-list" class="divide-y divide-slate-100">
+        <div class="p-6 text-slate-400 text-sm italic">Checking pending submissions…</div>
       </div>
     </div>
   </section>
