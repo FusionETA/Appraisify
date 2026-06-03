@@ -4,6 +4,8 @@
 
 let currentUser = null;
 let selectedEmployees = new Set();
+let _adminHistoryRows = [];      // raw rows for admin history filtering
+let _employeeHistoryRows = [];   // raw rows for employee history filtering
 let pendingTasksCache = [];
 
 // Bitrix24 crm.deal.list returns STAGE_ID prefixed: 'C{categoryId}:{STATUS_ID}'
@@ -250,14 +252,6 @@ async function loadPendingTasks() {
 }
 
 async function loadEmployeeHistory() {
-  const tbody = document.getElementById('employee-history-table');
-  if (!tbody) return;
-
-  const ROLE_META = {
-    self:     { label: 'Self',     cls: 'bg-amber-100 text-amber-700' },
-    reviewer: { label: 'Reviewer', cls: 'bg-emerald-100 text-emerald-700' },
-    partner:  { label: 'Partner',  cls: 'bg-purple-100 text-purple-700' },
-  };
 
   try {
     const categoryId = await BX24App.getCategoryId();
@@ -285,36 +279,63 @@ async function loadEmployeeHistory() {
     const roleOrder = { self: 0, reviewer: 1, partner: 2 };
     rows.sort((a, b) => Number(b.deal.ID) - Number(a.deal.ID) || roleOrder[a.role] - roleOrder[b.role]);
 
-    if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-400 text-sm">No appraisal history found.</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = rows.map(({ deal, role }) => {
-      const si = STAGE_MAP[shortStageId(deal.STAGE_ID)] || { label: deal.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
-      const rm = ROLE_META[role];
-      const title = deal.TITLE || `Appraisal #${deal.ID}`;
-      const dueDate = deal.CLOSEDATE ? new Date(deal.CLOSEDATE).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-      const isCompletedSelf = shortStageId(deal.STAGE_ID) === 'SUBMITTED';
-      const dlBtn = isCompletedSelf
-        ? `<button onclick="empDownloadPdf('${deal.ID}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
-             <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
-           </button>`
-        : '';
-      return `
-        <tr class="hover:bg-slate-50/50 transition-colors">
-          <td class="px-4 py-3 text-slate-700 font-medium text-sm">${title}</td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${rm.cls}">${rm.label}</span></td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls}">${si.label}</span></td>
-          <td class="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">${dueDate}</td>
-          <td class="px-4 py-3">${dlBtn}</td>
-        </tr>`;
-    }).join('');
+    // Store for filtering and render
+    _employeeHistoryRows = rows;
+    filterEmployeeHistory();
 
   } catch (e) {
     console.error('[Appraisify] loadEmployeeHistory error:', e);
-    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-red-500 text-sm">Failed to load history.</td></tr>`;
+    const tbody = document.getElementById('employee-history-table');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-red-500 text-sm">Failed to load history.</td></tr>`;
   }
+}
+
+function filterEmployeeHistory() {
+  const tbody = document.getElementById('employee-history-table');
+  if (!tbody) return;
+  const search = (document.getElementById('emp-hist-search')?.value || '').toLowerCase();
+  const status = document.getElementById('emp-hist-status')?.value || '';
+  const role   = document.getElementById('emp-hist-role')?.value || '';
+
+  const ROLE_META = {
+    self:     { label: 'Self',     cls: 'bg-amber-100 text-amber-700' },
+    reviewer: { label: 'Reviewer', cls: 'bg-emerald-100 text-emerald-700' },
+    partner:  { label: 'Partner',  cls: 'bg-purple-100 text-purple-700' },
+  };
+
+  const filtered = _employeeHistoryRows.filter(({ deal, role: r }) => {
+    const title = (deal.TITLE || '').toLowerCase();
+    const stage = shortStageId(deal.STAGE_ID);
+    if (search && !title.includes(search)) return false;
+    if (status && stage !== status && !(status === 'REVIEWEEPENDING' && stage === 'INITIALIZED')) return false;
+    if (role && r !== role) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-400 text-sm">No appraisals match the current filters.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(({ deal, role: r }) => {
+    const si = STAGE_MAP[shortStageId(deal.STAGE_ID)] || { label: deal.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
+    const rm = ROLE_META[r];
+    const title = deal.TITLE || `Appraisal #${deal.ID}`;
+    const dueDate = deal.CLOSEDATE ? new Date(deal.CLOSEDATE).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+    const dlBtn = shortStageId(deal.STAGE_ID) === 'SUBMITTED'
+      ? `<button onclick="empDownloadPdf('${deal.ID}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
+           <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
+         </button>`
+      : '';
+    return `
+      <tr class="hover:bg-slate-50/50 transition-colors">
+        <td class="px-4 py-3 text-slate-700 font-medium text-sm">${title}</td>
+        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${rm.cls}">${rm.label}</span></td>
+        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls}">${si.label}</span></td>
+        <td class="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">${dueDate}</td>
+        <td class="px-4 py-3">${dlBtn}</td>
+      </tr>`;
+  }).join('');
 }
 
 function empDownloadPdf(dealId) {
@@ -686,47 +707,54 @@ async function loadEmployeeTable() {
 }
 
 function renderHistoryTable(allDealsMap, users, deptMap) {
-  const tbody = document.getElementById('history-table');
-  if (!tbody) return;
-
   const userMap = {};
   (users || []).forEach(u => { userMap[String(u.ID)] = u; });
 
-  // Flatten all deals, newest first
-  const allDeals = Object.values(allDealsMap).flat()
-    .sort((a, b) => Number(b.ID) - Number(a.ID));
+  // Store enriched rows for filtering
+  _adminHistoryRows = Object.values(allDealsMap).flat()
+    .sort((a, b) => Number(b.ID) - Number(a.ID))
+    .map(d => {
+      const u = userMap[String(d.ASSIGNED_BY_ID)];
+      const fullName = u ? `${u.NAME || ''} ${u.LAST_NAME || ''}`.trim() || 'Unknown' : `User #${d.ASSIGNED_BY_ID}`;
+      return { deal: d, user: u, fullName, stage: shortStageId(d.STAGE_ID) };
+    });
 
-  if (!allDeals.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-slate-400 text-sm">No appraisals found.</td></tr>`;
+  filterAdminHistory();
+}
+
+function filterAdminHistory() {
+  const tbody = document.getElementById('history-table');
+  if (!tbody) return;
+  const search = (document.getElementById('admin-hist-search')?.value || '').toLowerCase();
+  const status = document.getElementById('admin-hist-status')?.value || '';
+
+  const filtered = _adminHistoryRows.filter(({ fullName, stage }) => {
+    if (search && !fullName.toLowerCase().includes(search)) return false;
+    if (status && stage !== status && !(status === 'REVIEWEEPENDING' && stage === 'INITIALIZED')) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-slate-400 text-sm">No appraisals match the current filters.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = allDeals.map(d => {
-    const u = userMap[String(d.ASSIGNED_BY_ID)];
-    const fullName = u ? `${u.NAME || ''} ${u.LAST_NAME || ''}`.trim() || 'Unknown' : `User #${d.ASSIGNED_BY_ID}`;
+  tbody.innerHTML = filtered.map(({ deal: d, user: u, fullName, stage }) => {
     const initial = fullName.charAt(0).toUpperCase();
     const avatarHtml = u?.PERSONAL_PHOTO
       ? `<img src="${u.PERSONAL_PHOTO}" alt="${fullName}" class="w-7 h-7 rounded-full object-cover shrink-0"/>`
       : `<div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">${initial}</div>`;
-
-    const si = STAGE_MAP[shortStageId(d.STAGE_ID)] || { label: d.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
+    const si = STAGE_MAP[stage] || { label: d.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
     const title = d.TITLE || `Appraisal #${d.ID}`;
-    const isComplete = shortStageId(d.STAGE_ID) === 'SUBMITTED';
     const dueDate = d.CLOSEDATE ? new Date(d.CLOSEDATE).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-    const dlBtn = isComplete
+    const dlBtn = stage === 'SUBMITTED'
       ? `<button onclick="adminDownloadPdf('${d.ID}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
            <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
          </button>`
       : '';
-
     return `
       <tr class="hover:bg-slate-50/50 transition-colors">
-        <td class="px-4 py-3">
-          <div class="flex items-center gap-2">
-            ${avatarHtml}
-            <span class="font-medium text-slate-800 text-sm">${fullName}</span>
-          </div>
-        </td>
+        <td class="px-4 py-3"><div class="flex items-center gap-2">${avatarHtml}<span class="font-medium text-slate-800 text-sm">${fullName}</span></div></td>
         <td class="px-4 py-3 text-slate-700 text-sm">${title}</td>
         <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls}">${si.label}</span></td>
         <td class="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">${dueDate}</td>
