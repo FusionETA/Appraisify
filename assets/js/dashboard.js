@@ -498,6 +498,7 @@ async function loadEmployeeTable() {
       <td class="px-4 py-3 hidden sm:table-cell"><div class="w-24 h-3 bg-slate-200 rounded animate-pulse"></div></td>
       <td class="px-4 py-3 hidden lg:table-cell"><div class="w-20 h-3 bg-slate-200 rounded animate-pulse"></div></td>
       <td class="px-4 py-3"><div class="w-20 h-5 bg-slate-100 rounded-full animate-pulse"></div></td>
+      <td class="px-4 py-3"></td>
     </tr>`).join('');
 
   try {
@@ -507,7 +508,7 @@ async function loadEmployeeTable() {
       BX24App.getUsers(),
       BX24App.getDepartments(),
       categoryId
-        ? BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, ['ID', 'STAGE_ID', 'ASSIGNED_BY_ID'])
+        ? BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, ['ID', 'TITLE', 'STAGE_ID', 'ASSIGNED_BY_ID', 'CLOSEDATE'])
         : Promise.resolve([]),
     ]);
 
@@ -515,34 +516,43 @@ async function loadEmployeeTable() {
     const deptMap = {};
     (departments || []).forEach(d => { deptMap[String(d.ID)] = d.NAME; });
 
-    // Build employeeId → most relevant deal lookup.
-    // Rules (in priority order):
-    //   1. Active (non-SUBMITTED) deal beats any submitted deal.
-    //   2. Among same-status deals, higher ID (newer) wins.
-    const dealMap = {};
-    (deals || []).forEach(d => {
+    // Group all deals by employee (newest first), then derive the most relevant deal per employee.
+    // Rules for most relevant: active (non-SUBMITTED) beats submitted; newer ID wins ties.
+    const allDealsMap = {};
+    (deals || []).sort((a, b) => Number(b.ID) - Number(a.ID)).forEach(d => {
       const empId = String(d.ASSIGNED_BY_ID);
-      const existing = dealMap[empId];
-      const stage    = shortStageId(d.STAGE_ID);
-      const exStage  = existing ? shortStageId(existing.STAGE_ID) : null;
-      if (!existing) {
-        dealMap[empId] = d;
-      } else if (stage !== 'SUBMITTED' && exStage === 'SUBMITTED') {
-        dealMap[empId] = d; // active beats submitted
-      } else if (stage === exStage && Number(d.ID) > Number(existing.ID)) {
-        dealMap[empId] = d; // same status → keep newer
-      }
+      if (!allDealsMap[empId]) allDealsMap[empId] = [];
+      allDealsMap[empId].push(d);
     });
+    const dealMap = {};
+    Object.entries(allDealsMap).forEach(([empId, empDeals]) => {
+      dealMap[empId] = empDeals.find(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED') ?? empDeals[0];
+    });
+
+    // Populate stats cards
+    const activeCount  = Object.values(dealMap).filter(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED').length;
+    const pendingCount = Object.values(dealMap).filter(d => {
+      const s = shortStageId(d.STAGE_ID);
+      return s === 'REVIEWERPENDING' || s === 'PARTNERPENDING';
+    }).length;
+    const completeCount = Object.values(allDealsMap)
+      .filter(empDeals => empDeals.some(d => shortStageId(d.STAGE_ID) === 'SUBMITTED')).length;
+    const statActive   = document.getElementById('stat-active');
+    const statPending  = document.getElementById('stat-pending');
+    const statComplete = document.getElementById('stat-complete');
+    if (statActive)   statActive.textContent   = activeCount;
+    if (statPending)  statPending.textContent   = pendingCount;
+    if (statComplete) statComplete.textContent  = completeCount;
 
     if (!users || !users.length) {
       tbody.innerHTML = `
-        <tr><td colspan="5" class="px-6 py-10 text-center text-slate-400 text-sm">
+        <tr><td colspan="6" class="px-6 py-10 text-center text-slate-400 text-sm">
           No employees found in this Bitrix24 instance.
         </td></tr>`;
       return;
     }
 
-    tbody.innerHTML = users.map(u => {
+    tbody.innerHTML = users.flatMap(u => {
       const fullName = `${u.NAME || ''} ${u.LAST_NAME || ''}`.trim() || 'Unknown';
       const initial = fullName.charAt(0).toUpperCase();
       const deptNames = (u.UF_DEPARTMENT || [])
@@ -552,8 +562,11 @@ async function loadEmployeeTable() {
         ? `<img src="${u.PERSONAL_PHOTO}" alt="${fullName}" class="w-8 h-8 rounded-full object-cover shrink-0"/>`
         : `<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">${initial}</div>`;
 
-      // Appraisal status badge
-      const deal = dealMap[String(u.ID)];
+      const uid = String(u.ID);
+      const deal = dealMap[uid];
+      const empDeals = allDealsMap[uid] || [];
+
+      // Status badge for main row
       let statusBadge;
       if (deal) {
         const si = STAGE_MAP[shortStageId(deal.STAGE_ID)] || { label: deal.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
@@ -562,7 +575,24 @@ async function loadEmployeeTable() {
         statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-400">No appraisal</span>`;
       }
 
-      return `
+      // Expandable appraisal history rows
+      const historyItems = empDeals.map(d => {
+        const si = STAGE_MAP[shortStageId(d.STAGE_ID)] || { label: d.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
+        const title = d.TITLE || `Appraisal #${d.ID}`;
+        const isComplete = shortStageId(d.STAGE_ID) === 'SUBMITTED';
+        const dlBtn = isComplete
+          ? `<button onclick="adminDownloadPdf('${d.ID}')" class="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
+               <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
+             </button>`
+          : '';
+        return `<div class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0 gap-3">
+          <span class="text-xs text-slate-700 font-medium truncate flex-1">${title}</span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls} shrink-0">${si.label}</span>
+          <div class="shrink-0 w-24 flex justify-end">${dlBtn}</div>
+        </div>`;
+      }).join('');
+
+      const mainRow = `
         <tr class="hover:bg-slate-50/50 transition-colors" data-name="${fullName.toLowerCase()}">
           <td class="px-4 py-3">
             <input type="checkbox" value="${u.ID}" onchange="onRowCheck(this)"
@@ -580,13 +610,27 @@ async function loadEmployeeTable() {
           <td class="px-4 py-3 text-slate-600 text-sm hidden sm:table-cell">${u.WORK_POSITION || '—'}</td>
           <td class="px-4 py-3 text-slate-500 text-sm hidden lg:table-cell">${deptNames}</td>
           <td class="px-4 py-3">${statusBadge}</td>
+          <td class="px-4 py-3">
+            ${empDeals.length ? `<button onclick="toggleAppraisalHistory('${uid}')" class="p-1 rounded text-slate-400 hover:text-slate-700 transition-colors">
+              <span class="material-symbols-outlined text-base" id="chevron-${uid}">chevron_right</span>
+            </button>` : ''}
+          </td>
         </tr>`;
+
+      const expandRow = `
+        <tr id="expand-${uid}" class="hidden bg-slate-50/30">
+          <td colspan="6" class="px-6 pb-3 pt-1">
+            <div class="pl-11">${historyItems || '<p class="text-xs text-slate-400 py-1">No appraisals</p>'}</div>
+          </td>
+        </tr>`;
+
+      return [mainRow, expandRow];
     }).join('');
 
   } catch (err) {
     console.error('[Appraisify] Failed to load employees:', err);
     tbody.innerHTML = `
-      <tr><td colspan="5" class="px-6 py-10 text-center">
+      <tr><td colspan="6" class="px-6 py-10 text-center">
         <p class="text-slate-500 text-sm mb-3">Failed to load employee list.</p>
         <button onclick="loadEmployeeTable()"
           class="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors">
@@ -594,6 +638,22 @@ async function loadEmployeeTable() {
         </button>
       </td></tr>`;
   }
+}
+
+function toggleAppraisalHistory(uid) {
+  const row = document.getElementById(`expand-${uid}`);
+  const icon = document.getElementById(`chevron-${uid}`);
+  if (!row) return;
+  const nowHidden = row.classList.toggle('hidden');
+  if (icon) icon.textContent = nowHidden ? 'chevron_right' : 'expand_more';
+}
+
+function adminDownloadPdf(dealId) {
+  const params = new URLSearchParams({ appraisal: String(dealId) });
+  const current = new URLSearchParams(window.location.search);
+  const domain = current.get('DOMAIN') || current.get('domain') || BX24App.getDomain() || '';
+  if (domain) params.set('domain', domain);
+  window.open(`appraisal-report-preview.html?${params.toString()}`, '_blank');
 }
 
 function onRowCheck(cb) {
