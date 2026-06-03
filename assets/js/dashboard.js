@@ -69,6 +69,7 @@ BX24App.init(async () => {
   showSection('section-pending');
   loadMyAppraisal(name);
   loadPendingTasks();
+  loadEmployeeHistory();
 
   // Toast from redirect
   const params = new URLSearchParams(window.location.search);
@@ -245,6 +246,82 @@ async function loadPendingTasks() {
       warning.textContent = 'Unable to load pending submissions.';
     }
   }
+}
+
+async function loadEmployeeHistory() {
+  const tbody = document.getElementById('employee-history-table');
+  if (!tbody) return;
+
+  const ROLE_META = {
+    self:     { label: 'Self',     cls: 'bg-amber-100 text-amber-700' },
+    reviewer: { label: 'Reviewer', cls: 'bg-emerald-100 text-emerald-700' },
+    partner:  { label: 'Partner',  cls: 'bg-purple-100 text-purple-700' },
+  };
+
+  try {
+    const categoryId = await BX24App.getCategoryId();
+    const select = ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE'];
+
+    const [selfDeals, reviewerDeals, partnerDeals] = await Promise.all([
+      BX24App.listDeals({ CATEGORY_ID: categoryId, ASSIGNED_BY_ID:  currentUser.ID, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_REVIEWER: currentUser.ID, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, select),
+      BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_PARTNER:  currentUser.ID, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, select),
+    ]);
+
+    // Build flat list of deal+role pairs, deduplicated by deal+role key, newest first
+    const seen = new Set();
+    const rows = [];
+    for (const [deals, role] of [[selfDeals, 'self'], [reviewerDeals, 'reviewer'], [partnerDeals, 'partner']]) {
+      for (const deal of [...deals].sort((a, b) => Number(b.ID) - Number(a.ID))) {
+        const key = `${deal.ID}:${role}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        rows.push({ deal, role });
+      }
+    }
+
+    // Sort by deal ID descending (newest first), then by role order
+    const roleOrder = { self: 0, reviewer: 1, partner: 2 };
+    rows.sort((a, b) => Number(b.deal.ID) - Number(a.deal.ID) || roleOrder[a.role] - roleOrder[b.role]);
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-400 text-sm">No appraisal history found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(({ deal, role }) => {
+      const si = STAGE_MAP[shortStageId(deal.STAGE_ID)] || { label: deal.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
+      const rm = ROLE_META[role];
+      const title = deal.TITLE || `Appraisal #${deal.ID}`;
+      const dueDate = deal.CLOSEDATE ? new Date(deal.CLOSEDATE).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+      const isCompletedSelf = role === 'self' && shortStageId(deal.STAGE_ID) === 'SUBMITTED';
+      const dlBtn = isCompletedSelf
+        ? `<button onclick="empDownloadPdf('${deal.ID}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
+             <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
+           </button>`
+        : '';
+      return `
+        <tr class="hover:bg-slate-50/50 transition-colors">
+          <td class="px-4 py-3 text-slate-700 font-medium text-sm">${title}</td>
+          <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${rm.cls}">${rm.label}</span></td>
+          <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls}">${si.label}</span></td>
+          <td class="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">${dueDate}</td>
+          <td class="px-4 py-3">${dlBtn}</td>
+        </tr>`;
+    }).join('');
+
+  } catch (e) {
+    console.error('[Appraisify] loadEmployeeHistory error:', e);
+    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-red-500 text-sm">Failed to load history.</td></tr>`;
+  }
+}
+
+function empDownloadPdf(dealId) {
+  const params = new URLSearchParams({ appraisal: String(dealId) });
+  const current = new URLSearchParams(window.location.search);
+  const domain = current.get('DOMAIN') || current.get('domain') || BX24App.getDomain() || '';
+  if (domain) params.set('domain', domain);
+  window.open(`appraisal-report-preview.html?${params.toString()}`, '_blank');
 }
 
 function normalizeTask(deal, taskType) {
