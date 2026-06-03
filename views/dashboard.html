@@ -229,14 +229,22 @@
       </div>
     </div>
 
-    <!-- Employee table -->
+    <!-- Employee table / Appraisal History tabs -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
-        <div>
-          <h3 class="font-bold text-slate-800">Employees</h3>
-          <p class="text-xs text-slate-500 mt-0.5">Select employees to start an appraisal cycle</p>
+
+      <!-- Tab bar -->
+      <div class="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex gap-1">
+          <button id="tab-btn-employees" onclick="switchAdminTab('employees')"
+            class="px-4 py-2 text-sm font-semibold rounded-lg bg-primary/10 text-primary transition-colors">
+            <span class="material-symbols-outlined text-sm align-middle mr-1" style="font-size:16px">group</span>Employees
+          </button>
+          <button id="tab-btn-history" onclick="switchAdminTab('history')"
+            class="px-4 py-2 text-sm font-semibold rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
+            <span class="material-symbols-outlined text-sm align-middle mr-1" style="font-size:16px">history</span>Appraisal History
+          </button>
         </div>
-        <div class="flex items-center gap-2">
+        <div id="tab-employees-controls" class="flex items-center gap-2">
           <div class="relative flex-1 sm:flex-none">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
             <input id="emp-search" type="text" placeholder="Search…" onkeyup="filterEmployees()"
@@ -255,7 +263,8 @@
         </div>
       </div>
 
-      <div class="overflow-auto max-h-[480px]">
+      <!-- Employees tab -->
+      <div id="tab-employees" class="overflow-auto max-h-[480px]">
         <table class="w-full text-sm border-collapse">
           <thead class="sticky top-0 z-10 bg-white">
             <tr class="text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/30 border-b border-slate-100">
@@ -266,10 +275,27 @@
               <th class="px-4 py-3 text-left hidden sm:table-cell">Position</th>
               <th class="px-4 py-3 text-left hidden lg:table-cell">Department</th>
               <th class="px-4 py-3 text-left">Status</th>
-              <th class="px-4 py-3 w-8"></th>
             </tr>
           </thead>
           <tbody id="employee-table" class="divide-y divide-slate-100">
+            <!-- populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- History tab -->
+      <div id="tab-history" class="hidden overflow-auto max-h-[480px]">
+        <table class="w-full text-sm border-collapse">
+          <thead class="sticky top-0 z-10 bg-white">
+            <tr class="text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/30 border-b border-slate-100">
+              <th class="px-4 py-3 text-left">Employee</th>
+              <th class="px-4 py-3 text-left">Cycle</th>
+              <th class="px-4 py-3 text-left">Status</th>
+              <th class="px-4 py-3 text-left hidden sm:table-cell">Due Date</th>
+              <th class="px-4 py-3 text-left w-32"></th>
+            </tr>
+          </thead>
+          <tbody id="history-table" class="divide-y divide-slate-100">
             <!-- populated by JS -->
           </tbody>
         </table>

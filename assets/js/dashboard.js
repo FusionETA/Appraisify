@@ -546,13 +546,13 @@ async function loadEmployeeTable() {
 
     if (!users || !users.length) {
       tbody.innerHTML = `
-        <tr><td colspan="6" class="px-6 py-10 text-center text-slate-400 text-sm">
+        <tr><td colspan="5" class="px-6 py-10 text-center text-slate-400 text-sm">
           No employees found in this Bitrix24 instance.
         </td></tr>`;
       return;
     }
 
-    tbody.innerHTML = users.flatMap(u => {
+    tbody.innerHTML = users.map(u => {
       const fullName = `${u.NAME || ''} ${u.LAST_NAME || ''}`.trim() || 'Unknown';
       const initial = fullName.charAt(0).toUpperCase();
       const deptNames = (u.UF_DEPARTMENT || [])
@@ -562,11 +562,7 @@ async function loadEmployeeTable() {
         ? `<img src="${u.PERSONAL_PHOTO}" alt="${fullName}" class="w-8 h-8 rounded-full object-cover shrink-0"/>`
         : `<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">${initial}</div>`;
 
-      const uid = String(u.ID);
-      const deal = dealMap[uid];
-      const empDeals = allDealsMap[uid] || [];
-
-      // Status badge for main row
+      const deal = dealMap[String(u.ID)];
       let statusBadge;
       if (deal) {
         const si = STAGE_MAP[shortStageId(deal.STAGE_ID)] || { label: deal.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
@@ -575,24 +571,7 @@ async function loadEmployeeTable() {
         statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-400">No appraisal</span>`;
       }
 
-      // Expandable appraisal history rows
-      const historyItems = empDeals.map(d => {
-        const si = STAGE_MAP[shortStageId(d.STAGE_ID)] || { label: d.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
-        const title = d.TITLE || `Appraisal #${d.ID}`;
-        const isComplete = shortStageId(d.STAGE_ID) === 'SUBMITTED';
-        const dlBtn = isComplete
-          ? `<button onclick="adminDownloadPdf('${d.ID}')" class="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
-               <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
-             </button>`
-          : '';
-        return `<div class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0 gap-3">
-          <span class="text-xs text-slate-700 font-medium truncate flex-1">${title}</span>
-          <span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls} shrink-0">${si.label}</span>
-          <div class="shrink-0 w-24 flex justify-end">${dlBtn}</div>
-        </div>`;
-      }).join('');
-
-      const mainRow = `
+      return `
         <tr class="hover:bg-slate-50/50 transition-colors" data-name="${fullName.toLowerCase()}">
           <td class="px-4 py-3">
             <input type="checkbox" value="${u.ID}" onchange="onRowCheck(this)"
@@ -610,27 +589,15 @@ async function loadEmployeeTable() {
           <td class="px-4 py-3 text-slate-600 text-sm hidden sm:table-cell">${u.WORK_POSITION || '—'}</td>
           <td class="px-4 py-3 text-slate-500 text-sm hidden lg:table-cell">${deptNames}</td>
           <td class="px-4 py-3">${statusBadge}</td>
-          <td class="px-4 py-3">
-            ${empDeals.length ? `<button onclick="toggleAppraisalHistory('${uid}')" class="p-1 rounded text-slate-400 hover:text-slate-700 transition-colors">
-              <span class="material-symbols-outlined text-base" id="chevron-${uid}">chevron_right</span>
-            </button>` : ''}
-          </td>
         </tr>`;
-
-      const expandRow = `
-        <tr id="expand-${uid}" class="hidden bg-slate-50/30">
-          <td colspan="6" class="px-6 pb-3 pt-1">
-            <div class="pl-11">${historyItems || '<p class="text-xs text-slate-400 py-1">No appraisals</p>'}</div>
-          </td>
-        </tr>`;
-
-      return [mainRow, expandRow];
     }).join('');
+
+    renderHistoryTable(allDealsMap, users, deptMap);
 
   } catch (err) {
     console.error('[Appraisify] Failed to load employees:', err);
     tbody.innerHTML = `
-      <tr><td colspan="6" class="px-6 py-10 text-center">
+      <tr><td colspan="5" class="px-6 py-10 text-center">
         <p class="text-slate-500 text-sm mb-3">Failed to load employee list.</p>
         <button onclick="loadEmployeeTable()"
           class="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors">
@@ -640,12 +607,71 @@ async function loadEmployeeTable() {
   }
 }
 
-function toggleAppraisalHistory(uid) {
-  const row = document.getElementById(`expand-${uid}`);
-  const icon = document.getElementById(`chevron-${uid}`);
-  if (!row) return;
-  const nowHidden = row.classList.toggle('hidden');
-  if (icon) icon.textContent = nowHidden ? 'chevron_right' : 'expand_more';
+function renderHistoryTable(allDealsMap, users, deptMap) {
+  const tbody = document.getElementById('history-table');
+  if (!tbody) return;
+
+  const userMap = {};
+  (users || []).forEach(u => { userMap[String(u.ID)] = u; });
+
+  // Flatten all deals, newest first
+  const allDeals = Object.values(allDealsMap).flat()
+    .sort((a, b) => Number(b.ID) - Number(a.ID));
+
+  if (!allDeals.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-slate-400 text-sm">No appraisals found.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = allDeals.map(d => {
+    const u = userMap[String(d.ASSIGNED_BY_ID)];
+    const fullName = u ? `${u.NAME || ''} ${u.LAST_NAME || ''}`.trim() || 'Unknown' : `User #${d.ASSIGNED_BY_ID}`;
+    const initial = fullName.charAt(0).toUpperCase();
+    const avatarHtml = u?.PERSONAL_PHOTO
+      ? `<img src="${u.PERSONAL_PHOTO}" alt="${fullName}" class="w-7 h-7 rounded-full object-cover shrink-0"/>`
+      : `<div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">${initial}</div>`;
+
+    const si = STAGE_MAP[shortStageId(d.STAGE_ID)] || { label: d.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
+    const title = d.TITLE || `Appraisal #${d.ID}`;
+    const isComplete = shortStageId(d.STAGE_ID) === 'SUBMITTED';
+    const dueDate = d.CLOSEDATE ? new Date(d.CLOSEDATE).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+    const dlBtn = isComplete
+      ? `<button onclick="adminDownloadPdf('${d.ID}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
+           <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
+         </button>`
+      : '';
+
+    return `
+      <tr class="hover:bg-slate-50/50 transition-colors">
+        <td class="px-4 py-3">
+          <div class="flex items-center gap-2">
+            ${avatarHtml}
+            <span class="font-medium text-slate-800 text-sm">${fullName}</span>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-slate-700 text-sm">${title}</td>
+        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls}">${si.label}</span></td>
+        <td class="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">${dueDate}</td>
+        <td class="px-4 py-3">${dlBtn}</td>
+      </tr>`;
+  }).join('');
+}
+
+function switchAdminTab(tab) {
+  const isEmployees = tab === 'employees';
+  document.getElementById('tab-employees').classList.toggle('hidden', !isEmployees);
+  document.getElementById('tab-history').classList.toggle('hidden', isEmployees);
+  document.getElementById('tab-employees-controls').classList.toggle('hidden', !isEmployees);
+  document.getElementById('selection-bar').classList.toggle('hidden', !isEmployees || !selectedEmployees.size);
+
+  const btnEmp  = document.getElementById('tab-btn-employees');
+  const btnHist = document.getElementById('tab-btn-history');
+  btnEmp.className  = isEmployees
+    ? 'px-4 py-2 text-sm font-semibold rounded-lg bg-primary/10 text-primary transition-colors'
+    : 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-500 hover:bg-slate-100 transition-colors';
+  btnHist.className = isEmployees
+    ? 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-500 hover:bg-slate-100 transition-colors'
+    : 'px-4 py-2 text-sm font-semibold rounded-lg bg-primary/10 text-primary transition-colors';
 }
 
 function adminDownloadPdf(dealId) {
