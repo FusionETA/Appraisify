@@ -180,7 +180,8 @@ export async function fetchDeal(domain, dealId) {
     filter: { ID: id },
     select: ['ID', 'TITLE', 'STAGE_ID', 'ASSIGNED_BY_ID', 'CATEGORY_ID', 'CLOSEDATE',
              'UF_CRM_REVIEWEE', 'UF_CRM_REVIEWER', 'UF_CRM_PARTNER',
-             'UF_CRM_YEAR', 'UF_CRM_APPRAISAL_TYPE', 'UF_CRM_TEAM', 'UF_CRM_ROLE'],
+             'UF_CRM_YEAR', 'UF_CRM_APPRAISAL_TYPE', 'UF_CRM_TEAM', 'UF_CRM_ROLE',
+             'UF_CRM_REVIEWEE_SUBMITTED_AT', 'UF_CRM_REVIEWER_SUBMITTED_AT', 'UF_CRM_PARTNER_SUBMITTED_AT'],
   });
   if (Array.isArray(list) && list.length > 0) return list[0];
 

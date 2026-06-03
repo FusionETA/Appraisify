@@ -21,7 +21,7 @@ const BX24App = (() => {
   const DEV_MODE = !!window.__DEV_ROLE__ || !!localStorage.getItem('__appraisify_dev_role__');
   const MAX_Q_PER_PHASE = 20;
   const PHASE_CODES = ['S', 'R', 'P'];
-  const RESPONSE_FIELDS_CACHE_KEY = 'appraisify_response_fields_ready_v2';
+  const RESPONSE_FIELDS_CACHE_KEY = 'appraisify_response_fields_ready_v3'; // bumped: adds submission timestamp fields
   const DEAL_CARD_CONFIG_CACHE_KEY = 'appraisify_deal_card_configured_v1';
 
   // ── Mock data for local development ──────────────────────────────────
