@@ -67,6 +67,7 @@ BX24App.init(async () => {
   // Always show personal appraisal summary + pending task queue for everyone.
   showSection('section-employee');
   showSection('section-pending');
+  showSection('section-history');
   loadMyAppraisal(name);
   loadPendingTasks();
   loadEmployeeHistory();
@@ -294,7 +295,7 @@ async function loadEmployeeHistory() {
       const rm = ROLE_META[role];
       const title = deal.TITLE || `Appraisal #${deal.ID}`;
       const dueDate = deal.CLOSEDATE ? new Date(deal.CLOSEDATE).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-      const isCompletedSelf = role === 'self' && shortStageId(deal.STAGE_ID) === 'SUBMITTED';
+      const isCompletedSelf = shortStageId(deal.STAGE_ID) === 'SUBMITTED';
       const dlBtn = isCompletedSelf
         ? `<button onclick="empDownloadPdf('${deal.ID}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
              <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
