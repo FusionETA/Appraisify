@@ -60,6 +60,9 @@
         <div><span class="text-slate-500">Status</span><p id="meta-status" class="font-semibold text-slate-900">—</p></div>
         <div><span class="text-slate-500">Template</span><p id="meta-template" class="font-semibold text-slate-900">—</p></div>
         <div><span class="text-slate-500">Domain</span><p id="meta-domain" class="font-semibold text-slate-900">—</p></div>
+        <div><span class="text-slate-500">Self Submitted</span><p id="meta-self-submitted" class="font-semibold text-slate-900">—</p></div>
+        <div><span class="text-slate-500">Reviewer Submitted</span><p id="meta-reviewer-submitted" class="font-semibold text-slate-900">—</p></div>
+        <div><span class="text-slate-500">Partner Submitted</span><p id="meta-partner-submitted" class="font-semibold text-slate-900">—</p></div>
       </div>
 
       <div class="px-8 pb-6">
@@ -266,6 +269,13 @@
         document.getElementById('meta-template').textContent = String(template.name || template.id || '—');
         document.getElementById('meta-domain').textContent = domain || '—';
         document.getElementById('generated-at').textContent = `Generated: ${new Date().toLocaleString()}`;
+        function fmtSubmitted(iso) {
+          if (!iso) return '—';
+          try { return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch { return iso; }
+        }
+        document.getElementById('meta-self-submitted').textContent     = fmtSubmitted(deal.UF_CRM_REVIEWEE_SUBMITTED_AT);
+        document.getElementById('meta-reviewer-submitted').textContent = fmtSubmitted(deal.UF_CRM_REVIEWER_SUBMITTED_AT);
+        document.getElementById('meta-partner-submitted').textContent  = fmtSubmitted(deal.UF_CRM_PARTNER_SUBMITTED_AT);
         const selfAvg = avgOrDash(selfScores);
         const reviewerAvg = avgOrDash(reviewerScores);
         const partnerAvg = avgOrDash(partnerScores);

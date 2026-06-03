@@ -240,7 +240,12 @@ function buildReportLines(deal, domain, template) {
   const reviewerAvg = avgOrDash(reviewerScores);
   const partnerAvg = avgOrDash(partnerScores);
   const totalAvg = avgOrDash([selfAvg, reviewerAvg, partnerAvg].filter(v => v !== '-'));
-  lines.push({ text: `Averages -> Self: ${selfAvg} | Reviewer: ${reviewerAvg} | Partner: ${partnerAvg} | Total: ${totalAvg}`, size: 10, height: 20 });
+  lines.push({ text: `Averages -> Self: ${selfAvg} | Reviewer: ${reviewerAvg} | Partner: ${partnerAvg} | Total: ${totalAvg}`, size: 10 });
+  function fmtTs(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleString(); } catch { return String(iso); }
+  }
+  lines.push({ text: `Self Submitted: ${fmtTs(deal.UF_CRM_REVIEWEE_SUBMITTED_AT)} | Reviewer Submitted: ${fmtTs(deal.UF_CRM_REVIEWER_SUBMITTED_AT)} | Partner Submitted: ${fmtTs(deal.UF_CRM_PARTNER_SUBMITTED_AT)}`, size: 9, height: 20 });
 
   questions.forEach((q) => {
     lines.push({ text: `Q${q.index} [${textOrDash(q.section)}]`, size: 11, height: 16 });

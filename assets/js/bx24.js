@@ -71,7 +71,11 @@ const BX24App = (() => {
     const specs = [
       // Meta field included here so ensureAppraisalResponseFields creates it on
       // existing installs (new installs get it via META_FIELDS in install.js).
-      { FIELD_NAME: 'SOURCE_APP', USER_TYPE_ID: 'string', LABEL: 'Source App' },
+      { FIELD_NAME: 'SOURCE_APP',            USER_TYPE_ID: 'string', LABEL: 'Source App' },
+      // Submission timestamps — lazily created on first submit for existing portals
+      { FIELD_NAME: 'REVIEWEE_SUBMITTED_AT', USER_TYPE_ID: 'string', LABEL: 'Self-Assessment Submitted' },
+      { FIELD_NAME: 'REVIEWER_SUBMITTED_AT', USER_TYPE_ID: 'string', LABEL: 'Reviewer Submitted' },
+      { FIELD_NAME: 'PARTNER_SUBMITTED_AT',  USER_TYPE_ID: 'string', LABEL: 'Partner Review Submitted' },
     ];
     actors.forEach(actor => {
       for (let i = 1; i <= MAX_Q_PER_PHASE; i += 1) {

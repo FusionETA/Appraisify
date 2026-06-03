@@ -254,7 +254,7 @@ async function loadEmployeeHistory() {
 
   try {
     const categoryId = await BX24App.getCategoryId();
-    const select = ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE'];
+    const select = ['ID', 'TITLE', 'STAGE_ID', 'CLOSEDATE', 'UF_CRM_REVIEWEE_SUBMITTED_AT', 'UF_CRM_REVIEWER_SUBMITTED_AT', 'UF_CRM_PARTNER_SUBMITTED_AT'];
 
     const [selfDeals, reviewerDeals, partnerDeals] = await Promise.all([
       BX24App.listDeals({ CATEGORY_ID: categoryId, ASSIGNED_BY_ID:  currentUser.ID, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, select),
@@ -320,7 +320,8 @@ function filterEmployeeHistory() {
     const si = STAGE_MAP[shortStageId(deal.STAGE_ID)] || { label: deal.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
     const rm = ROLE_META[r];
     const title = deal.TITLE || `Appraisal #${deal.ID}`;
-    const dueDate = deal.CLOSEDATE ? new Date(deal.CLOSEDATE).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+    const submittedAtIso = { self: deal.UF_CRM_REVIEWEE_SUBMITTED_AT, reviewer: deal.UF_CRM_REVIEWER_SUBMITTED_AT, partner: deal.UF_CRM_PARTNER_SUBMITTED_AT }[r];
+    const submittedAt = submittedAtIso ? new Date(submittedAtIso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
     const dlBtn = shortStageId(deal.STAGE_ID) === 'SUBMITTED'
       ? `<button onclick="empDownloadPdf('${deal.ID}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
            <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
@@ -331,7 +332,7 @@ function filterEmployeeHistory() {
         <td class="px-4 py-3 text-slate-700 font-medium text-sm">${title}</td>
         <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${rm.cls}">${rm.label}</span></td>
         <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls}">${si.label}</span></td>
-        <td class="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">${dueDate}</td>
+        <td class="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">${submittedAt}</td>
         <td class="px-4 py-3">${dlBtn}</td>
       </tr>`;
   }).join('');
@@ -606,7 +607,7 @@ async function loadEmployeeTable() {
       BX24App.getUsers(),
       BX24App.getDepartments(),
       categoryId
-        ? BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, ['ID', 'TITLE', 'STAGE_ID', 'ASSIGNED_BY_ID', 'CLOSEDATE'])
+        ? BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, ['ID', 'TITLE', 'STAGE_ID', 'ASSIGNED_BY_ID', 'CLOSEDATE', 'UF_CRM_REVIEWEE_SUBMITTED_AT', 'UF_CRM_REVIEWER_SUBMITTED_AT', 'UF_CRM_PARTNER_SUBMITTED_AT'])
         : Promise.resolve([]),
     ]);
 
@@ -745,7 +746,9 @@ function filterAdminHistory() {
       : `<div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">${initial}</div>`;
     const si = STAGE_MAP[stage] || { label: d.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
     const title = d.TITLE || `Appraisal #${d.ID}`;
-    const dueDate = d.CLOSEDATE ? new Date(d.CLOSEDATE).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+    // Show most recent submission timestamp; fall back to due date for older deals
+    const latestSubmittedIso = d.UF_CRM_PARTNER_SUBMITTED_AT || d.UF_CRM_REVIEWER_SUBMITTED_AT || d.UF_CRM_REVIEWEE_SUBMITTED_AT || d.CLOSEDATE;
+    const dueDate = latestSubmittedIso ? new Date(latestSubmittedIso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
     const dlBtn = stage === 'SUBMITTED'
       ? `<button onclick="adminDownloadPdf('${d.ID}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
            <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download

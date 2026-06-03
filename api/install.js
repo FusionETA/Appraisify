@@ -300,6 +300,10 @@ export default async function handler(req, res) {
       { FIELD_NAME: 'REVIEWER_RATING_SCORE',      LABEL: 'Reviewer Rating Score',      USER_TYPE_ID: 'string' },
       { FIELD_NAME: 'PARTNER_RATING_SCORE',       LABEL: 'Partner Rating Score',       USER_TYPE_ID: 'string' },
       { FIELD_NAME: 'TOTAL_AVERAGE_RATING_SCORE', LABEL: 'Total Average Rating Score', USER_TYPE_ID: 'string' },
+      // ── Submission timestamps ─────────────────────────────────────────────
+      { FIELD_NAME: 'REVIEWEE_SUBMITTED_AT', LABEL: 'Self-Assessment Submitted', USER_TYPE_ID: 'string' },
+      { FIELD_NAME: 'REVIEWER_SUBMITTED_AT', LABEL: 'Reviewer Submitted',        USER_TYPE_ID: 'string' },
+      { FIELD_NAME: 'PARTNER_SUBMITTED_AT',  LABEL: 'Partner Review Submitted',  USER_TYPE_ID: 'string' },
     ];
 
     var ALL_FIELDS = META_FIELDS.concat(buildResponseFields());

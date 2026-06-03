@@ -463,7 +463,16 @@ async function handleSubmit(opts) {
 
   try {
     const responseFields = buildResponseFieldPayload(opts.phase, validation.submittedIndexes);
-    await BX24App.updateDeal(dealId, { STAGE_ID: nextStage, ...responseFields });
+    const submittedAtField = {
+      self:     'UF_CRM_REVIEWEE_SUBMITTED_AT',
+      reviewer: 'UF_CRM_REVIEWER_SUBMITTED_AT',
+      partner:  'UF_CRM_PARTNER_SUBMITTED_AT',
+    }[opts.phase];
+    await BX24App.updateDeal(dealId, {
+      STAGE_ID: nextStage,
+      ...responseFields,
+      ...(submittedAtField ? { [submittedAtField]: submittedAt } : {}),
+    });
 
     // Keep timeline comment as secondary audit log.
     const lines = Object.entries(_scores).map(([qid, score]) => {
