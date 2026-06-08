@@ -75,7 +75,7 @@
           <label class="block text-xs font-semibold text-slate-600">Role Level</label>
           <button type="button" onclick="addNewMetaValue('role')" class="text-xs text-primary font-semibold hover:underline">+ New</button>
         </div>
-        <select id="meta-role" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm font-medium" disabled>
+        <select id="meta-role" onchange="onRoleChange()" class="w-full rounded-lg border-slate-200 focus:ring-primary text-sm font-medium" disabled>
           <option value="">— Select team first —</option>
         </select>
       </div>
@@ -96,6 +96,18 @@
           + Add scope item
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Existing template banner -->
+  <div id="existing-template-banner" class="hidden mb-2 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-2 text-sm text-amber-800">
+      <span class="material-symbols-outlined text-lg">edit_note</span>
+      <span>Template <strong id="existing-template-name"></strong> already exists for this combination.</span>
+    </div>
+    <div class="flex gap-2 shrink-0">
+      <button onclick="dismissExistingBanner()" class="text-xs text-amber-600 font-semibold hover:underline">Dismiss</button>
+      <button onclick="loadExistingTemplateFromBanner()" class="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 transition-colors">Load for Editing</button>
     </div>
   </div>
 
@@ -288,10 +300,55 @@
     document.getElementById('meta-role').disabled = true;
   }
 
+  // ── Existing template detection ─────────────────────────────────────────
+  let _pendingLoadId = null;
+
+  function onRoleChange() {
+    updateTemplateName();
+    checkForExistingTemplate();
+  }
+
+  function checkForExistingTemplate() {
+    const type = (document.getElementById('meta-type')?.value || '').trim().toLowerCase();
+    const team = (document.getElementById('meta-team')?.value || '').trim().toLowerCase();
+    const role = (document.getElementById('meta-role')?.value || '').trim().toLowerCase();
+    const banner = document.getElementById('existing-template-banner');
+    if (!type || !team || !role) { if (banner) banner.classList.add('hidden'); return; }
+
+    const match = _templatesCache.find(tpl =>
+      String(tpl.type || '').trim().toLowerCase() === type &&
+      String(tpl.team || '').trim().toLowerCase() === team &&
+      String(tpl.role || '').trim().toLowerCase() === role
+    );
+
+    if (match && banner) {
+      _pendingLoadId = match.id;
+      document.getElementById('existing-template-name').textContent = `"${match.name}"`;
+      banner.classList.remove('hidden');
+    } else {
+      _pendingLoadId = null;
+      if (banner) banner.classList.add('hidden');
+    }
+  }
+
+  function loadExistingTemplateFromBanner() {
+    if (_pendingLoadId) loadExistingTemplate(_pendingLoadId);
+  }
+
+  function _resetExistingBanner() {
+    _pendingLoadId = null;
+    document.getElementById('existing-template-banner')?.classList.add('hidden');
+    // Reset save button label and _loadedTemplateId (defined in builder.js)
+    if (typeof _loadedTemplateId !== 'undefined') window._loadedTemplateId = null;
+    const btn = document.getElementById('btn-save-template');
+    if (btn) btn.innerHTML = '<span class="material-symbols-outlined text-lg">save</span> Save Template';
+  }
+
   function onTypeChange() {
     const type = document.getElementById('meta-type').value;
     const teamEl = document.getElementById('meta-team');
     const roleEl = document.getElementById('meta-role');
+    _resetExistingBanner();
     if (!type) {
       teamEl.innerHTML = '<option value="">— Select type first —</option>';
       teamEl.disabled = true;
@@ -319,6 +376,7 @@
     const type = document.getElementById('meta-type').value;
     const team = document.getElementById('meta-team').value;
     const roleEl = document.getElementById('meta-role');
+    _resetExistingBanner();
     if (!team) {
       roleEl.innerHTML = '<option value="">— Select team first —</option>';
       roleEl.disabled = true;

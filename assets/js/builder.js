@@ -13,6 +13,7 @@ let _sectionCatalog = {
   scope: [],
   engagement: [],
 };
+let _loadedTemplateId = null;   // set when editing an existing template
 
 // ── Workspace switch ──────────────────────────────────────────────────────
 function setWorkspace(ws) {
@@ -492,6 +493,46 @@ function applyImprovedQuestion(idx) {
   closeImproveModal();
 }
 
+// ── Load existing template ────────────────────────────────────────────────
+async function loadExistingTemplate(id) {
+  if (!id || typeof TemplatesAPI === 'undefined') return;
+  try {
+    const tpl = await TemplatesAPI.getTemplate(id);
+    if (!tpl) { alert('Could not load template.'); return; }
+
+    // Populate questions
+    _questionsMap.scope      = (tpl.sections?.scope      || []).map(q => ({ ...q, _uid: q._uid || Math.random().toString(36).slice(2) }));
+    _questionsMap.engagement = (tpl.sections?.engagement || []).map(q => ({ ...q, _uid: q._uid || Math.random().toString(36).slice(2) }));
+
+    // Populate scope items
+    _scopeItems = Array.isArray(tpl.scopeItems) ? tpl.scopeItems : [];
+
+    // Rebuild section catalogs
+    _sectionCatalog.scope      = [...new Set(_questionsMap.scope.map(q => q.section).filter(Boolean))];
+    _sectionCatalog.engagement = [...new Set(_questionsMap.engagement.map(q => q.section).filter(Boolean))];
+
+    _loadedTemplateId = id;
+
+    // Update UI
+    refreshSectionDropdown();
+    renderQuestionList();
+    renderScopeItems();
+    document.getElementById('existing-template-banner')?.classList.add('hidden');
+
+    // Update save button
+    const btn = document.getElementById('btn-save-template');
+    if (btn) btn.innerHTML = '<span class="material-symbols-outlined text-lg">update</span> Update Template';
+
+    showBuilderFeedback(`Loaded "${tpl.name}" — make your changes and click Update Template.`, 'success');
+  } catch (e) {
+    alert(`Failed to load template: ${e.message || e}`);
+  }
+}
+
+function dismissExistingBanner() {
+  document.getElementById('existing-template-banner')?.classList.add('hidden');
+}
+
 // ── Save template ─────────────────────────────────────────────────────────
 function showBuilderFeedback(message, kind = 'error') {
   const el = document.getElementById('builder-feedback');
@@ -557,8 +598,12 @@ async function saveTemplate() {
   try {
     showBuilderFeedback('');
     setBuilderSaveLoading(true);
-    await TemplatesAPI.createTemplate(payload);
-    showBuilderFeedback(`Template "${nameText}" saved. Redirecting...`, 'success');
+    if (_loadedTemplateId) {
+      await TemplatesAPI.updateTemplate(_loadedTemplateId, payload);
+    } else {
+      await TemplatesAPI.createTemplate(payload);
+    }
+    showBuilderFeedback(`Template "${nameText}" ${_loadedTemplateId ? 'updated' : 'saved'}. Redirecting...`, 'success');
     window.location.href = 'dashboard.html?template_saved=1';
   } catch (e) {
     showBuilderFeedback(`Failed to save template: ${e.message || e}`);
