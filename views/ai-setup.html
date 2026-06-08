@@ -117,6 +117,15 @@
   let _templates = [];     // parsed <template> blocks
   let _savedIds  = new Set();
 
+  // Warn before leaving if there are unsaved generated templates
+  window.addEventListener('beforeunload', e => {
+    const unsaved = _templates.some((_, i) => !_savedIds.has(i));
+    if (unsaved) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
   // ── Init ────────────────────────────────────────────────────────────────
   BX24App.init(async () => {
     _greeting = `Hi! I'm your AI HR consultant. I'll help you build a complete suite of appraisal templates tailored to your company.\n\nLet's start with the basics — **what industry is your company in**, and roughly **how many people** do you have?`;
