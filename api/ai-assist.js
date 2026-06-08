@@ -12,8 +12,9 @@ import { loadTokens } from './_lib/auth.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_API_KEY  = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL    = 'gemini-2.0-flash';
+const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 function buildSystemPrompt(context) {
   const ctx       = context || {};
@@ -91,6 +92,7 @@ export default async function handler(req, res) {
       generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
     };
 
+    const GEMINI_URL = `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
     const response = await fetch(GEMINI_URL, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -100,7 +102,9 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errText = await response.text();
       logError(domain, { event: 'ai_error', source: 'ai-assist', error: 'gemini_error', message: errText }).catch(() => {});
-      return res.status(502).json({ error: 'ai_request_failed', error_description: 'Gemini API returned an error.' });
+      let geminiErr = errText;
+      try { geminiErr = JSON.parse(errText)?.error?.message || errText; } catch {}
+      return res.status(502).json({ error: 'ai_request_failed', error_description: `Gemini ${response.status}: ${geminiErr}` });
     }
 
     const data  = await response.json();
