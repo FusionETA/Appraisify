@@ -1,20 +1,78 @@
 /**
  * Appraisify – AI Question Assistant (Vercel Serverless Function)
  *
- * Proxies chat turns and single-question improvement requests to Groq.
- * Keeps the API key server-side.
+ * Primary: Google Gemini. Falls back to Groq on quota/rate errors.
+ * Keeps all API keys server-side.
  *
  * Env vars required:
- *   GROQ_API_KEY  — from console.groq.com (free tier available)
+ *   GEMINI_API_KEY  — primary provider
+ *   GROQ_API_KEY    — fallback provider (free tier)
  */
 
 import { loadTokens } from './_lib/auth.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError, logAi } from './_lib/logger.js';
 
+const GEMINI_API_KEY  = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL    = 'gemini-2.0-flash';
+const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL   = 'llama-3.3-70b-versatile';
+
+// Returns { reply, provider } or throws
+async function callGemini(systemPrompt, messages) {
+  const url = `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  const geminiMessages = messages.map(m => ({
+    role:  m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: String(m.content || '') }],
+  }));
+  const resp = await fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents:           geminiMessages,
+      generationConfig:   { temperature: 0.7, maxOutputTokens: 1500 },
+    }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    let msg = errText;
+    try { msg = JSON.parse(errText)?.error?.message || errText; } catch {}
+    const err = new Error(`Gemini ${resp.status}: ${msg}`);
+    err.status = resp.status;
+    throw err;
+  }
+  const data  = await resp.json();
+  const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (!reply) throw new Error('Gemini returned empty response');
+  return { reply, provider: 'gemini' };
+}
+
+async function callGroq(systemPrompt, messages) {
+  const resp = await fetch(GROQ_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+    body:    JSON.stringify({
+      model:       GROQ_MODEL,
+      messages:    [{ role: 'system', content: systemPrompt }, ...messages.map(m => ({ role: m.role, content: String(m.content || '') }))],
+      temperature: 0.7,
+      max_tokens:  1500,
+    }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    let msg = errText;
+    try { msg = JSON.parse(errText)?.error?.message || errText; } catch {}
+    throw new Error(`Groq ${resp.status}: ${msg}`);
+  }
+  const data  = await resp.json();
+  const reply = data?.choices?.[0]?.message?.content || '';
+  if (!reply) throw new Error('Groq returned empty response');
+  return { reply, provider: 'groq' };
+}
 
 function buildSystemPrompt(context) {
   const ctx  = context || {};
@@ -95,10 +153,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
-  if (!GROQ_API_KEY) {
+  if (!GEMINI_API_KEY && !GROQ_API_KEY) {
     return res.status(503).json({
       error: 'ai_not_configured',
-      error_description: 'GROQ_API_KEY is not set on the server.',
+      error_description: 'No AI provider key is configured (GEMINI_API_KEY or GROQ_API_KEY).',
     });
   }
 
@@ -123,76 +181,56 @@ export default async function handler(req, res) {
   const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content || '';
 
   try {
-    // Groq uses OpenAI-compatible format — system prompt as a system message
-    const groqMessages = [
-      { role: 'system', content: buildSystemPrompt(context) },
-      ...messages.map(m => ({ role: m.role, content: String(m.content || '') })),
-    ];
+    const systemPrompt = buildSystemPrompt(context);
+    let result = null;
+    let providerError = null;
 
-    const response = await fetch(GROQ_URL, {
-      method:  'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model:       GROQ_MODEL,
-        messages:    groqMessages,
-        temperature: 0.7,
-        max_tokens:  1500,
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      let groqErr = errText;
-      try { groqErr = JSON.parse(errText)?.error?.message || errText; } catch {}
-      const errDesc = `Groq ${response.status}: ${groqErr}`;
-      logError(domain, { event: 'ai_error', source: 'ai-assist', error: 'groq_error', message: errDesc }).catch(() => {});
-      logAi(domain, {
-        event: 'ai_request',
-        mode: context.mode || 'builder',
-        context: { type: context.type, team: context.team, role: context.role },
-        messageCount: messages.length,
-        userMessage: lastUserMsg.slice(0, 500),
-        success: false,
-        error: errDesc,
-        durationMs: Date.now() - startMs,
-      }).catch(() => {});
-      return res.status(502).json({ error: 'ai_request_failed', error_description: errDesc });
+    // Try Gemini first
+    if (GEMINI_API_KEY) {
+      try {
+        result = await callGemini(systemPrompt, messages);
+      } catch (e) {
+        providerError = e.message;
+        // Fall back to Groq on quota/rate/auth errors
+        const shouldFallback = e.status === 429 || e.status === 503 || e.status === 401 || e.status === 402;
+        if (!shouldFallback) throw e;
+        logError(domain, { event: 'ai_gemini_fallback', source: 'ai-assist', message: e.message }).catch(() => {});
+      }
     }
 
-    const data  = await response.json();
-    const reply = data?.choices?.[0]?.message?.content || '';
-
-    if (!reply) {
-      return res.status(502).json({ error: 'empty_response', error_description: 'No content returned from Groq.' });
+    // Fall back to Groq if Gemini failed or not configured
+    if (!result && GROQ_API_KEY) {
+      result = await callGroq(systemPrompt, messages);
     }
 
-    // Log successful interaction
+    if (!result) {
+      throw new Error(providerError || 'No AI provider available');
+    }
+
     logAi(domain, {
-      event: 'ai_request',
-      mode: context.mode || 'builder',
-      context: { type: context.type, team: context.team, role: context.role },
+      event:        'ai_request',
+      provider:     result.provider,
+      mode:         context.mode || 'builder',
+      context:      { type: context.type, team: context.team, role: context.role },
       messageCount: messages.length,
-      userMessage: lastUserMsg.slice(0, 500),
-      aiReply: reply.slice(0, 1000),
-      success: true,
-      durationMs: Date.now() - startMs,
+      userMessage:  lastUserMsg.slice(0, 500),
+      aiReply:      result.reply.slice(0, 1000),
+      success:      true,
+      durationMs:   Date.now() - startMs,
     }).catch(() => {});
 
-    return res.status(200).json({ reply });
+    return res.status(200).json({ reply: result.reply, provider: result.provider });
 
   } catch (e) {
     logError(domain, { event: 'error', source: 'ai-assist', error: e.code || 'ai_failed', message: e.message }).catch(() => {});
     logAi(domain, {
-      event: 'ai_request',
-      mode: context.mode || 'builder',
+      event:        'ai_request',
+      mode:         context.mode || 'builder',
       messageCount: messages.length,
-      userMessage: lastUserMsg.slice(0, 500),
-      success: false,
-      error: e.message,
-      durationMs: Date.now() - startMs,
+      userMessage:  lastUserMsg.slice(0, 500),
+      success:      false,
+      error:        e.message,
+      durationMs:   Date.now() - startMs,
     }).catch(() => {});
     return res.status(503).json({ error: 'ai_failed', error_description: e.message });
   }
