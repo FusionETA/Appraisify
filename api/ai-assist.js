@@ -14,7 +14,7 @@ import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError, logAi } from './_lib/logger.js';
 
 const GEMINI_API_KEY  = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL    = 'gemini-2.0-flash';
+const GEMINI_MODEL    = 'gemini-2.5-flash';
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -22,7 +22,7 @@ const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL   = 'llama-3.3-70b-versatile';
 
 // Returns { reply, provider } or throws
-async function callGemini(systemPrompt, messages) {
+async function callGemini(systemPrompt, messages, maxTokens = 2000) {
   const url = `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   const geminiMessages = messages.map(m => ({
     role:  m.role === 'assistant' ? 'model' : 'user',
@@ -34,7 +34,7 @@ async function callGemini(systemPrompt, messages) {
     body:    JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents:           geminiMessages,
-      generationConfig:   { temperature: 0.7, maxOutputTokens: 1500 },
+      generationConfig:   { temperature: 0.7, maxOutputTokens: maxTokens },
     }),
   });
   if (!resp.ok) {
@@ -51,7 +51,7 @@ async function callGemini(systemPrompt, messages) {
   return { reply, provider: 'gemini' };
 }
 
-async function callGroq(systemPrompt, messages) {
+async function callGroq(systemPrompt, messages, maxTokens = 2000) {
   const resp = await fetch(GROQ_URL, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
@@ -59,7 +59,7 @@ async function callGroq(systemPrompt, messages) {
       model:       GROQ_MODEL,
       messages:    [{ role: 'system', content: systemPrompt }, ...messages.map(m => ({ role: m.role, content: String(m.content || '') }))],
       temperature: 0.7,
-      max_tokens:  1500,
+      max_tokens:  maxTokens,
     }),
   });
   if (!resp.ok) {
@@ -185,10 +185,13 @@ export default async function handler(req, res) {
     let result = null;
     let providerError = null;
 
+    // Setup mode generates many full templates — needs much higher token limit
+    const maxTokens = (context.mode === 'setup') ? 8000 : 2000;
+
     // Try Gemini first
     if (GEMINI_API_KEY) {
       try {
-        result = await callGemini(systemPrompt, messages);
+        result = await callGemini(systemPrompt, messages, maxTokens);
       } catch (e) {
         providerError = e.message;
         // Fall back to Groq on quota/rate/auth errors
@@ -200,7 +203,7 @@ export default async function handler(req, res) {
 
     // Fall back to Groq if Gemini failed or not configured
     if (!result && GROQ_API_KEY) {
-      result = await callGroq(systemPrompt, messages);
+      result = await callGroq(systemPrompt, messages, maxTokens);
     }
 
     if (!result) {
