@@ -37,7 +37,7 @@
     <div class="flex items-center gap-2">
       <img src="../assets/branding/logos/appraisify-mark-7.svg" alt="Appraisify" class="w-8 h-8 rounded-xl object-cover"/>
       <span class="font-bold text-slate-900">AI Template Setup</span>
-      <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700">✨ Powered by Groq</span>
+      <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700">✨ Powered by Gemini</span>
     </div>
   </div>
 </header>
@@ -170,11 +170,13 @@
         parts.push({ type: 'template', template: tpl });
         _templates.push(tpl);
       } catch {
-        parts.push({ type: 'text', content: match[0] });
+        // Malformed JSON inside a complete <template> block — skip silently
       }
       last = match.index + match[0].length;
     }
-    const tail = text.slice(last).trim();
+    // Strip any truncated/unclosed <template> block from the tail — don't show raw JSON
+    let tail = text.slice(last).trim();
+    tail = tail.replace(/<template>[\s\S]*$/, '').trim();
     if (tail) parts.push({ type: 'text', content: tail });
     return parts;
   }

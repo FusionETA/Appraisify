@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Logs – Appraisify</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="../assets/css/main.css" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#136dec',
+            'background-light': '#f0f3f5',
+          },
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' },
+        },
+      },
+    }
+  </script>
+  <style>
+    .log-card { transition: box-shadow 0.15s; }
+    .log-card:hover { box-shadow: 0 4px 16px 0 rgba(19,109,236,.07); }
+    .expandable { display: none; }
+    .expandable.open { display: block; }
+    .expand-btn .icon-expand { display: inline; }
+    .expand-btn .icon-collapse { display: none; }
+    .expand-btn.open .icon-expand { display: none; }
+    .expand-btn.open .icon-collapse { display: inline; }
+    .provider-gemini { background: #f3e8ff; color: #7c3aed; }
+    .provider-groq   { background: #fff7ed; color: #c2410c; }
+    .mode-setup      { background: #eff6ff; color: #1d4ed8; }
+    .mode-assist     { background: #f0fdf4; color: #166534; }
+    .mode-improve    { background: #fef9c3; color: #854d0e; }
+    .stat-card { transition: transform 0.15s; }
+    .stat-card:hover { transform: translateY(-1px); }
+    pre { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body class="bg-background-light text-slate-800 font-sans min-h-screen">
+
+<!-- ── Header ────────────────────────────────────────────────────────── -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
+    <button onclick="history.back()" class="flex items-center gap-1.5 text-slate-500 hover:text-primary transition-colors text-sm font-medium">
+      <span class="material-symbols-outlined text-lg">arrow_back</span>
+      Back
+    </button>
+    <div class="w-px h-4 bg-slate-200"></div>
+    <div class="flex items-center gap-2 flex-1">
+      <img src="../assets/branding/logos/appraisify-mark-7.svg" alt="Appraisify" class="w-8 h-8 rounded-xl object-cover"/>
+      <span class="font-bold text-slate-900">AI Assist Logs</span>
+      <span id="provider-badge" class="px-2 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700 hidden">✨ Gemini</span>
+    </div>
+    <button id="btn-refresh" onclick="loadLogs()" class="flex items-center gap-1.5 text-sm font-semibold text-primary hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-colors">
+      <span class="material-symbols-outlined text-base">refresh</span>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<!-- ── Filters ───────────────────────────────────────────────────────── -->
+<div class="bg-white border-b border-slate-100">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3">
+    <div class="flex items-center gap-2 text-sm">
+      <span class="material-symbols-outlined text-slate-400 text-base">domain</span>
+      <input id="input-domain" type="text" value="fusion.bitrix24.com"
+        class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30 w-56"
+        placeholder="domain e.g. company.bitrix24.com"
+        onkeydown="if(event.key==='Enter') loadLogs()"/>
+    </div>
+    <div class="flex items-center gap-1.5 text-sm">
+      <span class="text-slate-500 font-medium">Days:</span>
+      <div class="flex rounded-lg border border-slate-200 overflow-hidden">
+        <button onclick="setDays(1)"  data-days="1"  class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors">1</button>
+        <button onclick="setDays(3)"  data-days="3"  class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors border-l border-slate-200 active">3</button>
+        <button onclick="setDays(7)"  data-days="7"  class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors border-l border-slate-200">7</button>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 text-sm ml-auto">
+      <span class="text-slate-500 font-medium">Mode:</span>
+      <select id="filter-mode" onchange="renderLogs()" class="border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30">
+        <option value="">All</option>
+        <option value="setup">Setup</option>
+        <option value="assist">Assist</option>
+        <option value="improve">Improve</option>
+      </select>
+      <select id="filter-provider" onchange="renderLogs()" class="border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30">
+        <option value="">All Providers</option>
+        <option value="gemini">Gemini</option>
+        <option value="groq">Groq</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main ──────────────────────────────────────────────────────────── -->
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+  <!-- Stats row -->
+  <div id="stats-row" class="grid grid-cols-2 sm:grid-cols-4 gap-3 hidden">
+    <div class="stat-card bg-white rounded-xl border border-slate-200 px-4 py-3">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-wide">Total Requests</p>
+      <p id="stat-total" class="text-2xl font-extrabold text-slate-900 mt-1">—</p>
+    </div>
+    <div class="stat-card bg-white rounded-xl border border-slate-200 px-4 py-3">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-wide">Avg Duration</p>
+      <p id="stat-avg" class="text-2xl font-extrabold text-slate-900 mt-1">—</p>
+    </div>
+    <div class="stat-card bg-white rounded-xl border border-slate-200 px-4 py-3">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-wide">Gemini</p>
+      <p id="stat-gemini" class="text-2xl font-extrabold text-violet-600 mt-1">—</p>
+    </div>
+    <div class="stat-card bg-white rounded-xl border border-slate-200 px-4 py-3">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-wide">Groq</p>
+      <p id="stat-groq" class="text-2xl font-extrabold text-orange-600 mt-1">—</p>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
+    <span class="material-symbols-outlined text-4xl animate-spin" style="animation: spin 1s linear infinite;">refresh</span>
+    <p class="text-sm font-medium">Loading logs…</p>
+  </div>
+
+  <!-- Empty -->
+  <div id="empty" class="hidden flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
+    <span class="material-symbols-outlined text-5xl">inbox</span>
+    <p class="text-sm font-medium">No AI logs found for this period</p>
+  </div>
+
+  <!-- Error -->
+  <div id="error-msg" class="hidden bg-red-50 border border-red-200 rounded-xl px-5 py-4 text-red-700 text-sm font-medium flex items-center gap-2">
+    <span class="material-symbols-outlined text-lg">error</span>
+    <span id="error-text">Failed to load logs</span>
+  </div>
+
+  <!-- Log list -->
+  <div id="log-list" class="hidden space-y-3"></div>
+
+</main>
+
+<style>
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .days-btn.active { background: #136dec; color: #fff; }
+  .days-btn.active:hover { background: #0f5bcb; }
+</style>
+
+<script>
+  let allLogs = [];
+  let selectedDays = 3;
+
+  function setDays(d) {
+    selectedDays = d;
+    document.querySelectorAll('.days-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.days) === d);
+    });
+    loadLogs();
+  }
+
+  function getDomain() {
+    return document.getElementById('input-domain').value.trim() || 'fusion.bitrix24.com';
+  }
+
+  async function loadLogs() {
+    const domain = getDomain();
+    setLoading(true);
+
+    try {
+      const res = await fetch(`/api/logs?domain=${encodeURIComponent(domain)}&days=${selectedDays}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      allLogs = data.ai || [];
+      renderLogs();
+    } catch (e) {
+      showError('Could not fetch logs: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderLogs() {
+    const modeFilter     = document.getElementById('filter-mode').value;
+    const providerFilter = document.getElementById('filter-provider').value;
+
+    let logs = allLogs;
+    if (modeFilter)     logs = logs.filter(l => l.mode === modeFilter);
+    if (providerFilter) logs = logs.filter(l => l.provider === providerFilter);
+
+    // Stats (always from unfiltered allLogs)
+    renderStats(allLogs);
+
+    const list = document.getElementById('log-list');
+    const empty = document.getElementById('empty');
+
+    if (!logs.length) {
+      list.classList.add('hidden');
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    list.classList.remove('hidden');
+
+    list.innerHTML = logs.map((log, i) => renderCard(log, i)).join('');
+  }
+
+  function renderStats(logs) {
+    const row = document.getElementById('stats-row');
+    if (!logs.length) { row.classList.add('hidden'); return; }
+    row.classList.remove('hidden');
+
+    const geminiCount = logs.filter(l => l.provider === 'gemini').length;
+    const groqCount   = logs.filter(l => l.provider === 'groq').length;
+    const avgMs       = Math.round(logs.reduce((s, l) => s + (l.durationMs || 0), 0) / logs.length);
+
+    // Show provider badge based on dominant provider
+    const badge = document.getElementById('provider-badge');
+    if (geminiCount > 0) {
+      badge.textContent = '✨ Gemini';
+      badge.className = 'px-2 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700';
+      badge.classList.remove('hidden');
+    } else if (groqCount > 0) {
+      badge.textContent = '⚡ Groq';
+      badge.className = 'px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700';
+      badge.classList.remove('hidden');
+    }
+
+    document.getElementById('stat-total').textContent  = logs.length;
+    document.getElementById('stat-avg').textContent    = avgMs >= 1000 ? (avgMs/1000).toFixed(1)+'s' : avgMs+'ms';
+    document.getElementById('stat-gemini').textContent = geminiCount;
+    document.getElementById('stat-groq').textContent   = groqCount;
+  }
+
+  function renderCard(log, i) {
+    const ts        = new Date(log.timestamp);
+    const timeAgo   = formatRelative(ts);
+    const timeAbs   = ts.toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    const provider  = (log.provider || 'unknown').toLowerCase();
+    const mode      = (log.mode || 'assist').toLowerCase();
+    const duration  = log.durationMs >= 1000
+      ? (log.durationMs/1000).toFixed(1)+'s'
+      : (log.durationMs||0)+'ms';
+    const success   = log.success !== false;
+    const msgCount  = log.messageCount || 1;
+    const userMsg   = (log.userMessage || '').trim();
+    const aiReply   = (log.aiReply   || '').trim();
+    const cardId    = `card-${i}`;
+    const expandId  = `expand-${i}`;
+
+    const providerClass = provider === 'gemini' ? 'provider-gemini' : provider === 'groq' ? 'provider-groq' : 'bg-slate-100 text-slate-600';
+    const providerIcon  = provider === 'gemini' ? '✨' : provider === 'groq' ? '⚡' : '🤖';
+    const modeClass     = mode === 'setup' ? 'mode-setup' : mode === 'improve' ? 'mode-improve' : 'mode-assist';
+
+    return `
+    <div class="log-card bg-white rounded-xl border border-slate-200 overflow-hidden" id="${cardId}">
+      <!-- Card header -->
+      <div class="px-4 py-3 flex items-start gap-3">
+        <!-- Status dot -->
+        <div class="mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${success ? 'bg-emerald-400' : 'bg-red-400'}" title="${success ? 'Success' : 'Failed'}"></div>
+
+        <!-- Main info -->
+        <div class="flex-1 min-w-0">
+          <!-- Top row: badges + time -->
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${providerClass}">${providerIcon} ${cap(provider)}</span>
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${modeClass}">${cap(mode)}</span>
+            <span class="flex items-center gap-1 text-xs text-slate-400 font-medium">
+              <span class="material-symbols-outlined text-xs" style="font-size:13px">forum</span>
+              ${msgCount} msg${msgCount !== 1 ? 's' : ''}
+            </span>
+            <span class="flex items-center gap-1 text-xs text-slate-400 font-medium">
+              <span class="material-symbols-outlined text-xs" style="font-size:13px">timer</span>
+              ${duration}
+            </span>
+            <span class="ml-auto text-xs text-slate-400 font-medium" title="${ts.toISOString()}">${timeAgo} · ${timeAbs}</span>
+          </div>
+
+          <!-- User message preview -->
+          ${userMsg ? `
+          <div class="flex items-start gap-2 mb-1.5">
+            <span class="material-symbols-outlined text-slate-300 text-sm mt-0.5" style="font-size:15px">person</span>
+            <p class="text-sm text-slate-700 leading-snug line-clamp-2">${esc(userMsg)}</p>
+          </div>` : ''}
+
+          <!-- AI reply preview -->
+          ${aiReply ? `
+          <div class="flex items-start gap-2">
+            <span class="material-symbols-outlined text-violet-300 text-sm mt-0.5" style="font-size:15px">smart_toy</span>
+            <p class="text-sm text-slate-500 leading-snug line-clamp-2">${esc(aiReply)}</p>
+          </div>` : ''}
+        </div>
+
+        <!-- Expand button -->
+        <button class="expand-btn flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
+          onclick="toggleExpand('${expandId}', this)" title="Expand">
+          <span class="material-symbols-outlined icon-expand" style="font-size:18px">expand_more</span>
+          <span class="material-symbols-outlined icon-collapse" style="font-size:18px">expand_less</span>
+        </button>
+      </div>
+
+      <!-- Expandable detail -->
+      <div class="expandable" id="${expandId}">
+        <div class="border-t border-slate-100 bg-slate-50/60 px-4 py-4 space-y-4">
+
+          ${userMsg ? `
+          <div>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+              <span class="material-symbols-outlined" style="font-size:13px">person</span> User
+            </p>
+            <div class="bg-white border border-slate-200 rounded-lg px-3 py-2.5">
+              <pre class="text-sm text-slate-700 font-sans">${esc(userMsg)}</pre>
+            </div>
+          </div>` : ''}
+
+          ${aiReply ? `
+          <div>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+              <span class="material-symbols-outlined" style="font-size:13px">smart_toy</span> AI Reply
+            </p>
+            <div class="bg-white border border-violet-100 rounded-lg px-3 py-2.5">
+              <pre class="text-sm text-slate-700 font-sans">${esc(aiReply)}</pre>
+            </div>
+          </div>` : ''}
+
+          <div class="flex flex-wrap gap-4 text-xs text-slate-400 font-medium pt-1 border-t border-slate-100">
+            <span><span class="text-slate-500">Timestamp:</span> ${ts.toISOString()}</span>
+            <span><span class="text-slate-500">Duration:</span> ${duration}</span>
+            <span><span class="text-slate-500">Messages:</span> ${msgCount}</span>
+            <span><span class="text-slate-500">Success:</span> ${success ? '✓ Yes' : '✗ No'}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function toggleExpand(expandId, btn) {
+    const el = document.getElementById(expandId);
+    el.classList.toggle('open');
+    btn.classList.toggle('open');
+  }
+
+  function setLoading(on) {
+    document.getElementById('loading').classList.toggle('hidden', !on);
+    document.getElementById('log-list').classList.add('hidden');
+    document.getElementById('empty').classList.add('hidden');
+    document.getElementById('error-msg').classList.add('hidden');
+    document.getElementById('stats-row').classList.add('hidden');
+    document.getElementById('btn-refresh').disabled = on;
+  }
+
+  function showError(msg) {
+    document.getElementById('error-msg').classList.remove('hidden');
+    document.getElementById('error-text').textContent = msg;
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────
+  function cap(str) { return str ? str.charAt(0).toUpperCase() + str.slice(1) : ''; }
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  function formatRelative(date) {
+    const diff = Date.now() - date.getTime();
+    const s    = Math.floor(diff / 1000);
+    if (s < 60)   return 'just now';
+    const m = Math.floor(s / 60);
+    if (m < 60)   return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24)   return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    return `${d}d ago`;
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────
+  // Pick up ?domain= from query string if present (e.g. when opened from Bitrix)
+  (function initFromUrl() {
+    const params = new URLSearchParams(location.search);
+    const d = params.get('domain');
+    if (d) document.getElementById('input-domain').value = d;
+    const days = parseInt(params.get('days') || '3');
+    setDays([1,3,7].includes(days) ? days : 3);
+  })();
+
+  loadLogs();
+</script>
+</body>
+</html>
