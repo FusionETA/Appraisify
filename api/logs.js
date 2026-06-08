@@ -13,6 +13,8 @@
 
 import { blobList, blobGet } from './_lib/kv.js';
 import { loadTokens } from './_lib/auth.js';
+import { logAppraisal } from './_lib/logger.js';
+import { parseBody, normalizeDomain } from './_lib/utils.js';
 
 function dateRange(days) {
   const dates = [];
@@ -38,6 +40,16 @@ async function fetchLogFile(prefix, date) {
 export default async function handler(req, res) {
   res.setHeader('X-Frame-Options', 'ALLOWALL');
   res.setHeader('Content-Security-Policy', 'frame-ancestors *');
+
+  // POST — client-side log ingestion (merged from /api/log)
+  if (req.method === 'POST') {
+    const body   = parseBody(req);
+    const domain = normalizeDomain(body.domain);
+    const { event, ...rest } = body;
+    if (!domain || !event) return res.status(400).json({ error: 'missing_params' });
+    await logAppraisal(domain, { event, ...rest });
+    return res.status(200).json({ ok: true });
+  }
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'method_not_allowed' });

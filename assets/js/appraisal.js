@@ -524,7 +524,7 @@ async function handleSubmit(opts) {
   if (_autosaveTimer) clearInterval(_autosaveTimer);
 
   // Log appraisal submission — keepalive ensures the request survives the page redirect
-  fetch('/api/log', {
+  fetch('/api/logs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     keepalive: true,
