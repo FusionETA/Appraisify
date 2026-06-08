@@ -85,6 +85,29 @@
 
 </div>
 
+<!-- Preview Modal -->
+<div id="preview-modal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl flex flex-col" style="max-height:85vh">
+    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+      <h3 id="preview-title" class="font-bold text-slate-900 text-base truncate pr-4">Template Preview</h3>
+      <button onclick="closePreview()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div id="preview-body" class="flex-1 overflow-y-auto px-6 py-5">
+      <!-- populated by JS -->
+    </div>
+    <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3 shrink-0">
+      <button onclick="closePreview()" class="px-5 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-100 transition-colors">
+        Close
+      </button>
+      <button id="preview-save-btn" class="px-5 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 transition-colors">
+        Save Template
+      </button>
+    </div>
+  </div>
+</div>
+
 <script src="//api.bitrix24.com/api/v1/"></script>
 <script src="../assets/js/bx24.js"></script>
 <script src="../assets/js/templates-api.js"></script>
@@ -213,13 +236,19 @@
           <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">${esc(tpl.role || '—')}</span>
         </div>
         <div class="text-[11px] text-slate-500 mb-3">${scopeCount} scope · ${engCount} engagement questions</div>
-        ${saved
-          ? `<div class="flex items-center gap-1.5 text-emerald-700 text-xs font-bold"><span class="material-symbols-outlined text-sm">check_circle</span> Saved</div>`
-          : `<button onclick="saveTemplate(${idx})" id="save-btn-${idx}"
-               class="w-full py-2 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 transition-colors">
-               Save Template
-             </button>`
-        }
+        <div class="flex gap-2">
+          <button onclick="previewTemplate(${idx})"
+            class="flex-1 py-2 rounded-lg border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition-colors">
+            Preview
+          </button>
+          ${saved
+            ? `<div class="flex-1 flex items-center justify-center gap-1 text-emerald-700 text-xs font-bold border border-emerald-200 rounded-lg py-2 bg-emerald-50"><span class="material-symbols-outlined text-sm">check_circle</span> Saved</div>`
+            : `<button onclick="saveTemplate(${idx})" id="save-btn-${idx}"
+                 class="flex-1 py-2 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 transition-colors">
+                 Save
+               </button>`
+          }
+        </div>
       </div>`;
     }).join('');
   }
@@ -262,6 +291,80 @@
       if (btn) btn.disabled = false;
       renderChat();
     }
+  }
+
+  // ── Preview template ─────────────────────────────────────────────────────
+  function previewTemplate(idx) {
+    const tpl = _templates[idx];
+    if (!tpl) return;
+
+    const modal = document.getElementById('preview-modal');
+    const body  = document.getElementById('preview-body');
+    if (!modal || !body) return;
+
+    document.getElementById('preview-title').textContent = tpl.name || `${tpl.type} · ${tpl.team} · ${tpl.role}`;
+
+    // Scope items
+    const scopeItemsHtml = (tpl.scopeItems || []).length
+      ? `<div class="mb-6">
+          <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Scope of Work</h4>
+          <div class="space-y-2">${(tpl.scopeItems || []).map(item => `
+            <div class="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200">
+              <p class="text-sm font-semibold text-slate-800">${esc(item.text)}</p>
+              ${item.desc ? `<p class="text-xs text-slate-500 mt-0.5">${esc(item.desc)}</p>` : ''}
+            </div>`).join('')}
+          </div>
+        </div>` : '';
+
+    // Questions grouped by section
+    function renderSections(questions, label) {
+      if (!questions?.length) return '';
+      const sections = {};
+      questions.forEach(q => {
+        const s = q.section || 'General';
+        if (!sections[s]) sections[s] = [];
+        sections[s].push(q);
+      });
+      return `<div class="mb-6">
+        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">${label}</h4>
+        <div class="space-y-4">${Object.entries(sections).map(([section, qs]) => `
+          <div>
+            <p class="text-xs font-bold text-violet-600 uppercase tracking-wider mb-2">${esc(section)}</p>
+            <div class="space-y-2">${qs.map((q, i) => `
+              <div class="px-3 py-2.5 rounded-lg border border-slate-200 bg-white">
+                <p class="text-sm font-medium text-slate-800">${i + 1}. ${esc(q.text)}</p>
+                ${q.desc ? `<p class="text-xs text-slate-500 mt-1">${esc(q.desc)}</p>` : ''}
+              </div>`).join('')}
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    body.innerHTML = scopeItemsHtml
+      + renderSections(tpl.sections?.scope, 'Scope Questions')
+      + renderSections(tpl.sections?.engagement, 'Engagement Questions');
+
+    // Wire save button in modal
+    const saveBtn = document.getElementById('preview-save-btn');
+    if (saveBtn) {
+      if (_savedIds.has(idx)) {
+        saveBtn.textContent = '✓ Already Saved';
+        saveBtn.disabled = true;
+        saveBtn.className = 'px-5 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-bold cursor-default';
+      } else {
+        saveBtn.textContent = 'Save Template';
+        saveBtn.disabled = false;
+        saveBtn.className = 'px-5 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 transition-colors';
+        saveBtn.onclick = () => { closePreview(); saveTemplate(idx); };
+      }
+    }
+
+    modal.classList.remove('hidden');
+  }
+
+  function closePreview() {
+    document.getElementById('preview-modal')?.classList.add('hidden');
   }
 
   // ── Save template ─────────────────────────────────────────────────────────
