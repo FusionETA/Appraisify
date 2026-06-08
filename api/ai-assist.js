@@ -1,20 +1,20 @@
 /**
  * Appraisify – AI Question Assistant (Vercel Serverless Function)
  *
- * Proxies chat turns and single-question improvement requests to the
- * Google Gemini API. Keeps the API key server-side.
+ * Proxies chat turns and single-question improvement requests to Groq.
+ * Keeps the API key server-side.
  *
  * Env vars required:
- *   GEMINI_API_KEY  — from Google AI Studio (aistudio.google.com/apikey)
+ *   GROQ_API_KEY  — from console.groq.com (free tier available)
  */
 
 import { loadTokens } from './_lib/auth.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
 
-const GEMINI_API_KEY  = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL    = 'gemini-2.0-flash';
-const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL   = 'llama-3.3-70b-versatile';
 
 function buildSystemPrompt(context) {
   const ctx       = context || {};
@@ -56,10 +56,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
-  if (!GEMINI_API_KEY) {
+  if (!GROQ_API_KEY) {
     return res.status(503).json({
       error: 'ai_not_configured',
-      error_description: 'GEMINI_API_KEY is not set on the server.',
+      error_description: 'GROQ_API_KEY is not set on the server.',
     });
   }
 
@@ -80,35 +80,36 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Map client message format → Gemini format (assistant → model)
-    const geminiMessages = messages.map(m => ({
-      role:  m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.content || '') }],
-    }));
+    // Groq uses OpenAI-compatible format — system prompt as a system message
+    const groqMessages = [
+      { role: 'system', content: buildSystemPrompt(context) },
+      ...messages.map(m => ({ role: m.role, content: String(m.content || '') })),
+    ];
 
-    const geminiBody = {
-      system_instruction: { parts: [{ text: buildSystemPrompt(context) }] },
-      contents: geminiMessages,
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
-    };
-
-    const GEMINI_URL = `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-    const response = await fetch(GEMINI_URL, {
+    const response = await fetch(GROQ_URL, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(geminiBody),
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model:       GROQ_MODEL,
+        messages:    groqMessages,
+        temperature: 0.7,
+        max_tokens:  1500,
+      }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      logError(domain, { event: 'ai_error', source: 'ai-assist', error: 'gemini_error', message: errText }).catch(() => {});
-      let geminiErr = errText;
-      try { geminiErr = JSON.parse(errText)?.error?.message || errText; } catch {}
-      return res.status(502).json({ error: 'ai_request_failed', error_description: `Gemini ${response.status}: ${geminiErr}` });
+      logError(domain, { event: 'ai_error', source: 'ai-assist', error: 'groq_error', message: errText }).catch(() => {});
+      let groqErr = errText;
+      try { groqErr = JSON.parse(errText)?.error?.message || errText; } catch {}
+      return res.status(502).json({ error: 'ai_request_failed', error_description: `Groq ${response.status}: ${groqErr}` });
     }
 
     const data  = await response.json();
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const reply = data?.choices?.[0]?.message?.content || '';
 
     if (!reply) {
       return res.status(502).json({ error: 'empty_response', error_description: 'No content returned from Gemini.' });
