@@ -160,7 +160,7 @@
 
     <!-- Right: Question list -->
     <div class="lg:col-span-3">
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div id="question-list-panel" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-opacity">
         <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
           <h3 class="font-bold text-slate-900 flex items-center gap-2 shrink-0">
             <span class="material-symbols-outlined text-primary text-lg">format_list_numbered</span>
@@ -334,13 +334,15 @@
   }
 
   function _setAddQuestionBlocked(blocked) {
-    const panel = document.getElementById('add-question-panel');
-    if (!panel) return;
-    if (blocked) {
-      panel.classList.add('opacity-40', 'pointer-events-none', 'select-none');
-    } else {
-      panel.classList.remove('opacity-40', 'pointer-events-none', 'select-none');
-    }
+    ['add-question-panel', 'question-list-panel'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (blocked) {
+        el.classList.add('opacity-40', 'pointer-events-none', 'select-none');
+      } else {
+        el.classList.remove('opacity-40', 'pointer-events-none', 'select-none');
+      }
+    });
   }
 
   function loadExistingTemplateFromBanner() {
