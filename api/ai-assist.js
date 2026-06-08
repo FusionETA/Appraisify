@@ -10,7 +10,7 @@
 
 import { loadTokens } from './_lib/auth.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
-import { logError } from './_lib/logger.js';
+import { logError, logAi } from './_lib/logger.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
@@ -106,6 +106,7 @@ export default async function handler(req, res) {
   const domain   = resolveDomain(req, body);
   const messages = Array.isArray(body.messages) ? body.messages : [];
   const context  = body.context || {};
+  const startMs  = Date.now();
 
   if (!domain) return res.status(400).json({ error: 'missing_domain' });
   if (!messages.length) return res.status(400).json({ error: 'missing_messages' });
@@ -117,6 +118,9 @@ export default async function handler(req, res) {
   } catch {
     return res.status(401).json({ error: 'portal_not_installed' });
   }
+
+  // Last user message for logging
+  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content || '';
 
   try {
     // Groq uses OpenAI-compatible format — system prompt as a system message
@@ -141,23 +145,55 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const errText = await response.text();
-      logError(domain, { event: 'ai_error', source: 'ai-assist', error: 'groq_error', message: errText }).catch(() => {});
       let groqErr = errText;
       try { groqErr = JSON.parse(errText)?.error?.message || errText; } catch {}
-      return res.status(502).json({ error: 'ai_request_failed', error_description: `Groq ${response.status}: ${groqErr}` });
+      const errDesc = `Groq ${response.status}: ${groqErr}`;
+      logError(domain, { event: 'ai_error', source: 'ai-assist', error: 'groq_error', message: errDesc }).catch(() => {});
+      logAi(domain, {
+        event: 'ai_request',
+        mode: context.mode || 'builder',
+        context: { type: context.type, team: context.team, role: context.role },
+        messageCount: messages.length,
+        userMessage: lastUserMsg.slice(0, 500),
+        success: false,
+        error: errDesc,
+        durationMs: Date.now() - startMs,
+      }).catch(() => {});
+      return res.status(502).json({ error: 'ai_request_failed', error_description: errDesc });
     }
 
     const data  = await response.json();
     const reply = data?.choices?.[0]?.message?.content || '';
 
     if (!reply) {
-      return res.status(502).json({ error: 'empty_response', error_description: 'No content returned from Gemini.' });
+      return res.status(502).json({ error: 'empty_response', error_description: 'No content returned from Groq.' });
     }
+
+    // Log successful interaction
+    logAi(domain, {
+      event: 'ai_request',
+      mode: context.mode || 'builder',
+      context: { type: context.type, team: context.team, role: context.role },
+      messageCount: messages.length,
+      userMessage: lastUserMsg.slice(0, 500),
+      aiReply: reply.slice(0, 1000),
+      success: true,
+      durationMs: Date.now() - startMs,
+    }).catch(() => {});
 
     return res.status(200).json({ reply });
 
   } catch (e) {
     logError(domain, { event: 'error', source: 'ai-assist', error: e.code || 'ai_failed', message: e.message }).catch(() => {});
+    logAi(domain, {
+      event: 'ai_request',
+      mode: context.mode || 'builder',
+      messageCount: messages.length,
+      userMessage: lastUserMsg.slice(0, 500),
+      success: false,
+      error: e.message,
+      durationMs: Date.now() - startMs,
+    }).catch(() => {});
     return res.status(503).json({ error: 'ai_failed', error_description: e.message });
   }
 }

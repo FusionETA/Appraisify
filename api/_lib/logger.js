@@ -80,6 +80,19 @@ export async function logAppraisal(domain, entry) {
 }
 
 /**
+ * Log an AI assist interaction per portal.
+ * Stored per portal: portals/{domain}/logs/ai/YYYY-MM-DD.json
+ * Fire-and-forget friendly — never throws.
+ */
+export async function logAi(domain, entry) {
+  try {
+    if (!domain) return;
+    const prefix = `portals/${domain}/logs/ai/`;
+    await _append(`${prefix}${today()}.json`, prefix, { domain, ...entry });
+  } catch (_) {}
+}
+
+/**
  * Log an API error across all portals.
  * Stored globally: logs/errors/YYYY-MM-DD.json
  * Fire-and-forget friendly — never throws.

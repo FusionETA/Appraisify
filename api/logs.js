@@ -59,11 +59,13 @@ export default async function handler(req, res) {
   const days   = Math.min(7, Math.max(1, parseInt(req.query.days || '2', 10)));
   const dates  = dateRange(days);
 
-  const [errorEntries, portalEntries, tokenInfo] = await Promise.all([
+  const [errorEntries, portalEntries, aiEntries, tokenInfo] = await Promise.all([
     // Global error log: logs/errors/YYYY-MM-DD.json
     Promise.all(dates.map(d => fetchLogFile('logs/errors/', d))).then(r => r.flat()),
     // Per-portal appraisal log: portals/{domain}/logs/YYYY-MM-DD.json
     Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/`, d))).then(r => r.flat()),
+    // Per-portal AI log: portals/{domain}/logs/ai/YYYY-MM-DD.json
+    Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/ai/`, d))).then(r => r.flat()),
     // Token scopes: load stored token and call /rest/scope
     loadTokens(domain).then(async tokens => {
       if (!tokens) return { stored: false };
@@ -95,5 +97,6 @@ export default async function handler(req, res) {
     token:      tokenInfo,
     errors:     sort(errorEntries),
     appraisals: sort(portalEntries),
+    ai:         sort(aiEntries),
   });
 }
