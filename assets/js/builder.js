@@ -194,7 +194,8 @@ function deleteBuilderQuestion(uid) {
 }
 
 // ── AI Chat ───────────────────────────────────────────────────────────────
-let _aiChatHistory    = [];   // { role: 'user'|'assistant', content: string }[]
+let _aiChatHistory    = [];   // { role: 'user'|'assistant', content: string }[] — sent to Gemini
+let _aiGreeting       = '';   // shown in UI only, never sent to Gemini (Gemini requires user msg first)
 let _pendingAiQuestions = []; // flat list of questions from the latest rendered AI messages
 
 function openAiPanel() {
@@ -208,14 +209,13 @@ function openAiPanel() {
   const ws   = _workspace === 'scope' ? 'Scope of Work' : 'Engagement Review';
   document.getElementById('ai-context-strip').textContent = `${type} · ${team} · ${role} · ${ws}`;
 
-  if (!_aiChatHistory.length) {
-    const greeting = `Hi! I'll help you build great appraisal questions. I can see you're working on a **${type}** appraisal` +
+  if (!_aiGreeting) {
+    _aiGreeting = `Hi! I'll help you build great appraisal questions. I can see you're working on a **${type}** appraisal` +
       (team && team !== '—' ? ` for the **${team}** team` : '') +
       (role && role !== '—' ? `, **${role}** level` : '') +
       `. What would you like to focus on? You can describe a theme (e.g. "leadership and communication") or ask me to generate a full set.`;
-    _aiChatHistory.push({ role: 'assistant', content: greeting });
-    renderAiChat();
   }
+  renderAiChat();
 }
 
 function closeAiPanel() {
@@ -288,6 +288,12 @@ function renderAiChat(loading = false) {
   if (!area) return;
   _pendingAiQuestions = [];
 
+  // Render local greeting bubble (not in history, never sent to API)
+  const greetingHtml = _aiGreeting ? `<div class="flex gap-2.5">
+    <div class="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center shrink-0 text-sm mt-0.5">✨</div>
+    <div class="flex-1 space-y-2"><p class="text-sm text-slate-700 leading-relaxed">${_esc(_aiGreeting).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}</p></div>
+  </div>` : '';
+
   const html = _aiChatHistory.map(msg => {
     if (msg.role === 'user') {
       return `<div class="flex justify-end">
@@ -333,7 +339,7 @@ function renderAiChat(loading = false) {
     <div class="bg-slate-100 rounded-2xl px-4 py-2.5 text-sm text-slate-400 animate-pulse">Thinking…</div>
   </div>` : '';
 
-  area.innerHTML = html + loadingBubble;
+  area.innerHTML = greetingHtml + html + loadingBubble;
   area.scrollTop = area.scrollHeight;
 }
 
