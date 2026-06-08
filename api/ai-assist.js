@@ -39,18 +39,20 @@ PHASE 2 — Propose a plan:
 Once you have enough context, briefly list the templates you'll create (e.g. "I'll generate 6 templates: Annual Review for Engineering × Senior/Mid/Junior, Probation Review for Sales × Senior/Junior"). Ask for confirmation or adjustments before generating.
 
 PHASE 3 — Generate templates:
-Output each complete template wrapped in <template> tags as a single JSON object:
+Output each complete template wrapped in <template> tags as a single JSON object. Here is the EXACT required structure:
 
-<template>{"name":"Annual Review · Engineering · Senior","type":"Annual Review","team":"Engineering","role":"Senior","scopeItems":[{"text":"Responsibility title","desc":"How this is assessed"}],"sections":{"scope":[{"section":"Section Name","text":"Question text?","desc":"Scoring guidance"}],"engagement":[{"section":"Employee Engagement","text":"Question text?","desc":"Scoring guidance"}]}}</template>
+<template>{"name":"Annual Review · Engineering · Senior","type":"Annual Review","team":"Engineering","role":"Senior","scopeItems":[{"text":"Code Quality","desc":"How well they write clean, maintainable code"},{"text":"Technical Leadership","desc":"How well they guide and mentor the team"}],"sections":{"scope":[{"section":"Code Quality","text":"How consistently does this employee write clean, well-documented code?","desc":"1 = frequent issues, 5 = consistently excellent"},{"section":"Code Quality","text":"How effectively does this employee handle code reviews?","desc":"1 = rarely reviews, 5 = thorough and constructive"},{"section":"Code Quality","text":"How well does this employee follow coding standards and best practices?","desc":"1 = ignores standards, 5 = champions best practices"},{"section":"Technical Leadership","text":"How effectively does this employee mentor junior team members?","desc":"1 = no mentoring, 5 = actively develops others"},{"section":"Technical Leadership","text":"How well does this employee drive technical decisions for the team?","desc":"1 = avoids decisions, 5 = leads with confidence"},{"section":"Technical Leadership","text":"How proactively does this employee identify and resolve technical risks?","desc":"1 = reactive only, 5 = proactively prevents issues"}],"engagement":[{"section":"Employee Engagement","text":"How satisfied are you with the support you receive from your manager?","desc":"1 = very unsatisfied, 5 = very satisfied"},{"section":"Employee Engagement","text":"How likely are you to recommend this company as a great place to work?","desc":"1 = not likely, 5 = very likely"},{"section":"Employee Engagement","text":"How well does the company support your professional growth?","desc":"1 = no support, 5 = excellent support"}]}}</template>
 
-Rules for templates:
-- Include 2–4 scope of work items per template
-- For EVERY scope of work item, generate AT LEAST 3 dedicated scope questions that directly assess performance in that responsibility area — these should form the bulk of the scope questions section
-- Total scope questions = at least 3 × number of scope items (e.g. 3 scope items = minimum 9 scope questions)
-- Add 3–5 engagement questions in a separate engagement section
-- Group scope questions by the scope of work item they belong to (use the scope item name as the section name)
+CRITICAL rules — you MUST follow these exactly:
+- The JSON has TWO separate arrays: "sections.scope" (job performance questions) and "sections.engagement" (culture/engagement questions)
+- "sections.scope" MUST NOT be empty — it must contain ALL the job performance questions
+- "sections.engagement" contains questions about how the employee feels about the company
+- For EACH scopeItem, add AT LEAST 3 questions into "sections.scope" using the scopeItem's "text" as the "section" name
+- If you have 2 scopeItems, "sections.scope" must have at least 6 questions; 3 scopeItems = at least 9 scope questions
+- Include 2–4 scopeItems per template
+- Add 3–4 questions in "sections.engagement"
 - Questions must be specific to the team and role level
-- The "desc" field guides reviewers on how to score fairly on a 1–5 scale
+- The "desc" field explains how to score on a 1–5 scale
 - Generate all templates in one message, one after another`;
   }
 
