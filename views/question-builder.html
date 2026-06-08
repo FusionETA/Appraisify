@@ -116,7 +116,7 @@
 
     <!-- Left: New Question form (sticky) -->
     <div class="lg:col-span-2">
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sticky top-20">
+      <div id="add-question-panel" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sticky top-20 transition-opacity">
         <h3 class="font-bold text-slate-900 mb-5 flex items-center gap-2">
           <span class="material-symbols-outlined text-primary text-lg">add_circle</span>
           New Question
@@ -325,9 +325,21 @@
       _pendingLoadId = match.id;
       document.getElementById('existing-template-name').textContent = `"${match.name}"`;
       banner.classList.remove('hidden');
+      _setAddQuestionBlocked(true);
     } else {
       _pendingLoadId = null;
       if (banner) banner.classList.add('hidden');
+      _setAddQuestionBlocked(false);
+    }
+  }
+
+  function _setAddQuestionBlocked(blocked) {
+    const panel = document.getElementById('add-question-panel');
+    if (!panel) return;
+    if (blocked) {
+      panel.classList.add('opacity-40', 'pointer-events-none', 'select-none');
+    } else {
+      panel.classList.remove('opacity-40', 'pointer-events-none', 'select-none');
     }
   }
 

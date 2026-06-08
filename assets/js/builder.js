@@ -518,6 +518,7 @@ async function loadExistingTemplate(id) {
     renderQuestionList();
     renderScopeItems();
     document.getElementById('existing-template-banner')?.classList.add('hidden');
+    if (typeof _setAddQuestionBlocked === 'function') _setAddQuestionBlocked(false);
 
     // Update save button
     const btn = document.getElementById('btn-save-template');
@@ -531,6 +532,7 @@ async function loadExistingTemplate(id) {
 
 function dismissExistingBanner() {
   document.getElementById('existing-template-banner')?.classList.add('hidden');
+  if (typeof _setAddQuestionBlocked === 'function') _setAddQuestionBlocked(false);
 }
 
 // ── Save template ─────────────────────────────────────────────────────────
