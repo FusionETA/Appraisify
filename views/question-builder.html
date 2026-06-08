@@ -149,17 +149,23 @@
     <!-- Right: Question list -->
     <div class="lg:col-span-3">
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 class="font-bold text-slate-900 flex items-center gap-2">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+          <h3 class="font-bold text-slate-900 flex items-center gap-2 shrink-0">
             <span class="material-symbols-outlined text-primary text-lg">format_list_numbered</span>
             Question Set
             <span id="question-count" class="ml-1 px-2 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">0</span>
           </h3>
-          <select id="workspace-select" onchange="switchTab(this.value)"
-            class="rounded-lg border-slate-200 focus:ring-primary text-xs font-semibold text-slate-600">
-            <option value="scope">Scope of Work</option>
-            <option value="engagement">Engagement Review</option>
-          </select>
+          <div class="flex items-center gap-2">
+            <button onclick="openAiPanel()"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 border border-violet-200 text-violet-700 text-xs font-bold hover:bg-violet-100 transition-colors">
+              ✨ AI Assist
+            </button>
+            <select id="workspace-select" onchange="switchTab(this.value)"
+              class="rounded-lg border-slate-200 focus:ring-primary text-xs font-semibold text-slate-600">
+              <option value="scope">Scope of Work</option>
+              <option value="engagement">Engagement Review</option>
+            </select>
+          </div>
         </div>
 
         <div id="question-list" class="divide-y divide-slate-100 min-h-[200px]">
@@ -189,6 +195,58 @@
         <span class="material-symbols-outlined text-lg">save</span>
         Save Template
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- AI Chat Panel (slide-in from right) -->
+<div id="ai-panel" class="fixed inset-y-0 right-0 w-96 max-w-full bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col hidden">
+  <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-violet-50 to-white shrink-0">
+    <div>
+      <h3 class="font-bold text-slate-900 flex items-center gap-1.5">✨ AI Question Assistant</h3>
+      <p id="ai-context-strip" class="text-xs text-slate-500 mt-0.5 truncate max-w-[260px]">—</p>
+    </div>
+    <button onclick="closeAiPanel()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+  <div id="ai-chat-area" class="flex-1 overflow-y-auto p-4 space-y-4">
+    <!-- messages injected by JS -->
+  </div>
+  <div class="px-4 py-3 border-t border-slate-100 bg-slate-50/50 shrink-0">
+    <div class="flex gap-2">
+      <textarea id="ai-input" rows="2" placeholder="Ask me to generate questions…"
+        class="flex-1 rounded-xl border-slate-200 focus:ring-primary text-sm resize-none"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAiMessage()}"></textarea>
+      <button onclick="sendAiMessage()" id="ai-send-btn"
+        class="px-3 self-end rounded-xl bg-violet-600 text-white font-bold hover:bg-violet-700 transition-colors h-10 flex items-center justify-center">
+        <span class="material-symbols-outlined text-lg">send</span>
+      </button>
+    </div>
+    <p class="text-[10px] text-slate-400 mt-1.5 text-center">Powered by Google Gemini</p>
+  </div>
+</div>
+
+<!-- AI Improve Modal -->
+<div id="ai-improve-modal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg flex flex-col" style="max-height:80vh">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+      <h3 class="font-bold text-slate-900">✨ Improve Question</h3>
+      <button onclick="closeImproveModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div id="ai-improve-chat" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+    <div class="px-4 py-3 border-t border-slate-100 bg-slate-50/50 shrink-0">
+      <div class="flex gap-2">
+        <textarea id="ai-improve-input" rows="2" placeholder="e.g. 'Make it more specific' or 'Rewrite for a manager'"
+          class="flex-1 rounded-xl border-slate-200 focus:ring-primary text-sm resize-none"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendImproveMessage()}"></textarea>
+        <button onclick="sendImproveMessage()" id="ai-improve-send-btn"
+          class="px-3 self-end rounded-xl bg-violet-600 text-white font-bold hover:bg-violet-700 transition-colors h-10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-lg">send</span>
+        </button>
+      </div>
     </div>
   </div>
 </div>
