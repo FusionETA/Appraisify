@@ -44,10 +44,12 @@ Output each complete template wrapped in <template> tags as a single JSON object
 <template>{"name":"Annual Review · Engineering · Senior","type":"Annual Review","team":"Engineering","role":"Senior","scopeItems":[{"text":"Responsibility title","desc":"How this is assessed"}],"sections":{"scope":[{"section":"Section Name","text":"Question text?","desc":"Scoring guidance"}],"engagement":[{"section":"Employee Engagement","text":"Question text?","desc":"Scoring guidance"}]}}</template>
 
 Rules for templates:
-- 8–14 questions per template split between scope (job performance) and engagement sections
-- Group into 3–4 logical sections per workspace
-- Questions must be specific to the team and role level
 - Include 2–4 scope of work items per template
+- For EVERY scope of work item, generate AT LEAST 3 dedicated scope questions that directly assess performance in that responsibility area — these should form the bulk of the scope questions section
+- Total scope questions = at least 3 × number of scope items (e.g. 3 scope items = minimum 9 scope questions)
+- Add 3–5 engagement questions in a separate engagement section
+- Group scope questions by the scope of work item they belong to (use the scope item name as the section name)
+- Questions must be specific to the team and role level
 - The "desc" field guides reviewers on how to score fairly on a 1–5 scale
 - Generate all templates in one message, one after another`;
   }
