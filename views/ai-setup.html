@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Template Setup – Appraisify</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="../assets/css/main.css" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#136dec',
+            'background-light': '#f0f3f5',
+          },
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' },
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-background-light text-slate-800 font-sans h-screen flex flex-col">
+
+<!-- Header -->
+<header class="bg-white border-b border-slate-200 shrink-0">
+  <div class="max-w-4xl mx-auto px-6 h-14 flex items-center gap-4">
+    <a href="dashboard.html" class="flex items-center gap-1.5 text-slate-500 hover:text-primary transition-colors text-sm font-medium">
+      <span class="material-symbols-outlined text-lg">arrow_back</span>
+      Dashboard
+    </a>
+    <div class="w-px h-4 bg-slate-200"></div>
+    <div class="flex items-center gap-2">
+      <img src="../assets/branding/logos/appraisify-mark-7.svg" alt="Appraisify" class="w-8 h-8 rounded-xl object-cover"/>
+      <span class="font-bold text-slate-900">AI Template Setup</span>
+      <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700">✨ Powered by Groq</span>
+    </div>
+  </div>
+</header>
+
+<!-- Main: split layout -->
+<div class="flex-1 overflow-hidden flex max-w-4xl mx-auto w-full px-6 py-6 gap-6">
+
+  <!-- Chat column -->
+  <div class="flex flex-col flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-violet-50 to-white shrink-0">
+      <h3 class="font-bold text-slate-900">AI Consultant</h3>
+      <p class="text-xs text-slate-500 mt-0.5">I'll learn about your company and build a tailored appraisal template suite</p>
+    </div>
+
+    <div id="chat-area" class="flex-1 overflow-y-auto p-5 space-y-4">
+      <!-- messages rendered by JS -->
+    </div>
+
+    <div class="px-4 py-3 border-t border-slate-100 bg-slate-50/50 shrink-0">
+      <div class="flex gap-2">
+        <textarea id="chat-input" rows="2" placeholder="Describe your company or answer the AI's questions…"
+          class="flex-1 rounded-xl border-slate-200 focus:ring-violet-400 focus:border-violet-400 text-sm resize-none"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+        <button onclick="sendMessage()" id="send-btn"
+          class="px-3 self-end rounded-xl bg-violet-600 text-white font-bold hover:bg-violet-700 transition-colors h-10 flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-lg">send</span>
+        </button>
+      </div>
+      <p class="text-[10px] text-slate-400 mt-1.5 text-center">AI may make mistakes — review each template before saving</p>
+    </div>
+  </div>
+
+  <!-- Templates panel -->
+  <div class="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
+    <div class="flex items-center justify-between">
+      <h3 class="font-bold text-slate-700 text-sm">Generated Templates</h3>
+      <span id="template-count" class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">0</span>
+    </div>
+    <div id="template-list" class="space-y-3">
+      <div class="bg-white rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">
+        Templates will appear here as the AI generates them
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="//api.bitrix24.com/api/v1/"></script>
+<script src="../assets/js/bx24.js"></script>
+<script src="../assets/js/templates-api.js"></script>
+<script>
+  let _history = [];       // sent to API
+  let _greeting = '';      // local only
+  let _templates = [];     // parsed <template> blocks
+  let _savedIds  = new Set();
+
+  // ── Init ────────────────────────────────────────────────────────────────
+  BX24App.init(async () => {
+    _greeting = `Hi! I'm your AI HR consultant. I'll help you build a complete suite of appraisal templates tailored to your company.\n\nLet's start with the basics — **what industry is your company in**, and roughly **how many people** do you have?`;
+    renderChat();
+    document.getElementById('chat-input').focus();
+  });
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function formatText(s) {
+    return esc(s)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function getDomain() {
+    return (typeof TemplatesAPI !== 'undefined' && TemplatesAPI.getDomainFromContext)
+      ? TemplatesAPI.getDomainFromContext() : '';
+  }
+
+  // ── Parse reply for <template> blocks ───────────────────────────────────
+  function parseReply(text) {
+    const parts = [];
+    const regex = /<template>([\s\S]*?)<\/template>/g;
+    let last = 0, match;
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > last) {
+        const t = text.slice(last, match.index).trim();
+        if (t) parts.push({ type: 'text', content: t });
+      }
+      try {
+        const tpl = JSON.parse(match[1].trim());
+        parts.push({ type: 'template', template: tpl });
+        _templates.push(tpl);
+      } catch {
+        parts.push({ type: 'text', content: match[0] });
+      }
+      last = match.index + match[0].length;
+    }
+    const tail = text.slice(last).trim();
+    if (tail) parts.push({ type: 'text', content: tail });
+    return parts;
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  function renderChat(loading = false) {
+    const area = document.getElementById('chat-area');
+    if (!area) return;
+
+    const greetingHtml = _greeting ? `<div class="flex gap-2.5">
+      <div class="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center shrink-0 text-sm mt-0.5">✨</div>
+      <div class="flex-1"><p class="text-sm text-slate-700 leading-relaxed">${formatText(_greeting)}</p></div>
+    </div>` : '';
+
+    const messagesHtml = _history.map(msg => {
+      if (msg.role === 'user') {
+        return `<div class="flex justify-end">
+          <div class="max-w-[85%] bg-violet-600 text-white text-sm rounded-2xl rounded-tr-sm px-4 py-2.5">${formatText(msg.content)}</div>
+        </div>`;
+      }
+      const parts = parseReply(msg.content);
+      const inner = parts.map(part => {
+        if (part.type === 'text') {
+          return `<p class="text-sm text-slate-700 leading-relaxed">${formatText(part.content)}</p>`;
+        }
+        const tpl = part.template;
+        const qCount = (tpl.sections?.scope?.length || 0) + (tpl.sections?.engagement?.length || 0);
+        return `<div class="border border-violet-200 rounded-xl p-3 bg-violet-50/50 text-xs">
+          <div class="font-bold text-slate-800 mb-1">${esc(tpl.name || `${tpl.type} · ${tpl.team} · ${tpl.role}`)}</div>
+          <div class="text-slate-500">${qCount} questions · ${tpl.sections?.scope?.length || 0} scope · ${tpl.sections?.engagement?.length || 0} engagement</div>
+          <p class="text-[10px] text-violet-600 mt-1">Saved to panel →</p>
+        </div>`;
+      }).join('');
+      return `<div class="flex gap-2.5">
+        <div class="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center shrink-0 text-sm mt-0.5">✨</div>
+        <div class="flex-1 space-y-2">${inner}</div>
+      </div>`;
+    }).join('');
+
+    const loadingBubble = loading ? `<div class="flex gap-2.5">
+      <div class="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center shrink-0 text-sm">✨</div>
+      <div class="bg-slate-100 rounded-2xl px-4 py-2.5 text-sm text-slate-400 animate-pulse">Thinking…</div>
+    </div>` : '';
+
+    area.innerHTML = greetingHtml + messagesHtml + loadingBubble;
+    area.scrollTop = area.scrollHeight;
+
+    renderTemplatePanel();
+  }
+
+  function renderTemplatePanel() {
+    const list = document.getElementById('template-list');
+    const count = document.getElementById('template-count');
+    if (!list) return;
+
+    if (count) count.textContent = _templates.length;
+
+    if (!_templates.length) {
+      list.innerHTML = `<div class="bg-white rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">
+        Templates will appear here as the AI generates them
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = _templates.map((tpl, idx) => {
+      const saved = _savedIds.has(idx);
+      const scopeCount = tpl.sections?.scope?.length || 0;
+      const engCount   = tpl.sections?.engagement?.length || 0;
+      return `<div class="bg-white rounded-xl border ${saved ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200'} p-4">
+        <div class="font-bold text-slate-800 text-sm mb-1">${esc(tpl.name || `${tpl.type} · ${tpl.team} · ${tpl.role}`)}</div>
+        <div class="flex flex-wrap gap-1 mb-3">
+          <span class="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-bold">${esc(tpl.type || '—')}</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">${esc(tpl.team || '—')}</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">${esc(tpl.role || '—')}</span>
+        </div>
+        <div class="text-[11px] text-slate-500 mb-3">${scopeCount} scope · ${engCount} engagement questions</div>
+        ${saved
+          ? `<div class="flex items-center gap-1.5 text-emerald-700 text-xs font-bold"><span class="material-symbols-outlined text-sm">check_circle</span> Saved</div>`
+          : `<button onclick="saveTemplate(${idx})" id="save-btn-${idx}"
+               class="w-full py-2 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 transition-colors">
+               Save Template
+             </button>`
+        }
+      </div>`;
+    }).join('');
+  }
+
+  // ── Send message ──────────────────────────────────────────────────────────
+  async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const text  = input?.value.trim();
+    if (!text) return;
+    input.value = '';
+
+    _history.push({ role: 'user', content: text });
+    renderChat(true);
+
+    const btn = document.getElementById('send-btn');
+    if (btn) btn.disabled = true;
+
+    try {
+      const domain = getDomain();
+      const resp = await fetch('/api/ai-assist', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-appraisify-domain': domain },
+        body:    JSON.stringify({
+          mode:     'chat',
+          domain,
+          messages: _history,
+          context:  { mode: 'setup' },
+        }),
+      });
+      const data = await resp.json();
+      _history.push({
+        role:    'assistant',
+        content: (!resp.ok || data.error)
+          ? `Sorry, something went wrong. ${data.error_description || data.error || ''}`
+          : data.reply,
+      });
+    } catch {
+      _history.push({ role: 'assistant', content: 'Something went wrong. Please try again.' });
+    } finally {
+      if (btn) btn.disabled = false;
+      renderChat();
+    }
+  }
+
+  // ── Save template ─────────────────────────────────────────────────────────
+  async function saveTemplate(idx) {
+    const tpl = _templates[idx];
+    if (!tpl) return;
+
+    const btn = document.getElementById(`save-btn-${idx}`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+    try {
+      const payload = {
+        name:       tpl.name || `${tpl.type} · ${tpl.team} · ${tpl.role}`,
+        type:       tpl.type || 'General',
+        team:       tpl.team || 'all',
+        role:       tpl.role || 'all',
+        scopeItems: Array.isArray(tpl.scopeItems) ? tpl.scopeItems : [],
+        sections:   {
+          scope:      Array.isArray(tpl.sections?.scope)      ? tpl.sections.scope      : [],
+          engagement: Array.isArray(tpl.sections?.engagement) ? tpl.sections.engagement : [],
+        },
+      };
+      await TemplatesAPI.createTemplate(payload);
+      _savedIds.add(idx);
+      renderTemplatePanel();
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Save Template'; }
+      alert(`Failed to save: ${e.message || e}`);
+    }
+  }
+</script>
+</body>
+</html>
