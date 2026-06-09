@@ -66,6 +66,10 @@
           <span class="material-symbols-outlined text-lg">send</span>
         </button>
       </div>
+      <div id="limit-banner" class="hidden mt-2 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-amber-700 text-xs font-semibold">
+        <span class="material-symbols-outlined text-sm">block</span>
+        Session limit reached (5 templates). Save your templates or start a new session.
+      </div>
       <p class="text-[10px] text-slate-400 mt-1.5 text-center">AI may make mistakes — review each template before saving</p>
     </div>
   </div>
@@ -74,7 +78,7 @@
   <div class="w-80 shrink-0 flex flex-col gap-3 overflow-y-auto">
     <div class="flex items-center justify-between">
       <h3 class="font-bold text-slate-700 text-sm">Generated Templates</h3>
-      <span id="template-count" class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">0</span>
+      <span id="template-count" class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">0 / 5</span>
     </div>
     <div id="template-list" class="space-y-3">
       <div class="bg-white rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">
@@ -227,12 +231,31 @@
     renderTemplatePanel();
   }
 
+  const TEMPLATE_LIMIT = 5;
+
+  function checkLimit() {
+    const reached = _templates.length >= TEMPLATE_LIMIT;
+    const input   = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const limitBanner = document.getElementById('limit-banner');
+
+    if (input)  input.disabled  = reached;
+    if (sendBtn) sendBtn.disabled = reached;
+    if (limitBanner) limitBanner.classList.toggle('hidden', !reached);
+    if (input && reached) input.placeholder = 'Template limit reached for this session.';
+  }
+
   function renderTemplatePanel() {
     const list = document.getElementById('template-list');
     const count = document.getElementById('template-count');
     if (!list) return;
 
-    if (count) count.textContent = _templates.length;
+    const n = _templates.length;
+    if (count) {
+      count.textContent = `${n} / ${TEMPLATE_LIMIT}`;
+      count.className = `px-2 py-0.5 rounded-full text-xs font-bold ${n >= TEMPLATE_LIMIT ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`;
+    }
+    checkLimit();
 
     if (!_templates.length) {
       list.innerHTML = `<div class="bg-white rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">
@@ -292,7 +315,7 @@
           mode:     'chat',
           domain,
           messages: _history,
-          context:  { mode: 'setup' },
+          context:  { mode: 'setup', templatesGenerated: _templates.length },
         }),
       });
       const data = await resp.json();
