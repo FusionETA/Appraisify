@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>What's New – Appraisify</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="../assets/css/main.css" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: { primary: '#136dec', 'bitrix-blue': '#2fc6f6', 'background-light': '#f0f3f5', 'background-dark': '#101822' },
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' },
+        },
+      },
+    }
+  </script>
+  <script src="//api.bitrix24.com/api/v1/"></script>
+  <script src="../assets/js/bx24.js"></script>
+</head>
+<body class="bg-background-light text-slate-800 font-sans min-h-screen">
+
+<!-- ── Header ──────────────────────────────────────────────────────── -->
+<header class="sticky top-0 z-50 bg-white border-b border-slate-200">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-6 h-full">
+      <a href="dashboard.html" class="flex items-center">
+        <img src="../assets/branding/logos/appraisify-wordmark-7.svg" alt="Appraisify" class="h-12 w-auto"/>
+      </a>
+      <nav class="hidden md:flex items-center h-full gap-1">
+        <a href="dashboard.html" class="h-full flex items-center px-3 nav-link border-b-2 border-transparent text-sm font-semibold">Dashboard</a>
+        <a href="app-guide.html" class="h-full flex items-center px-3 nav-link border-b-2 border-transparent text-sm font-semibold">App Guide</a>
+        <a href="subscription.html" class="h-full flex items-center px-3 nav-link border-b-2 border-transparent text-sm font-semibold">Subscription</a>
+        <a href="question-builder.html" class="h-full flex items-center px-3 nav-link border-b-2 border-transparent text-sm font-semibold">Questions</a>
+        <a href="whats-new.html" class="h-full flex items-center gap-1.5 px-3 text-sm font-semibold text-primary border-b-2 border-primary">
+          What's New
+        </a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 cursor-pointer">
+        <div id="user-avatar" class="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm overflow-hidden shrink-0">
+          <span class="material-symbols-outlined text-lg">person</span>
+        </div>
+        <span id="user-name" class="text-sm font-semibold text-slate-700 hidden sm:block">Loading…</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ── Content ──────────────────────────────────────────────────────── -->
+<main class="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-10">
+
+  <!-- Page title -->
+  <div>
+    <h1 class="text-3xl font-extrabold text-slate-900">What's New</h1>
+    <p class="text-slate-500 mt-1">Latest features and updates to Appraisify Plus</p>
+  </div>
+
+  <!-- ── Release: June 2026 ── -->
+  <div class="space-y-6">
+
+    <!-- Release label -->
+    <div class="flex items-center gap-3">
+      <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-violet-100 text-violet-700 uppercase tracking-wide">June 2026</span>
+      <div class="flex-1 h-px bg-slate-200"></div>
+    </div>
+
+    <!-- Feature 1: AI Template Setup -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="bg-gradient-to-r from-violet-50 to-white px-6 py-5 border-b border-slate-100 flex items-start gap-4">
+        <div class="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center text-2xl shrink-0">🧠</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <h2 class="text-lg font-extrabold text-slate-900">AI Template Setup Wizard</h2>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-violet-600 text-white uppercase tracking-wide">New</span>
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700 ml-auto">✨ Powered by Gemini</span>
+          </div>
+          <p class="text-sm text-slate-500 mt-1">Generate a complete suite of appraisal templates tailored to your company in one session</p>
+        </div>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <p class="text-sm text-slate-600 leading-relaxed">
+          Skip the blank-page problem. The AI Consultant asks about your company — industry, teams, roles, and review types — then generates a full suite of tailored appraisal templates in one go. Each template comes with scope questions, engagement questions, and 1–5 scoring guidance.
+        </p>
+        <ul class="space-y-2">
+          <li class="flex items-start gap-2.5 text-sm text-slate-700">
+            <span class="material-symbols-outlined text-violet-500 shrink-0 mt-0.5" style="font-size:16px">check_circle</span>
+            <span><strong>Multi-turn chat</strong> — AI asks 2–3 questions per round to understand your company before generating anything</span>
+          </li>
+          <li class="flex items-start gap-2.5 text-sm text-slate-700">
+            <span class="material-symbols-outlined text-violet-500 shrink-0 mt-0.5" style="font-size:16px">check_circle</span>
+            <span><strong>Plan first</strong> — AI proposes a list of templates and waits for your approval before generating</span>
+          </li>
+          <li class="flex items-start gap-2.5 text-sm text-slate-700">
+            <span class="material-symbols-outlined text-violet-500 shrink-0 mt-0.5" style="font-size:16px">check_circle</span>
+            <span><strong>Preview before saving</strong> — review every question in each template before committing to your library</span>
+          </li>
+          <li class="flex items-start gap-2.5 text-sm text-slate-700">
+            <span class="material-symbols-outlined text-violet-500 shrink-0 mt-0.5" style="font-size:16px">check_circle</span>
+            <span><strong>Up to 5 templates per session</strong> — start a new session anytime to generate more</span>
+          </li>
+        </ul>
+        <div class="pt-1">
+          <a href="ai-setup.html"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 transition-colors">
+            <span class="material-symbols-outlined text-base">auto_awesome</span>
+            Try AI Template Setup
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature 2: AI Question Assist -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="bg-gradient-to-r from-blue-50 to-white px-6 py-5 border-b border-slate-100 flex items-start gap-4">
+        <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl shrink-0">💬</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <h2 class="text-lg font-extrabold text-slate-900">AI Question Assist</h2>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-violet-600 text-white uppercase tracking-wide">New</span>
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700 ml-auto">✨ Powered by Gemini</span>
+          </div>
+          <p class="text-sm text-slate-500 mt-1">A built-in AI chat panel inside the Question Builder for generating and refining questions</p>
+        </div>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <p class="text-sm text-slate-600 leading-relaxed">
+          A built-in AI chat panel inside the Question Builder. Describe what you need — the AI suggests questions in context, grouped by section, based on the template type, team, and role you're working on. Add them one by one or refine individual questions with a focused Improve mode.
+        </p>
+        <ul class="space-y-2">
+          <li class="flex items-start gap-2.5 text-sm text-slate-700">
+            <span class="material-symbols-outlined text-primary shrink-0 mt-0.5" style="font-size:16px">check_circle</span>
+            <span><strong>Context-aware</strong> — AI knows the template type, team, and role you're building for</span>
+          </li>
+          <li class="flex items-start gap-2.5 text-sm text-slate-700">
+            <span class="material-symbols-outlined text-primary shrink-0 mt-0.5" style="font-size:16px">check_circle</span>
+            <span><strong>One-click add</strong> — add any suggested question directly to your template without copy-pasting</span>
+          </li>
+          <li class="flex items-start gap-2.5 text-sm text-slate-700">
+            <span class="material-symbols-outlined text-primary shrink-0 mt-0.5" style="font-size:16px">check_circle</span>
+            <span><strong>Improve mode</strong> — click Improve on any question to open a focused chat that refines it in place</span>
+          </li>
+        </ul>
+        <div class="pt-1">
+          <a href="question-builder.html"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors">
+            <span class="material-symbols-outlined text-base">add_circle</span>
+            Open Question Builder
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  BX24App.init(async () => {
+    const me = await BX24App.getCurrentUser?.();
+    if (me?.NAME) {
+      const el = document.getElementById('user-name');
+      if (el) el.textContent = me.NAME;
+      const av = document.getElementById('user-avatar');
+      if (av && me.PERSONAL_PHOTO) av.innerHTML = `<img src="${me.PERSONAL_PHOTO}" class="w-full h-full object-cover"/>`;
+    }
+  });
+</script>
+</body>
+</html>

@@ -49,6 +49,8 @@ BX24App.init(async () => {
     showSection('section-admin');
     document.getElementById('nav-questions')?.classList.remove('hidden');
     document.getElementById('mobile-nav-questions')?.classList.remove('hidden');
+    document.getElementById('nav-whatsnew')?.classList.remove('hidden');
+    document.getElementById('mobile-nav-whatsnew')?.classList.remove('hidden');
     loadEmployeeTable();
 
     // Show which CRM mode this portal is using
@@ -780,27 +782,19 @@ function switchEmployeeTab(tab) {
 
 function switchAdminTab(tab) {
   const isEmployees = tab === 'employees';
-  const isHistory   = tab === 'history';
-  const isWhatsNew  = tab === 'whatsnew';
-
   document.getElementById('tab-employees').classList.toggle('hidden', !isEmployees);
-  document.getElementById('tab-history').classList.toggle('hidden', !isHistory);
-  document.getElementById('tab-whatsnew').classList.toggle('hidden', !isWhatsNew);
+  document.getElementById('tab-history').classList.toggle('hidden', isEmployees);
   document.getElementById('tab-employees-controls').classList.toggle('hidden', !isEmployees);
   document.getElementById('selection-bar').classList.toggle('hidden', !isEmployees || !selectedEmployees.size);
 
-  const active   = 'px-4 py-2 text-sm font-semibold rounded-lg bg-primary/10 text-primary transition-colors flex items-center gap-1';
-  const inactive = 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-500 hover:bg-slate-100 transition-colors flex items-center gap-1';
-
-  document.getElementById('tab-btn-employees').className = isEmployees ? active : inactive;
-  document.getElementById('tab-btn-history').className   = isHistory   ? active : inactive;
-  document.getElementById('tab-btn-whatsnew').className  = isWhatsNew  ? active : inactive;
-
-  // Hide the dot on What's New once it's been visited
-  if (isWhatsNew) {
-    const dot = document.querySelector('#tab-btn-whatsnew .rounded-full.bg-violet-500');
-    if (dot) dot.classList.add('hidden');
-  }
+  const btnEmp  = document.getElementById('tab-btn-employees');
+  const btnHist = document.getElementById('tab-btn-history');
+  btnEmp.className  = isEmployees
+    ? 'px-4 py-2 text-sm font-semibold rounded-lg bg-primary/10 text-primary transition-colors'
+    : 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-500 hover:bg-slate-100 transition-colors';
+  btnHist.className = isEmployees
+    ? 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-500 hover:bg-slate-100 transition-colors'
+    : 'px-4 py-2 text-sm font-semibold rounded-lg bg-primary/10 text-primary transition-colors';
 }
 
 function adminDownloadPdf(dealId) {
