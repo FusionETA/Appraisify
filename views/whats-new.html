@@ -162,12 +162,17 @@
 
 <script>
   BX24App.init(async () => {
-    const me = await BX24App.getCurrentUser?.();
-    if (me?.NAME) {
-      const el = document.getElementById('user-name');
-      if (el) el.textContent = me.NAME;
-      const av = document.getElementById('user-avatar');
-      if (av && me.PERSONAL_PHOTO) av.innerHTML = `<img src="${me.PERSONAL_PHOTO}" class="w-full h-full object-cover"/>`;
+    const user = await BX24App.getUser();
+    const name = `${user.NAME || ''} ${user.LAST_NAME || ''}`.trim();
+
+    const nameEl   = document.getElementById('user-name');
+    const avatarEl = document.getElementById('user-avatar');
+
+    if (nameEl) { nameEl.textContent = name; nameEl.classList.remove('hidden'); }
+    if (avatarEl && user.PERSONAL_PHOTO) {
+      avatarEl.innerHTML = `<img src="${user.PERSONAL_PHOTO}" class="w-full h-full object-cover"/>`;
+    } else if (avatarEl && name) {
+      avatarEl.textContent = name.charAt(0).toUpperCase();
     }
   });
 </script>
