@@ -28,9 +28,15 @@ BX24App.init(async () => {
   const role = currentUser.APP_ROLE;
   const name = `${currentUser.NAME} ${currentUser.LAST_NAME || ''}`.trim();
 
-  // Header
+  // Header — name + avatar
   document.getElementById('user-name').textContent = name;
   document.getElementById('user-name').classList.remove('hidden');
+  const avatarEl = document.getElementById('user-avatar');
+  if (avatarEl) {
+    avatarEl.innerHTML = currentUser.PERSONAL_PHOTO
+      ? `<img src="${currentUser.PERSONAL_PHOTO}" class="w-full h-full object-cover"/>`
+      : `<span style="font-size:13px;font-weight:700">${name.charAt(0).toUpperCase()}</span>`;
+  }
 
   // Mobile drawer user info
   const mobileNameEl = document.getElementById('mobile-user-name');
