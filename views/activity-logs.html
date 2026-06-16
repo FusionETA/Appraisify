@@ -149,6 +149,12 @@
     <span id="error-text">Failed to load logs</span>
   </div>
 
+  <!-- No-domain hint -->
+  <div id="hint-domain" class="hidden bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-blue-700 text-sm font-medium flex items-center gap-2">
+    <span class="material-symbols-outlined text-lg">info</span>
+    Select a specific domain above to view appraisal activity.
+  </div>
+
   <!-- Log list -->
   <div id="log-list" class="hidden space-y-3"></div>
 
@@ -196,9 +202,7 @@
     const domain = getDomain();
     setLoading(true);
     try {
-      const url = domain
-        ? `/api/logs?domain=${encodeURIComponent(domain)}&days=${selectedDays}`
-        : `/api/logs?domain=fusion.bitrix24.com&days=${selectedDays}`;
+      const url = `/api/logs?days=${selectedDays}${domain ? `&domain=${encodeURIComponent(domain)}` : ''}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -213,6 +217,10 @@
   }
 
   function renderAll() {
+    const domain = getDomain();
+    const hint = document.getElementById('hint-domain');
+    hint.classList.toggle('hidden', !(!domain && (activeTab === 'all' || activeTab === 'activity')));
+
     const eventFilter = document.getElementById('filter-event').value;
     const installEvents = ['install', 'uninstall'];
     const activityEvents = ['appraisal_launched', 'appraisal_submitted', 'appraisal_completed'];
@@ -366,6 +374,7 @@
       document.getElementById('log-list').classList.add('hidden');
       document.getElementById('empty').classList.add('hidden');
       document.getElementById('error-msg').classList.add('hidden');
+      document.getElementById('hint-domain').classList.add('hidden');
       document.getElementById('stats-row').classList.add('hidden');
     }
     document.getElementById('btn-refresh').disabled = on;

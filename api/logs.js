@@ -90,24 +90,28 @@ export default async function handler(req, res) {
     }
   }
 
-  const domain = String(req.query.domain || 'fusion.bitrix24.com').trim();
-  const days   = Math.min(30, Math.max(1, parseInt(req.query.days || '7', 10)));
+  const domain = String(req.query.domain || '').trim();
+  const days   = Math.min(30, Math.max(1, parseInt(req.query.days || '30', 10)));
   const dates  = dateRange(days);
 
   const [errorEntries, portalEntries, aiEntries, installEntries, tokenInfo] = await Promise.all([
     // Global error log: logs/errors/YYYY-MM-DD.json
     Promise.all(dates.map(d => fetchLogFile('logs/errors/', d))).then(r => r.flat()),
-    // Per-portal appraisal log: portals/{domain}/logs/YYYY-MM-DD.json
-    Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/`, d))).then(r => r.flat()),
-    // Per-portal AI log: portals/{domain}/logs/ai/YYYY-MM-DD.json
-    Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/ai/`, d))).then(r => r.flat()),
+    // Per-portal appraisal log — only when a specific domain is selected
+    domain
+      ? Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/`, d))).then(r => r.flat())
+      : Promise.resolve([]),
+    // Per-portal AI log — only when a specific domain is selected
+    domain
+      ? Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/ai/`, d))).then(r => r.flat())
+      : Promise.resolve([]),
     // Global install/uninstall log: logs/installs/YYYY-MM-DD.json (filter by domain if provided)
     Promise.all(dates.map(d => fetchLogFile('logs/installs/', d))).then(r => {
       const all = r.flat();
-      return domain && domain !== 'fusion.bitrix24.com' ? all.filter(e => e.domain === domain) : all;
+      return domain ? all.filter(e => e.domain === domain) : all;
     }),
     // Token scopes: load stored token and call /rest/scope
-    loadTokens(domain).then(async tokens => {
+    loadTokens(domain || 'fusion.bitrix24.com').then(async tokens => {
       if (!tokens) return { stored: false };
       try {
         const r = await fetch(
