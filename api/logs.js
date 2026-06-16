@@ -55,13 +55,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
-  // ?domains=true — return list of unique domains seen in installs log (for dropdown)
+  // ?domains=true — return list of all known portal domains (from stored auth tokens)
   if (req.query.domains === 'true') {
-    const days  = Math.min(15, Math.max(1, parseInt(req.query.days || '15', 10)));
-    const dates = dateRange(days);
-    const all   = (await Promise.all(dates.map(d => fetchLogFile('logs/installs/', d)))).flat();
-    const seen  = [...new Set(all.map(e => e.domain).filter(Boolean))].sort();
-    return res.status(200).json({ domains: seen });
+    try {
+      const blobs  = await blobList('portals/');
+      const seen   = [...new Set(
+        blobs
+          .map(b => b.pathname.match(/^portals\/([^/]+)\//)?.[1])
+          .filter(Boolean)
+      )].sort();
+      return res.status(200).json({ domains: seen });
+    } catch (_) {
+      return res.status(200).json({ domains: [] });
+    }
   }
 
   const domain = String(req.query.domain || 'fusion.bitrix24.com').trim();
