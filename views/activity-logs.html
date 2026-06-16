@@ -75,10 +75,10 @@
   <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3">
     <div class="flex items-center gap-2 text-sm">
       <span class="material-symbols-outlined text-slate-400 text-base">domain</span>
-      <input id="input-domain" type="text" value=""
-        class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30 w-56"
-        placeholder="domain or blank for all installs"
-        onkeydown="if(event.key==='Enter') loadLogs()"/>
+      <select id="input-domain" onchange="loadLogs()"
+        class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30 w-64">
+        <option value="">All domains</option>
+      </select>
     </div>
     <div class="flex items-center gap-1.5 text-sm">
       <span class="text-slate-500 font-medium">Days:</span>
@@ -179,11 +179,27 @@
     return document.getElementById('input-domain').value.trim();
   }
 
+  async function loadDomains() {
+    try {
+      const res = await fetch('/api/logs?domains=true');
+      if (!res.ok) return;
+      const data = await res.json();
+      const sel = document.getElementById('input-domain');
+      const current = sel.value;
+      // Keep the "All domains" option, append known domains
+      sel.innerHTML = '<option value="">All domains</option>' +
+        (data.domains || []).map(d => `<option value="${esc(d)}"${d === current ? ' selected' : ''}>${esc(d)}</option>`).join('');
+    } catch (_) {}
+  }
+
   async function loadLogs() {
-    const domain = getDomain() || 'fusion.bitrix24.com';
+    const domain = getDomain();
     setLoading(true);
     try {
-      const res = await fetch(`/api/logs?domain=${encodeURIComponent(domain)}&days=${selectedDays}`);
+      const url = domain
+        ? `/api/logs?domain=${encodeURIComponent(domain)}&days=${selectedDays}`
+        : `/api/logs?domain=fusion.bitrix24.com&days=${selectedDays}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       installLogs  = data.installs  || [];
@@ -378,16 +394,21 @@
     return `${d}d ago`;
   }
 
-  // Init — read ?domain= and ?days= from URL
-  (function initFromUrl() {
+  // Init — load domain list, then logs
+  (async function init() {
     const params = new URLSearchParams(location.search);
-    const d = params.get('domain');
-    if (d) document.getElementById('input-domain').value = d;
     const days = parseInt(params.get('days') || '3');
     setDays([1,3,7].includes(days) ? days : 3);
+    await loadDomains();
+    // After domains are loaded, select the one from the URL if present
+    const d = params.get('domain');
+    if (d) {
+      const sel = document.getElementById('input-domain');
+      const opt = [...sel.options].find(o => o.value === d);
+      if (opt) opt.selected = true;
+    }
+    loadLogs();
   })();
-
-  loadLogs();
 </script>
 </body>
 </html>
