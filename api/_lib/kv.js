@@ -88,9 +88,21 @@ export async function blobList(prefix) {
   do {
     const result = await cmd('SCAN', cursor, 'MATCH', `${prefix}*`, 'COUNT', 200);
     cursor = Number(result[0]);
-    keys.push(...result[1]);
+    keys.push(...(result[1] || []));
   } while (cursor !== 0);
   return keys.map(k => ({ url: k, pathname: k }));
+}
+
+/** SCAN with an arbitrary Redis glob pattern (e.g. 'portals/*/logs*'). Returns raw key strings. */
+export async function blobScan(pattern) {
+  const keys = [];
+  let cursor = 0;
+  do {
+    const result = await cmd('SCAN', cursor, 'MATCH', pattern, 'COUNT', 200);
+    cursor = Number(result[0]);
+    keys.push(...(result[1] || []));
+  } while (cursor !== 0);
+  return keys;
 }
 
 /** Delete a key (or legacy blob CDN URL — pathname extracted automatically). */

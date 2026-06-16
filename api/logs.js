@@ -11,7 +11,7 @@
  *   days    — how many days back to fetch (default: 2, max: 7)
  */
 
-import { blobList, blobGet } from './_lib/kv.js';
+import { blobList, blobGet, blobScan } from './_lib/kv.js';
 import { loadTokens } from './_lib/auth.js';
 import { logAppraisal } from './_lib/logger.js';
 import { parseBody, normalizeDomain } from './_lib/utils.js';
@@ -75,18 +75,17 @@ export default async function handler(req, res) {
     }
   }
 
-  // ?domains=true — return list of all known portal domains (from stored auth tokens)
+  // ?domains=true — return list of all known portal domains (from log file keys)
   if (req.query.domains === 'true') {
     try {
-      const blobs  = await blobList('portals/');
-      const seen   = [...new Set(
-        blobs
-          .map(b => b.pathname.match(/^portals\/([^/]+)\//)?.[1])
-          .filter(Boolean)
+      // Scan only log file keys — much more targeted than portals/* and avoids timeout
+      const keys = await blobScan('portals/*/logs*');
+      const seen = [...new Set(
+        keys.map(k => k.match(/^portals\/([^/]+)\//)?.[1]).filter(Boolean)
       )].sort();
       return res.status(200).json({ domains: seen });
-    } catch (_) {
-      return res.status(200).json({ domains: [] });
+    } catch (e) {
+      return res.status(200).json({ domains: [], error: e.message });
     }
   }
 
