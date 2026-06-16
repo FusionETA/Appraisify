@@ -917,6 +917,12 @@
           closeDate:  fields.CLOSEDATE || '',
         });
         await notifyLaunch(dealId);
+        fetch('/api/logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          keepalive: true,
+          body: JSON.stringify({ event: 'appraisal_launched', domain, dealId: String(dealId), employeeId: String(emp.ID) }),
+        }).catch(() => {});
         console.log('[Appraisify] createDeal OK → ID:', dealId);
         created++;
         btn.innerHTML = `<span class="material-symbols-outlined text-lg" style="animation:spin .8s linear infinite">progress_activity</span> Creating… ${created}/${employees.length}`;

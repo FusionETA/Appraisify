@@ -12,6 +12,7 @@
  */
 
 import { storeTokens } from './_lib/auth.js';
+import { logInstall } from './_lib/logger.js';
 
 // ---------------------------------------------------------------------------
 // CRM custom field setup
@@ -227,6 +228,7 @@ export default async function handler(req, res) {
 
     // Only notify FusionETA on genuine installs, not on every admin app-open token refresh.
     if (req.body.is_install) {
+      logInstall(domain, { event: 'install', member_id }).catch(() => {});
       await notifyInstall(domain, member_id, access_token);
     }
 

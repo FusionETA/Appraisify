@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Activity Logs – Appraisify</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="../assets/css/main.css" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#136dec',
+            'background-light': '#f0f3f5',
+          },
+          fontFamily: { sans: ['Manrope', 'sans-serif'] },
+          borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' },
+        },
+      },
+    }
+  </script>
+  <style>
+    .log-card { transition: box-shadow 0.15s; }
+    .log-card:hover { box-shadow: 0 4px 16px 0 rgba(19,109,236,.07); }
+    .expandable { display: none; }
+    .expandable.open { display: block; }
+    .expand-btn .icon-expand { display: inline; }
+    .expand-btn .icon-collapse { display: none; }
+    .expand-btn.open .icon-expand { display: none; }
+    .expand-btn.open .icon-collapse { display: inline; }
+    .stat-card { transition: transform 0.15s; }
+    .stat-card:hover { transform: translateY(-1px); }
+    .tab-btn { border-bottom: 2px solid transparent; }
+    .tab-btn.active { border-bottom-color: #136dec; color: #136dec; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .days-btn.active { background: #136dec; color: #fff; }
+    .days-btn.active:hover { background: #0f5bcb; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+
+    /* Event type badges */
+    .badge-install    { background: #dcfce7; color: #166534; }
+    .badge-uninstall  { background: #fee2e2; color: #991b1b; }
+    .badge-launched   { background: #eff6ff; color: #1d4ed8; }
+    .badge-submitted  { background: #f3e8ff; color: #7c3aed; }
+    .badge-completed  { background: #ecfdf5; color: #065f46; }
+  </style>
+</head>
+<body class="bg-background-light text-slate-800 font-sans min-h-screen">
+
+<!-- ── Header ────────────────────────────────────────────────────────── -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
+    <button onclick="history.back()" class="flex items-center gap-1.5 text-slate-500 hover:text-primary transition-colors text-sm font-medium">
+      <span class="material-symbols-outlined text-lg">arrow_back</span>
+      Back
+    </button>
+    <div class="w-px h-4 bg-slate-200"></div>
+    <div class="flex items-center gap-2 flex-1">
+      <img src="../assets/branding/logos/appraisify-mark-7.svg" alt="Appraisify" class="w-8 h-8 rounded-xl object-cover"/>
+      <span class="font-bold text-slate-900">Activity Logs</span>
+    </div>
+    <button id="btn-refresh" onclick="loadLogs()" class="flex items-center gap-1.5 text-sm font-semibold text-primary hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-colors">
+      <span class="material-symbols-outlined text-base">refresh</span>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<!-- ── Filters ───────────────────────────────────────────────────────── -->
+<div class="bg-white border-b border-slate-100">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3">
+    <div class="flex items-center gap-2 text-sm">
+      <span class="material-symbols-outlined text-slate-400 text-base">domain</span>
+      <input id="input-domain" type="text" value=""
+        class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30 w-56"
+        placeholder="domain or blank for all installs"
+        onkeydown="if(event.key==='Enter') loadLogs()"/>
+    </div>
+    <div class="flex items-center gap-1.5 text-sm">
+      <span class="text-slate-500 font-medium">Days:</span>
+      <div class="flex rounded-lg border border-slate-200 overflow-hidden">
+        <button onclick="setDays(1)" data-days="1" class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors">1</button>
+        <button onclick="setDays(3)" data-days="3" class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors border-l border-slate-200 active">3</button>
+        <button onclick="setDays(7)" data-days="7" class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors border-l border-slate-200">7</button>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 text-sm ml-auto">
+      <select id="filter-event" onchange="renderAll()" class="border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30">
+        <option value="">All Events</option>
+        <option value="install">Install</option>
+        <option value="uninstall">Uninstall</option>
+        <option value="appraisal_launched">Launched</option>
+        <option value="appraisal_submitted">Submitted</option>
+        <option value="appraisal_completed">Completed</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 flex gap-0 border-t border-slate-100">
+    <button id="tab-all"      onclick="setTab('all')"      class="tab-btn active px-4 py-2.5 text-sm font-bold text-slate-600 hover:text-primary transition-colors">All</button>
+    <button id="tab-installs" onclick="setTab('installs')" class="tab-btn px-4 py-2.5 text-sm font-bold text-slate-600 hover:text-primary transition-colors">Installs</button>
+    <button id="tab-activity" onclick="setTab('activity')" class="tab-btn px-4 py-2.5 text-sm font-bold text-slate-600 hover:text-primary transition-colors">Activity</button>
+  </div>
+</div>
+
+<!-- ── Main ──────────────────────────────────────────────────────────── -->
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+  <!-- Stats row -->
+  <div id="stats-row" class="grid grid-cols-2 sm:grid-cols-4 gap-3 hidden">
+    <div class="stat-card bg-white rounded-xl border border-slate-200 px-4 py-3">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-wide">Installs</p>
+      <p id="stat-installs" class="text-2xl font-extrabold text-emerald-600 mt-1">—</p>
+    </div>
+    <div class="stat-card bg-white rounded-xl border border-slate-200 px-4 py-3">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-wide">Uninstalls</p>
+      <p id="stat-uninstalls" class="text-2xl font-extrabold text-red-500 mt-1">—</p>
+    </div>
+    <div class="stat-card bg-white rounded-xl border border-slate-200 px-4 py-3">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-wide">Launched</p>
+      <p id="stat-launched" class="text-2xl font-extrabold text-blue-600 mt-1">—</p>
+    </div>
+    <div class="stat-card bg-white rounded-xl border border-slate-200 px-4 py-3">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-wide">Completed</p>
+      <p id="stat-completed" class="text-2xl font-extrabold text-violet-600 mt-1">—</p>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
+    <span class="material-symbols-outlined text-4xl" style="animation: spin 1s linear infinite;">refresh</span>
+    <p class="text-sm font-medium">Loading logs…</p>
+  </div>
+
+  <!-- Empty -->
+  <div id="empty" class="hidden flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
+    <span class="material-symbols-outlined text-5xl">inbox</span>
+    <p class="text-sm font-medium">No activity found for this period</p>
+  </div>
+
+  <!-- Error -->
+  <div id="error-msg" class="hidden bg-red-50 border border-red-200 rounded-xl px-5 py-4 text-red-700 text-sm font-medium flex items-center gap-2">
+    <span class="material-symbols-outlined text-lg">error</span>
+    <span id="error-text">Failed to load logs</span>
+  </div>
+
+  <!-- Log list -->
+  <div id="log-list" class="hidden space-y-3"></div>
+
+</main>
+
+<script>
+  let installLogs  = [];
+  let activityLogs = [];
+  let selectedDays = 3;
+  let activeTab    = 'all';
+
+  function setDays(d) {
+    selectedDays = d;
+    document.querySelectorAll('.days-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.days) === d);
+    });
+    loadLogs();
+  }
+
+  function setTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    renderAll();
+  }
+
+  function getDomain() {
+    return document.getElementById('input-domain').value.trim();
+  }
+
+  async function loadLogs() {
+    const domain = getDomain() || 'fusion.bitrix24.com';
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/logs?domain=${encodeURIComponent(domain)}&days=${selectedDays}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      installLogs  = data.installs  || [];
+      activityLogs = data.appraisals || [];
+      renderAll();
+    } catch (e) {
+      showError('Could not fetch logs: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderAll() {
+    const eventFilter = document.getElementById('filter-event').value;
+    const installEvents = ['install', 'uninstall'];
+    const activityEvents = ['appraisal_launched', 'appraisal_submitted', 'appraisal_completed'];
+
+    let combined = [];
+    if (activeTab === 'all' || activeTab === 'installs') {
+      combined = combined.concat(installLogs.map(l => ({ ...l, _stream: 'install' })));
+    }
+    if (activeTab === 'all' || activeTab === 'activity') {
+      combined = combined.concat(activityLogs.map(l => ({ ...l, _stream: 'activity' })));
+    }
+
+    // Apply event filter
+    if (eventFilter) {
+      combined = combined.filter(l => l.event === eventFilter);
+    }
+
+    // Sort newest first
+    combined.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+
+    renderStats();
+
+    const list  = document.getElementById('log-list');
+    const empty = document.getElementById('empty');
+
+    if (!combined.length) {
+      list.classList.add('hidden');
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    list.classList.remove('hidden');
+    list.innerHTML = combined.map((log, i) => renderCard(log, i)).join('');
+  }
+
+  function renderStats() {
+    const row = document.getElementById('stats-row');
+    const allEntries = [...installLogs, ...activityLogs];
+    if (!allEntries.length) { row.classList.add('hidden'); return; }
+    row.classList.remove('hidden');
+
+    document.getElementById('stat-installs').textContent   = installLogs.filter(l => l.event === 'install').length;
+    document.getElementById('stat-uninstalls').textContent = installLogs.filter(l => l.event === 'uninstall').length;
+    document.getElementById('stat-launched').textContent   = activityLogs.filter(l => l.event === 'appraisal_launched').length;
+    document.getElementById('stat-completed').textContent  = activityLogs.filter(l => l.event === 'appraisal_completed').length;
+  }
+
+  function renderCard(log, i) {
+    const ts      = new Date(log.timestamp);
+    const timeAgo = formatRelative(ts);
+    const timeAbs = ts.toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    const event   = log.event || 'unknown';
+    const cardId  = `card-${i}`;
+    const expandId = `expand-${i}`;
+
+    const { label, icon, badgeClass } = eventMeta(event, log.phase);
+
+    const details = [];
+    if (log.domain)     details.push(['Domain',   log.domain]);
+    if (log.member_id)  details.push(['Member ID', log.member_id]);
+    if (log.dealId)     details.push(['Deal ID',   log.dealId]);
+    if (log.employeeId) details.push(['Employee',  log.employeeId]);
+    if (log.phase)      details.push(['Phase',     log.phase]);
+    if (log.stageTo)    details.push(['Stage →',   log.stageTo]);
+
+    const hasDetails = details.length > 1; // more than just domain
+
+    return `
+    <div class="log-card bg-white rounded-xl border border-slate-200 overflow-hidden" id="${cardId}">
+      <div class="px-4 py-3 flex items-start gap-3">
+        <!-- Stream indicator dot -->
+        <div class="mt-1 w-2 h-2 rounded-full flex-shrink-0 ${log._stream === 'install' ? 'bg-emerald-400' : 'bg-blue-400'}"></div>
+
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap items-center gap-2 mb-1.5">
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${badgeClass}">${icon} ${label}</span>
+            ${log.domain ? `<span class="text-xs font-semibold text-slate-600">${esc(log.domain)}</span>` : ''}
+            <span class="ml-auto text-xs text-slate-400 font-medium" title="${ts.toISOString()}">${timeAgo} · ${timeAbs}</span>
+          </div>
+          ${buildDetailLine(log)}
+        </div>
+
+        ${hasDetails ? `
+        <button class="expand-btn flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
+          onclick="toggleExpand('${expandId}', this)" title="Expand">
+          <span class="material-symbols-outlined icon-expand" style="font-size:18px">expand_more</span>
+          <span class="material-symbols-outlined icon-collapse" style="font-size:18px">expand_less</span>
+        </button>` : '<div class="w-8 flex-shrink-0"></div>'}
+      </div>
+
+      ${hasDetails ? `
+      <div class="expandable" id="${expandId}">
+        <div class="border-t border-slate-100 bg-slate-50/60 px-4 py-3">
+          <div class="flex flex-wrap gap-x-6 gap-y-1.5 text-xs">
+            ${details.map(([k, v]) => `<span><span class="font-bold text-slate-500">${k}:</span> <span class="text-slate-700">${esc(String(v))}</span></span>`).join('')}
+            <span><span class="font-bold text-slate-500">Timestamp:</span> <span class="text-slate-700">${ts.toISOString()}</span></span>
+          </div>
+        </div>
+      </div>` : ''}
+    </div>`;
+  }
+
+  function buildDetailLine(log) {
+    const parts = [];
+    if (log.event === 'appraisal_launched') {
+      if (log.dealId)     parts.push(`Deal #${log.dealId}`);
+      if (log.employeeId) parts.push(`Employee #${log.employeeId}`);
+    } else if (log.event === 'appraisal_submitted' || log.event === 'appraisal_completed') {
+      if (log.phase)  parts.push(phaseLabel(log.phase) + ' phase');
+      if (log.dealId) parts.push(`Deal #${log.dealId}`);
+    } else if (log.event === 'install') {
+      if (log.member_id) parts.push(`Member ${log.member_id}`);
+    }
+    return parts.length
+      ? `<p class="text-xs text-slate-500">${parts.map(esc).join(' · ')}</p>`
+      : '';
+  }
+
+  function phaseLabel(phase) {
+    return { self: 'Self-assessment', reviewer: 'Reviewer', partner: 'Partner' }[phase] || phase;
+  }
+
+  function eventMeta(event, phase) {
+    switch (event) {
+      case 'install':
+        return { label: 'Install',    icon: '✓',  badgeClass: 'badge-install' };
+      case 'uninstall':
+        return { label: 'Uninstall',  icon: '✕',  badgeClass: 'badge-uninstall' };
+      case 'appraisal_launched':
+        return { label: 'Launched',   icon: '🚀', badgeClass: 'badge-launched' };
+      case 'appraisal_completed':
+        return { label: 'Completed',  icon: '✅', badgeClass: 'badge-completed' };
+      case 'appraisal_submitted': {
+        const pl = phaseLabel(phase);
+        return { label: `${pl} submitted`, icon: '📝', badgeClass: 'badge-submitted' };
+      }
+      default:
+        return { label: event, icon: '•', badgeClass: 'bg-slate-100 text-slate-600' };
+    }
+  }
+
+  function toggleExpand(expandId, btn) {
+    const el = document.getElementById(expandId);
+    el.classList.toggle('open');
+    btn.classList.toggle('open');
+  }
+
+  function setLoading(on) {
+    document.getElementById('loading').classList.toggle('hidden', !on);
+    document.getElementById('log-list').classList.add('hidden');
+    document.getElementById('empty').classList.add('hidden');
+    document.getElementById('error-msg').classList.add('hidden');
+    document.getElementById('stats-row').classList.add('hidden');
+    document.getElementById('btn-refresh').disabled = on;
+  }
+
+  function showError(msg) {
+    document.getElementById('error-msg').classList.remove('hidden');
+    document.getElementById('error-text').textContent = msg;
+  }
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  function formatRelative(date) {
+    const diff = Date.now() - date.getTime();
+    const s    = Math.floor(diff / 1000);
+    if (s < 60)  return 'just now';
+    const m = Math.floor(s / 60);
+    if (m < 60)  return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24)  return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    return `${d}d ago`;
+  }
+
+  // Init — read ?domain= and ?days= from URL
+  (function initFromUrl() {
+    const params = new URLSearchParams(location.search);
+    const d = params.get('domain');
+    if (d) document.getElementById('input-domain').value = d;
+    const days = parseInt(params.get('days') || '3');
+    setDays([1,3,7].includes(days) ? days : 3);
+  })();
+
+  loadLogs();
+</script>
+</body>
+</html>

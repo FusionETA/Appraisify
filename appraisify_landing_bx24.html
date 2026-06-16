@@ -251,6 +251,110 @@
     }
     .spa-banner a.spa-link:hover { background: var(--purple-dark); transform: translateY(-1px); }
 
+    /* ── AI SECTION ── */
+    .ai-section { background: linear-gradient(135deg, var(--purple-deep) 0%, #6d28d9 50%, var(--purple-dark) 100%); color: white; }
+    .ai-section .section-label { background: rgba(255,255,255,0.15); color: white; }
+    .ai-section .section-title { color: white; }
+    .ai-section .section-sub { color: rgba(255,255,255,0.75); }
+    .ai-features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; max-width: 900px; margin: 0 auto; }
+    @media (max-width: 640px) { .ai-features-grid { grid-template-columns: 1fr; } }
+    .ai-card {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px;
+      padding: 32px 28px;
+      backdrop-filter: blur(10px);
+      transition: background 0.2s, transform 0.2s;
+    }
+    .ai-card:hover { background: rgba(255,255,255,0.13); transform: translateY(-3px); }
+    .ai-card-icon { font-size: 36px; margin-bottom: 16px; }
+    .ai-card h3 { font-size: 20px; font-weight: 800; color: white; margin-bottom: 10px; letter-spacing: -0.01em; }
+    .ai-card p { font-size: 14px; color: rgba(255,255,255,0.75); line-height: 1.65; margin-bottom: 20px; }
+    .ai-card-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 999px; padding: 5px 12px;
+      font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.9);
+    }
+    .ai-card-steps { list-style: none; margin-bottom: 20px; }
+    .ai-card-steps li { font-size: 13px; color: rgba(255,255,255,0.8); padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: flex-start; gap: 10px; }
+    .ai-card-steps li:last-child { border-bottom: none; }
+    .ai-step-num { background: rgba(255,255,255,0.15); border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── PRICING ── */
+    .pricing { background: var(--gray-50); }
+    .billing-toggle {
+      display: inline-flex; align-items: center; gap: 0;
+      background: var(--gray-100); border-radius: 10px; padding: 4px;
+      margin-bottom: 48px;
+    }
+    .billing-toggle button {
+      padding: 8px 22px; border-radius: 7px; font-size: 14px; font-weight: 700;
+      border: none; cursor: pointer; transition: background 0.2s, color 0.2s;
+      background: transparent; color: var(--gray-500);
+    }
+    .billing-toggle button.active {
+      background: white; color: var(--purple-dark);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .billing-toggle .save-badge {
+      background: #dcfce7; color: #166534;
+      font-size: 11px; font-weight: 700; padding: 2px 8px;
+      border-radius: 999px; margin-left: 6px;
+    }
+    .pricing-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px; max-width: 1000px; margin: 0 auto;
+    }
+    .plan-card {
+      background: white; border: 1px solid var(--gray-200);
+      border-radius: 20px; padding: 36px 32px;
+      display: flex; flex-direction: column;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .plan-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.08); transform: translateY(-2px); }
+    .plan-card.featured {
+      border: 2px solid var(--purple); background: white;
+      position: relative;
+    }
+    .plan-popular {
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+      background: var(--purple); color: white;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 4px 16px; border-radius: 999px; white-space: nowrap;
+    }
+    .plan-name { font-size: 14px; font-weight: 700; color: var(--gray-500); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 10px; }
+    .plan-price { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 4px; }
+    .plan-price .amount { font-size: 44px; font-weight: 900; color: var(--gray-900); letter-spacing: -0.03em; line-height: 1; }
+    .plan-price .currency { font-size: 22px; font-weight: 700; color: var(--gray-600); margin-bottom: 6px; }
+    .plan-price .period { font-size: 14px; color: var(--gray-400); font-weight: 500; margin-bottom: 6px; }
+    .plan-billed { font-size: 12px; color: var(--gray-400); margin-bottom: 24px; min-height: 18px; }
+    .plan-limit {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--purple-xlight); color: var(--purple-dark);
+      font-size: 12px; font-weight: 700; padding: 5px 12px;
+      border-radius: 999px; margin-bottom: 28px; align-self: flex-start;
+    }
+    .plan-divider { border: none; border-top: 1px solid var(--gray-100); margin-bottom: 24px; }
+    .plan-features { list-style: none; flex: 1; margin-bottom: 28px; }
+    .plan-features li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 14px; color: var(--gray-600); padding: 6px 0;
+    }
+    .plan-features li::before { content: '✓'; color: var(--purple); font-weight: 800; flex-shrink: 0; margin-top: 1px; }
+    .plan-cta {
+      display: block; text-align: center;
+      padding: 12px 24px; border-radius: 10px;
+      font-size: 14px; font-weight: 700;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .plan-cta.primary { background: var(--purple); color: white; }
+    .plan-cta.primary:hover { background: var(--purple-dark); transform: translateY(-1px); }
+    .plan-cta.outline { border: 2px solid var(--gray-200); color: var(--gray-700); }
+    .plan-cta.outline:hover { border-color: var(--purple); color: var(--purple); transform: translateY(-1px); }
+    .plan-contact { text-align: center; padding: 12px 0; font-size: 15px; font-weight: 700; color: var(--purple); }
+    .plan-contact a { color: var(--purple); text-decoration: underline; }
+
     /* ── CTA ── */
     .cta-banner {
       background: linear-gradient(135deg, var(--purple-deep) 0%, var(--purple) 100%);
@@ -765,6 +869,145 @@
     </a>
   </div>
 </section>
+
+<!-- ══════════════════════ AI ASSIST ══════════════════════ -->
+<section class="ai-section" id="ai">
+  <div class="section-header center">
+    <div class="section-label">AI-Powered</div>
+    <h2 class="section-title">Built-in AI, right where you need it</h2>
+    <p class="section-sub center">Appraisify includes two AI assistants to help you set up faster and write better appraisal questions — powered by Google Gemini.</p>
+  </div>
+  <div class="ai-features-grid">
+
+    <!-- Template Setup Wizard -->
+    <div class="ai-card">
+      <div class="ai-card-icon">🧙</div>
+      <h3>AI Template Setup Wizard</h3>
+      <p>Don't start from scratch. Describe your role, team, and appraisal goals — the AI generates a complete question template in seconds.</p>
+      <ol class="ai-card-steps">
+        <li><span class="ai-step-num">1</span>Tell the AI about the role and team you're appraising</li>
+        <li><span class="ai-step-num">2</span>The AI drafts a full set of scored and open-text questions</li>
+        <li><span class="ai-step-num">3</span>Review, adjust, and save directly to your template library</li>
+      </ol>
+      <span class="ai-card-badge">✦ Generates up to 5 templates per session</span>
+    </div>
+
+    <!-- Question Assist -->
+    <div class="ai-card">
+      <div class="ai-card-icon">💬</div>
+      <h3>AI Question Assist</h3>
+      <p>Stuck on how to word a question? Get instant suggestions for any appraisal question — clearer, more specific, and fairer phrasing.</p>
+      <ol class="ai-card-steps">
+        <li><span class="ai-step-num">1</span>Open any question in the question builder</li>
+        <li><span class="ai-step-num">2</span>Click "AI Assist" for an improved version of your question</li>
+        <li><span class="ai-step-num">3</span>Accept the suggestion or keep refining with follow-ups</li>
+      </ol>
+      <span class="ai-card-badge">✦ Available in the question builder</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════ PRICING ══════════════════════ -->
+<section class="pricing">
+  <div class="section-header center">
+    <span class="section-label">Pricing</span>
+    <h2 class="section-title">Simple, transparent pricing</h2>
+    <p class="section-sub">Start free, upgrade when you're ready. All plans include the full appraisal workflow.</p>
+  </div>
+
+  <!-- Billing toggle -->
+  <div style="text-align:center;">
+    <div class="billing-toggle">
+      <button id="toggle-monthly" class="active" onclick="setBilling('monthly')">Monthly</button>
+      <button id="toggle-yearly" onclick="setBilling('yearly')">Yearly <span class="save-badge">Save 17%</span></button>
+    </div>
+  </div>
+
+  <!-- Plans -->
+  <div class="pricing-grid">
+
+    <!-- Standard -->
+    <div class="plan-card">
+      <div class="plan-name">Standard</div>
+      <div class="plan-price">
+        <span class="currency">$</span>
+        <span class="amount" id="price-standard">29</span>
+        <span class="period">/mo</span>
+      </div>
+      <div class="plan-billed" id="billed-standard">Billed monthly</div>
+      <div class="plan-limit">Requires Bitrix24 Standard plan</div>
+      <hr class="plan-divider"/>
+      <ul class="plan-features">
+        <li>Full appraisal workflow</li>
+        <li>Self-assessment + reviewer phases</li>
+        <li>PDF report download</li>
+        <li>CRM Deal mode</li>
+        <li>AI template setup wizard</li>
+        <li>AI question assist</li>
+        <li>Email support</li>
+      </ul>
+      <a href="https://www.bitrix24.com/apps/app/fusion_eta.appraisify_v2/?skip_server_ip_redirect=Y" class="plan-cta outline" target="_blank" rel="noopener noreferrer">Get Started</a>
+    </div>
+
+    <!-- Professional (featured) -->
+    <div class="plan-card featured">
+      <div class="plan-popular">Most Popular</div>
+      <div class="plan-name">Professional</div>
+      <div class="plan-price">
+        <span class="currency">$</span>
+        <span class="amount" id="price-pro">49</span>
+        <span class="period">/mo</span>
+      </div>
+      <div class="plan-billed" id="billed-pro">Billed monthly</div>
+      <div class="plan-limit">Requires Bitrix24 Professional plan</div>
+      <hr class="plan-divider"/>
+      <ul class="plan-features">
+        <li>Full appraisal workflow</li>
+        <li>Self-assessment + reviewer phases</li>
+        <li>PDF report download</li>
+        <li>CRM Deal mode</li>
+        <li>AI template setup wizard</li>
+        <li>AI question assist</li>
+        <li>Email support</li>
+      </ul>
+      <a href="https://www.bitrix24.com/apps/app/fusion_eta.appraisify_v2/?skip_server_ip_redirect=Y" class="plan-cta primary" target="_blank" rel="noopener noreferrer">Get Started</a>
+    </div>
+
+    <!-- Enterprise -->
+    <div class="plan-card">
+      <div class="plan-name">Enterprise</div>
+      <div class="plan-price">
+        <span class="amount" style="font-size:36px;color:var(--gray-600);">Custom</span>
+      </div>
+      <div class="plan-billed">Tailored to your organisation</div>
+      <div class="plan-limit">Any Bitrix24 plan</div>
+      <hr class="plan-divider"/>
+      <ul class="plan-features">
+        <li>Everything in Professional</li>
+        <li>Custom employee limits</li>
+        <li>Dedicated onboarding</li>
+        <li>Custom integrations</li>
+        <li>SLA & uptime guarantee</li>
+        <li>Account manager</li>
+      </ul>
+      <div class="plan-contact"><a href="mailto:rachel@fusioneta.com?subject=Enterprise Plan Enquiry">Contact us →</a></div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+  function setBilling(mode) {
+    const isYearly = mode === 'yearly';
+    document.getElementById('toggle-monthly').classList.toggle('active', !isYearly);
+    document.getElementById('toggle-yearly').classList.toggle('active', isYearly);
+    document.getElementById('price-standard').textContent = isYearly ? '24' : '29';
+    document.getElementById('price-pro').textContent      = isYearly ? '41' : '49';
+    document.getElementById('billed-standard').textContent = isYearly ? 'Billed $290/year' : 'Billed monthly';
+    document.getElementById('billed-pro').textContent      = isYearly ? 'Billed $490/year' : 'Billed monthly';
+  }
+</script>
 
 <!-- ══════════════════════ CTA ══════════════════════ -->
 <section class="cta-banner">

@@ -1,9 +1,11 @@
 /**
  * Appraisify – Persistent activity logger (Upstash Redis backed)
  *
- * Two log streams:
+ * Log streams:
  *   portals/{domain}/logs/YYYY-MM-DD.json  — appraisal events per portal
+ *   portals/{domain}/logs/ai/YYYY-MM-DD.json — AI interactions per portal
  *   logs/errors/YYYY-MM-DD.json            — API errors across all portals
+ *   logs/installs/YYYY-MM-DD.json          — install/uninstall events (global)
  *
  * Each file is a JSON array of entries. Files rotate daily.
  * Files older than LOG_RETAIN_DAYS are automatically deleted when a new
@@ -102,4 +104,16 @@ export async function logError(domain, entry) {
     const prefix = 'logs/errors/';
     await _append(`${prefix}${today()}.json`, prefix, { domain: domain || 'unknown', ...entry });
   } catch (_) { /* never let logging break the caller */ }
+}
+
+/**
+ * Log an install or uninstall event globally.
+ * Stored globally: logs/installs/YYYY-MM-DD.json
+ * Fire-and-forget friendly — never throws.
+ */
+export async function logInstall(domain, entry) {
+  try {
+    const prefix = 'logs/installs/';
+    await _append(`${prefix}${today()}.json`, prefix, { domain: domain || 'unknown', ...entry });
+  } catch (_) {}
 }
