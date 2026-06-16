@@ -47,6 +47,12 @@ export default async function handler(req, res) {
       } catch (e) {
         console.error('[install] Failed to store server-side tokens:', e.message);
       }
+      // Register uninstall event handler — fire-and-forget, never breaks install
+      fetch(`https://${domain}/rest/event.bind?auth=${encodeURIComponent(access_token)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'ONAPPUNINSTALL', handler: 'https://appraisify-plus.vercel.app/api/install' }),
+      }).catch(() => {});
     }
   }
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
