@@ -15,16 +15,27 @@
  *   4. BX24.installFinish() called → frame reloads into main app
  */
 import { storeTokens } from './_lib/auth.js';
+import { logInstall } from './_lib/logger.js';
 
 export default async function handler(req, res) {
   res.setHeader('X-Frame-Options', 'ALLOWALL');
   res.setHeader('Content-Security-Policy', 'frame-ancestors *');
 
-  // Bitrix24 POSTs proper OAuth tokens (with refresh_token) in the install request body.
-  // Store them server-side immediately — BX24.getAuth() on the client does NOT include
-  // refresh_token, so this server-side capture is the only way to get a long-lived token.
   if (req.method === 'POST') {
     const body = req.body || {};
+
+    // Handle Bitrix24 ONAPPUNINSTALL server event — log and acknowledge.
+    if (body.event === 'ONAPPUNINSTALL' || body.EVENT === 'ONAPPUNINSTALL') {
+      const domain = (body.DOMAIN || body.domain || '').split('/')[0].toLowerCase().trim();
+      if (domain) {
+        logInstall(domain, { event: 'uninstall', member_id: body.member_id || body.MEMBER_ID || '' }).catch(() => {});
+      }
+      return res.status(200).json({ ok: true });
+    }
+
+    // Bitrix24 POSTs proper OAuth tokens (with refresh_token) in the install request body.
+    // Store them server-side immediately — BX24.getAuth() on the client does NOT include
+    // refresh_token, so this server-side capture is the only way to get a long-lived token.
     const access_token  = body.AUTH_ID   || body.access_token;
     const refresh_token = body.REFRESH_ID || body.refresh_token;
     const domain        = (body.DOMAIN   || body.domain || '').split('/')[0].toLowerCase().trim();
