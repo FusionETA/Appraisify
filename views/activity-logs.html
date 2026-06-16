@@ -83,9 +83,9 @@
     <div class="flex items-center gap-1.5 text-sm">
       <span class="text-slate-500 font-medium">Days:</span>
       <div class="flex rounded-lg border border-slate-200 overflow-hidden">
-        <button onclick="setDays(7)"  data-days="7"  class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors active">7</button>
-        <button onclick="setDays(14)" data-days="14" class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors border-l border-slate-200">14</button>
-        <button onclick="setDays(30)" data-days="30" class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors border-l border-slate-200">30</button>
+        <button onclick="setDays(7)"  data-days="7"  class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors border-r border-slate-200">7</button>
+        <button onclick="setDays(14)" data-days="14" class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors border-r border-slate-200">14</button>
+        <button onclick="setDays(30)" data-days="30" class="days-btn px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors active">30</button>
       </div>
     </div>
     <div class="flex items-center gap-1.5 text-sm ml-auto">
@@ -157,7 +157,7 @@
 <script>
   let installLogs  = [];
   let activityLogs = [];
-  let selectedDays = 3;
+  let selectedDays = 30;
   let activeTab    = 'all';
 
   function setDays(d) {
@@ -399,8 +399,8 @@
   // Init — load domain list, then logs
   (async function init() {
     const params = new URLSearchParams(location.search);
-    const days = parseInt(params.get('days') || '7');
-    setDays([7,14,30].includes(days) ? days : 7);
+    const days = parseInt(params.get('days') || '30');
+    setDays([7,14,30].includes(days) ? days : 30);
     await loadDomains();
     // After domains are loaded, select the one from the URL if present
     const d = params.get('domain');

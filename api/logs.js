@@ -64,6 +64,17 @@ export default async function handler(req, res) {
     }
   }
 
+  // ?raw=portals/levstal.bitrix24.eu/logs/2026-05-28.json — read exact key (debug)
+  if (req.query.raw) {
+    const key = String(req.query.raw).trim();
+    try {
+      const data = await blobGet(key);
+      return res.status(200).json({ key, type: typeof data, isArray: Array.isArray(data), length: Array.isArray(data) ? data.length : null, data });
+    } catch (e) {
+      return res.status(200).json({ key, error: e.message });
+    }
+  }
+
   // ?domains=true — return list of all known portal domains (from stored auth tokens)
   if (req.query.domains === 'true') {
     try {
