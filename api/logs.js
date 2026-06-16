@@ -74,12 +74,30 @@ export default async function handler(req, res) {
     }
   }
 
-  // ?seed=true — one-time: scan all portals and build the domain index
+  // ?addDomain=levstal.bitrix24.eu — manually add a domain to the index
+  if (req.query.addDomain) {
+    const d = normalizeDomain(String(req.query.addDomain));
+    if (!d) return res.status(400).json({ error: 'invalid_domain' });
+    try {
+      const existing = await blobGet(DOMAINS_KEY);
+      const list = Array.isArray(existing) ? existing : [];
+      if (!list.includes(d)) { list.push(d); list.sort(); }
+      await blobPut(DOMAINS_KEY, list);
+      return res.status(200).json({ added: d, domains: list });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ?seed=true — one-time: scan portals by letter to avoid single-scan timeout
   if (req.query.seed === 'true') {
     try {
-      const blobs = await blobList('portals/');
+      const letters = 'abcdefghijklmnopqrstuvwxyz0123456789'.split('');
+      const allBlobs = (await Promise.all(
+        letters.map(l => blobList(`portals/${l}`).catch(() => []))
+      )).flat();
       const seen = [...new Set(
-        blobs.map(b => b.pathname.match(/^portals\/([^/]+)\//)?.[1]).filter(Boolean)
+        allBlobs.map(b => b.pathname.match(/^portals\/([^/]+)\//)?.[1]).filter(Boolean)
       )].sort();
       await blobPut(DOMAINS_KEY, seen);
       return res.status(200).json({ seeded: true, domains: seen });
