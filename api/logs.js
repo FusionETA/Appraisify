@@ -89,46 +89,50 @@ export default async function handler(req, res) {
     }
   }
 
-  const domain = String(req.query.domain || '').trim();
-  const days   = Math.min(30, Math.max(1, parseInt(req.query.days || '30', 10)));
-  const dates  = dateRange(days);
+  let domain, days, dates;
+  try {
+    domain = String(req.query.domain || '').trim();
+    days   = Math.min(30, Math.max(1, parseInt(req.query.days || '30', 10)));
+    dates  = dateRange(days);
+  } catch (e) {
+    return res.status(500).json({ error: 'param_parse', message: e.message });
+  }
 
-  const [errorEntries, portalEntries, aiEntries, installEntries, tokenInfo] = await Promise.all([
-    // Global error log: logs/errors/YYYY-MM-DD.json
-    Promise.all(dates.map(d => fetchLogFile('logs/errors/', d))).then(r => r.flat()),
-    // Per-portal appraisal log — only when a specific domain is selected
-    domain
-      ? Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/`, d))).then(r => r.flat())
-      : Promise.resolve([]),
-    // Per-portal AI log — only when a specific domain is selected
-    domain
-      ? Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/ai/`, d))).then(r => r.flat())
-      : Promise.resolve([]),
-    // Global install/uninstall log: logs/installs/YYYY-MM-DD.json (filter by domain if provided)
-    Promise.all(dates.map(d => fetchLogFile('logs/installs/', d))).then(r => {
-      const all = r.flat();
-      return domain ? all.filter(e => e.domain === domain) : all;
-    }),
-    // Token scopes: load stored token and call /rest/scope
-    loadTokens(domain || 'fusion.bitrix24.com').then(async tokens => {
-      if (!tokens) return { stored: false };
-      try {
-        const r = await fetch(
-          `https://${domain}/rest/scope.json?auth=${encodeURIComponent(tokens.access_token)}`
-        );
-        const data = await r.json();
-        return {
-          stored:    true,
-          storedAt:  tokens.storedAt || null,
-          member_id: tokens.member_id,
-          scopes:    data.result || [],
-          hasIm:     Array.isArray(data.result) && data.result.includes('im'),
-        };
-      } catch (e) {
-        return { stored: true, storedAt: tokens.storedAt, error: e.message };
-      }
-    }).catch(e => ({ stored: false, error: e.message })),
-  ]);
+  let errorEntries, portalEntries, aiEntries, installEntries, tokenInfo;
+  try {
+    [errorEntries, portalEntries, aiEntries, installEntries, tokenInfo] = await Promise.all([
+      // Global error log: logs/errors/YYYY-MM-DD.json
+      Promise.all(dates.map(d => fetchLogFile('logs/errors/', d))).then(r => r.flat()),
+      // Per-portal appraisal log — only when a specific domain is selected
+      domain
+        ? Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/`, d))).then(r => r.flat())
+        : Promise.resolve([]),
+      // Per-portal AI log — only when a specific domain is selected
+      domain
+        ? Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/ai/`, d))).then(r => r.flat())
+        : Promise.resolve([]),
+      // Global install/uninstall log: logs/installs/YYYY-MM-DD.json (filter by domain if provided)
+      Promise.all(dates.map(d => fetchLogFile('logs/installs/', d))).then(r => {
+        const all = r.flat();
+        return domain ? all.filter(e => e.domain === domain) : all;
+      }),
+      // Token scopes: load stored token and call /rest/scope (skip if no domain)
+      domain
+        ? loadTokens(domain).then(async tokens => {
+            if (!tokens) return { stored: false };
+            try {
+              const r = await fetch(`https://${domain}/rest/scope.json?auth=${encodeURIComponent(tokens.access_token)}`);
+              const data = await r.json();
+              return { stored: true, storedAt: tokens.storedAt || null, member_id: tokens.member_id, scopes: data.result || [], hasIm: Array.isArray(data.result) && data.result.includes('im') };
+            } catch (e) {
+              return { stored: true, storedAt: tokens.storedAt, error: e.message };
+            }
+          }).catch(e => ({ stored: false, error: e.message }))
+        : Promise.resolve({ stored: false }),
+    ]);
+  } catch (e) {
+    return res.status(500).json({ error: 'fetch_failed', message: e.message, stack: e.stack });
+  }
 
   // Sort newest-first
   const sort = arr => [...arr].sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
