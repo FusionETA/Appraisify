@@ -28,9 +28,7 @@ function dateRange(days) {
 
 async function fetchLogFile(prefix, date) {
   try {
-    const blobs = await blobList(`${prefix}${date}.json`);
-    if (!blobs.length) return [];
-    const data = await blobGet(blobs[0].url);
+    const data = await blobGet(`${prefix}${date}.json`);
     return Array.isArray(data) ? data : [];
   } catch (_) {
     return [];
