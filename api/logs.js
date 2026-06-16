@@ -1,20 +1,17 @@
 /**
  * Appraisify – Log Viewer (Vercel Serverless Function)
  *
- * GET /api/logs?domain=fusion.bitrix24.com&days=3
- *
- * Returns recent error logs and portal-specific appraisal logs from Upstash Redis.
- * Useful for debugging notification and submission issues.
- *
- * Query params:
- *   domain  — Bitrix24 portal domain (default: fusion.bitrix24.com)
- *   days    — how many days back to fetch (default: 2, max: 7)
+ * GET  /api/logs?domain=levstal.bitrix24.eu&days=30
+ * GET  /api/logs?domains=true
+ * POST /api/logs  { domain, event, ...rest }
  */
 
-import { blobList, blobGet, blobScan } from './_lib/kv.js';
+import { blobList, blobGet, blobPut } from './_lib/kv.js';
 import { loadTokens } from './_lib/auth.js';
 import { logAppraisal } from './_lib/logger.js';
 import { parseBody, normalizeDomain } from './_lib/utils.js';
+
+const DOMAINS_KEY = '_domains';
 
 function dateRange(days) {
   const dates = [];
@@ -23,7 +20,7 @@ function dateRange(days) {
     d.setDate(d.getDate() - i);
     dates.push(d.toISOString().split('T')[0]);
   }
-  return dates; // most recent first
+  return dates;
 }
 
 async function fetchLogFile(prefix, date) {
@@ -35,17 +32,30 @@ async function fetchLogFile(prefix, date) {
   }
 }
 
+async function addDomainToIndex(domain) {
+  try {
+    const existing = await blobGet(DOMAINS_KEY);
+    const list = Array.isArray(existing) ? existing : [];
+    if (!list.includes(domain)) {
+      list.push(domain);
+      list.sort();
+      await blobPut(DOMAINS_KEY, list);
+    }
+  } catch (_) {}
+}
+
 export default async function handler(req, res) {
   res.setHeader('X-Frame-Options', 'ALLOWALL');
   res.setHeader('Content-Security-Policy', 'frame-ancestors *');
 
-  // POST — client-side log ingestion (merged from /api/log)
+  // POST — client-side log ingestion
   if (req.method === 'POST') {
     const body   = parseBody(req);
     const domain = normalizeDomain(body.domain);
     const { event, ...rest } = body;
     if (!domain || !event) return res.status(400).json({ error: 'missing_params' });
     await logAppraisal(domain, { event, ...rest });
+    addDomainToIndex(domain).catch(() => {});
     return res.status(200).json({ ok: true });
   }
 
@@ -53,7 +63,32 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
-  // ?scan=levstal.bitrix24.eu — list actual Upstash keys for a domain (debug)
+  // ?domains=true — fast: read from cached index
+  if (req.query.domains === 'true') {
+    try {
+      const data = await blobGet(DOMAINS_KEY);
+      const domains = Array.isArray(data) ? data : [];
+      return res.status(200).json({ domains });
+    } catch (e) {
+      return res.status(200).json({ domains: [], error: e.message });
+    }
+  }
+
+  // ?seed=true — one-time: scan all portals and build the domain index
+  if (req.query.seed === 'true') {
+    try {
+      const blobs = await blobList('portals/');
+      const seen = [...new Set(
+        blobs.map(b => b.pathname.match(/^portals\/([^/]+)\//)?.[1]).filter(Boolean)
+      )].sort();
+      await blobPut(DOMAINS_KEY, seen);
+      return res.status(200).json({ seeded: true, domains: seen });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ?scan=domain — debug: list actual Upstash keys for a domain
   if (req.query.scan) {
     const d = String(req.query.scan).trim();
     try {
@@ -64,7 +99,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // ?raw=portals/levstal.bitrix24.eu/logs/2026-05-28.json — read exact key (debug)
+  // ?raw=key — debug: read an exact Upstash key
   if (req.query.raw) {
     const key = String(req.query.raw).trim();
     try {
@@ -75,53 +110,29 @@ export default async function handler(req, res) {
     }
   }
 
-  // ?domains=true — return list of all known portal domains (from log file keys)
-  if (req.query.domains === 'true') {
-    try {
-      // Scan only log file keys — much more targeted than portals/* and avoids timeout
-      const keys = await blobScan('portals/*/logs*');
-      const seen = [...new Set(
-        keys.map(k => k.match(/^portals\/([^/]+)\//)?.[1]).filter(Boolean)
-      )].sort();
-      return res.status(200).json({ domains: seen });
-    } catch (e) {
-      return res.status(200).json({ domains: [], error: e.message });
-    }
-  }
+  // Main GET — fetch logs for a domain
+  const domain = String(req.query.domain || '').trim();
+  const days   = Math.min(30, Math.max(1, parseInt(req.query.days || '30', 10)));
+  const dates  = dateRange(days);
 
-  let domain, days, dates;
   try {
-    domain = String(req.query.domain || '').trim();
-    days   = Math.min(30, Math.max(1, parseInt(req.query.days || '30', 10)));
-    dates  = dateRange(days);
-  } catch (e) {
-    return res.status(500).json({ error: 'param_parse', message: e.message });
-  }
-
-  let errorEntries, portalEntries, aiEntries, installEntries, tokenInfo;
-  try {
-    [errorEntries, portalEntries, aiEntries, installEntries, tokenInfo] = await Promise.all([
-      // Global error log: logs/errors/YYYY-MM-DD.json
+    const [errorEntries, portalEntries, aiEntries, installEntries, tokenInfo] = await Promise.all([
       Promise.all(dates.map(d => fetchLogFile('logs/errors/', d))).then(r => r.flat()),
-      // Per-portal appraisal log — only when a specific domain is selected
       domain
         ? Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/`, d))).then(r => r.flat())
         : Promise.resolve([]),
-      // Per-portal AI log — only when a specific domain is selected
       domain
         ? Promise.all(dates.map(d => fetchLogFile(`portals/${domain}/logs/ai/`, d))).then(r => r.flat())
         : Promise.resolve([]),
-      // Global install/uninstall log: logs/installs/YYYY-MM-DD.json (filter by domain if provided)
       Promise.all(dates.map(d => fetchLogFile('logs/installs/', d))).then(r => {
         const all = r.flat();
         return domain ? all.filter(e => e.domain === domain) : all;
       }),
-      // Token scopes: load stored token and call /rest/scope (skip if no domain)
       domain
         ? loadTokens(domain).then(async tokens => {
             if (!tokens) return { stored: false };
             try {
-              const r = await fetch(`https://${domain}/rest/scope.json?auth=${encodeURIComponent(tokens.access_token)}`);
+              const r    = await fetch(`https://${domain}/rest/scope.json?auth=${encodeURIComponent(tokens.access_token)}`);
               const data = await r.json();
               return { stored: true, storedAt: tokens.storedAt || null, member_id: tokens.member_id, scopes: data.result || [], hasIm: Array.isArray(data.result) && data.result.includes('im') };
             } catch (e) {
@@ -130,21 +141,18 @@ export default async function handler(req, res) {
           }).catch(e => ({ stored: false, error: e.message }))
         : Promise.resolve({ stored: false }),
     ]);
+
+    const sort = arr => [...arr].sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+
+    return res.status(200).json({
+      domain, days, dates,
+      token:      tokenInfo,
+      errors:     sort(errorEntries),
+      appraisals: sort(portalEntries),
+      ai:         sort(aiEntries),
+      installs:   sort(installEntries),
+    });
   } catch (e) {
-    return res.status(500).json({ error: 'fetch_failed', message: e.message, stack: e.stack });
+    return res.status(500).json({ error: e.message, stack: e.stack });
   }
-
-  // Sort newest-first
-  const sort = arr => [...arr].sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
-
-  return res.status(200).json({
-    domain,
-    days,
-    dates,
-    token:      tokenInfo,
-    errors:     sort(errorEntries),
-    appraisals: sort(portalEntries),
-    ai:         sort(aiEntries),
-    installs:   sort(installEntries),
-  });
 }
