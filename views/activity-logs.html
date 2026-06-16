@@ -362,10 +362,12 @@
 
   function setLoading(on) {
     document.getElementById('loading').classList.toggle('hidden', !on);
-    document.getElementById('log-list').classList.add('hidden');
-    document.getElementById('empty').classList.add('hidden');
-    document.getElementById('error-msg').classList.add('hidden');
-    document.getElementById('stats-row').classList.add('hidden');
+    if (on) {
+      document.getElementById('log-list').classList.add('hidden');
+      document.getElementById('empty').classList.add('hidden');
+      document.getElementById('error-msg').classList.add('hidden');
+      document.getElementById('stats-row').classList.add('hidden');
+    }
     document.getElementById('btn-refresh').disabled = on;
   }
 
