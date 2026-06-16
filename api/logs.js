@@ -71,7 +71,7 @@ export default async function handler(req, res) {
   }
 
   const domain = String(req.query.domain || 'fusion.bitrix24.com').trim();
-  const days   = Math.min(7, Math.max(1, parseInt(req.query.days || '2', 10)));
+  const days   = Math.min(30, Math.max(1, parseInt(req.query.days || '7', 10)));
   const dates  = dateRange(days);
 
   const [errorEntries, portalEntries, aiEntries, installEntries, tokenInfo] = await Promise.all([

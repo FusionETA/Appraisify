@@ -14,7 +14,7 @@
 
 import { blobFind, blobGet, blobPut, blobList, blobDelete } from './kv.js';
 
-const LOG_RETAIN_DAYS = 15;
+const LOG_RETAIN_DAYS = 30;
 
 const today = () => new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
