@@ -53,6 +53,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
+  // ?scan=levstal.bitrix24.eu — list actual Upstash keys for a domain (debug)
+  if (req.query.scan) {
+    const d = String(req.query.scan).trim();
+    try {
+      const keys = await blobList(`portals/${d}/logs/`);
+      return res.status(200).json({ prefix: `portals/${d}/logs/`, keys: keys.map(k => k.pathname) });
+    } catch (e) {
+      return res.status(200).json({ error: e.message });
+    }
+  }
+
   // ?domains=true — return list of all known portal domains (from stored auth tokens)
   if (req.query.domains === 'true') {
     try {
