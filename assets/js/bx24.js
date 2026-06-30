@@ -57,9 +57,17 @@ const BX24App = (() => {
   ];
 
   // ── Core helpers ──────────────────────────────────────────────────────
+  let _resolvedDomain = '';
+
   function init(callback) {
     if (DEV_MODE) { console.info('[BX24App] Dev mode – BX24 SDK not present.'); callback(); return; }
-    BX24.init(callback);
+    BX24.init(() => {
+      try {
+        const a = BX24.getAuth();
+        if (a && a.domain) _resolvedDomain = String(a.domain).split('/')[0].toLowerCase().trim();
+      } catch (_) {}
+      callback();
+    });
   }
 
   function pad2(n) {
@@ -558,6 +566,7 @@ const BX24App = (() => {
         if (auth && auth.member_id) member_id = String(auth.member_id);
       } catch (_) {}
     }
+    if (!domain) domain = _resolvedDomain;
 
     const resp = await fetch('/api/bx-proxy', {
       method: 'POST',
@@ -922,6 +931,7 @@ const BX24App = (() => {
         if (auth && auth.domain) domain = String(auth.domain).split('/')[0].toLowerCase().trim();
       } catch (_) {}
     }
+    if (!domain) domain = _resolvedDomain;
     return domain;
   }
 
