@@ -572,9 +572,17 @@
     document.getElementById('modal-submit').classList.remove('hidden');
   }
 
-  function submitAppraisal() {
-    document.getElementById('modal-submit').classList.add('hidden');
-    handleSubmit({ phase: 'partner', appraisalId: APPRAISAL_DATA.id });
+  async function submitAppraisal() {
+    const modal = document.getElementById('modal-submit');
+    modal.querySelector('div').innerHTML = `
+      <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 animate-spin">
+        <span class="material-symbols-outlined text-primary text-3xl">sync</span>
+      </div>
+      <h3 class="text-xl font-extrabold text-slate-900 mb-2">Submitting...</h3>
+      <p class="text-slate-500 text-sm">Please wait while your appraisal is being saved.<br>Do not close this window.</p>
+    `;
+    await handleSubmit({ phase: 'partner', appraisalId: APPRAISAL_DATA.id });
+    modal.classList.add('hidden');
   }
 </script>
 </body>
