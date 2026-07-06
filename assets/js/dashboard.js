@@ -636,14 +636,13 @@ async function loadEmployeeTable() {
       dealMap[empId] = empDeals.find(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED') ?? empDeals[0];
     });
 
-    // Populate stats cards
-    const activeCount  = Object.values(dealMap).filter(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED').length;
-    const pendingCount = Object.values(dealMap).filter(d => {
+    // Populate stats cards — count deals, not employees
+    const activeCount  = (deals || []).filter(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED').length;
+    const pendingCount = (deals || []).filter(d => {
       const s = shortStageId(d.STAGE_ID);
       return s === 'REVIEWERPENDING' || s === 'PARTNERPENDING';
     }).length;
-    const completeCount = Object.values(allDealsMap)
-      .filter(empDeals => empDeals.some(d => shortStageId(d.STAGE_ID) === 'SUBMITTED')).length;
+    const completeCount = (deals || []).filter(d => shortStageId(d.STAGE_ID) === 'SUBMITTED').length;
     const statActive   = document.getElementById('stat-active');
     const statPending  = document.getElementById('stat-pending');
     const statComplete = document.getElementById('stat-complete');
