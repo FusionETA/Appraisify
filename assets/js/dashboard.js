@@ -637,17 +637,11 @@ async function loadEmployeeTable() {
     });
 
     // Populate stats cards — count deals, not employees
-    const activeCount  = (deals || []).filter(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED').length;
-    const pendingCount = (deals || []).filter(d => {
-      const s = shortStageId(d.STAGE_ID);
-      return s === 'REVIEWERPENDING' || s === 'PARTNERPENDING';
-    }).length;
+    const activeCount   = (deals || []).filter(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED').length;
     const completeCount = (deals || []).filter(d => shortStageId(d.STAGE_ID) === 'SUBMITTED').length;
     const statActive   = document.getElementById('stat-active');
-    const statPending  = document.getElementById('stat-pending');
     const statComplete = document.getElementById('stat-complete');
     if (statActive)   statActive.textContent   = activeCount;
-    if (statPending)  statPending.textContent   = pendingCount;
     if (statComplete) statComplete.textContent  = completeCount;
 
     if (!users || !users.length) {
