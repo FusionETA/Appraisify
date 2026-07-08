@@ -15,11 +15,11 @@ const stageFilterId = (categoryId, statusId) => (categoryId === 'dev' ? statusId
 
 // Stage ID → display info mapping (matches STATUS_IDs created on install)
 const STAGE_MAP = {
-  'INITIALIZED':                { phase: 'self',     label: 'Reviewee Pending', cls: 'bg-amber-100 text-amber-700' },
-  'REVIEWEEPENDING':            { phase: 'self',     label: 'Reviewee Pending', cls: 'bg-amber-100 text-amber-700' },
-  'REVIEWERPENDING':            { phase: 'reviewer', label: 'Reviewer Pending', cls: 'bg-blue-100 text-blue-700' },
-  'PARTNERPENDING':             { phase: 'partner',  label: 'Partner Pending',  cls: 'bg-purple-100 text-purple-700' },
-  'SUBMITTED':                  { phase: 'complete', label: 'Submitted',        cls: 'bg-emerald-100 text-emerald-700' },
+  'INITIALIZED':                { phase: 'self',     label: 'Self-Assessment',   cls: 'bg-amber-100 text-amber-700' },
+  'REVIEWEEPENDING':            { phase: 'self',     label: 'Self-Assessment',   cls: 'bg-amber-100 text-amber-700' },
+  'REVIEWERPENDING':            { phase: 'reviewer', label: 'Awaiting Reviewer', cls: 'bg-blue-100 text-blue-700' },
+  'PARTNERPENDING':             { phase: 'partner',  label: 'Awaiting Partner',  cls: 'bg-purple-100 text-purple-700' },
+  'SUBMITTED':                  { phase: 'complete', label: 'Completed',         cls: 'bg-emerald-100 text-emerald-700' },
 };
 
 // ── Init ─────────────────────────────────────────────────────────────
