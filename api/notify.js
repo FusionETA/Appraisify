@@ -45,6 +45,7 @@ function buildDirectLink(type, dealId, domain, uid, config) {
     userId: String(uid),
     mode: config.crm_mode || 'deal',
   });
+  if (config.category_id)     params.set('categoryId',    String(config.category_id));    // deal mode pipeline category
   if (config.entity_type_id)  params.set('entityTypeId',  String(config.entity_type_id));
   if (config.spa_type_id)     params.set('spaTypeId',     String(config.spa_type_id));
   if (config.spa_category_id) params.set('spaCategoryId', String(config.spa_category_id));

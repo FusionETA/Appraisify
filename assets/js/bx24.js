@@ -77,6 +77,7 @@ const BX24App = (() => {
       _standaloneParams = {
         userId:        p.get('userId')        || '',
         mode:          p.get('mode')          || 'deal',
+        categoryId:    p.get('categoryId')    || '',   // deal mode pipeline category
         entityTypeId:  p.get('entityTypeId')  || '',
         spaTypeId:     p.get('spaTypeId')     || '',
         spaCategoryId: p.get('spaCategoryId') || '',
@@ -383,8 +384,9 @@ const BX24App = (() => {
    */
   async function getSpaTypeId() {
     if (DEV_MODE) return null;
-    if (_standaloneMode) return _standaloneParams.spaTypeId || null;
-    const fromOptions = BX24.appOption.get('spa_type_id');
+    if (_standaloneMode && _standaloneParams.spaTypeId) return _standaloneParams.spaTypeId;
+    // standalone without spaTypeId in URL — fall through to crm.type.list below
+    const fromOptions = typeof BX24 !== 'undefined' && BX24.appOption.get('spa_type_id');
     if (fromOptions) {
       const id = String(fromOptions);
       try { localStorage.setItem('appraisify_spa_type_id', id); } catch (_) {}
@@ -568,7 +570,9 @@ const BX24App = (() => {
     // in callers without needing changes there.
     if (getMode() === 'spa') return 'spa';
 
-    // In standalone mode, fall through to localStorage / proxy fallback.
+    // 0. Standalone mode: category ID passed directly in URL by the notification link.
+    if (_standaloneMode && _standaloneParams.categoryId) return _standaloneParams.categoryId;
+
     // 1. BX24 app options — shared across ALL users, updated by every install.
     const fromOptions = typeof BX24 !== 'undefined' && BX24.appOption.get('category_id');
     if (fromOptions) {
@@ -589,7 +593,8 @@ const BX24App = (() => {
     try {
       const result = await callAsSystem('crm.category.list', { entityTypeId: 2 });
       const categories = (result && result.categories) ? result.categories : [];
-      const found = categories.find(c => (c.NAME || c.name) === 'Appraisify Testing');
+      const PIPELINE_NAMES = new Set(['Performance Appraisal', 'Appraisify Appraisals', 'Appraisify Testing']);
+      const found = categories.find(c => PIPELINE_NAMES.has(c.NAME || c.name || ''));
       if (found) {
         const id = String(found.ID || found.id);
         localStorage.setItem('appraisify_category_id', id);
