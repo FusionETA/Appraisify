@@ -33,14 +33,21 @@ function buildNotificationMessage(type, deal, domain) {
   const dealId = String(deal?.ID || '');
   const ref    = dealId ? `#APR-${dealId}` : 'this appraisal';
   const label  = cycle ? `"${cycle}"` : ref;
-  const appUrl = domain ? `https://${domain}/marketplace/app/fusion_eta.appraisify_v2/` : null;
-  const link   = appUrl ? `[URL=${appUrl}]Open Appraisify[/URL]` : 'Appraisify';
+  const appBase = domain ? `https://${domain}/marketplace/app/fusion_eta.appraisify_v2/` : null;
+  function deepLink(view) {
+    if (!appBase) return null;
+    return view ? `${appBase}?appraisal=${encodeURIComponent(dealId)}&view=${view}` : appBase;
+  }
+  function linkText(view, text) {
+    const url = deepLink(view);
+    return url ? `[URL=${url}]${text}[/URL]` : text;
+  }
 
   const MAP = {
-    launch:             `Your appraisal ${label} has started. Please ${link} to submit your self-assessment.`,
-    self_submitted:     `${name} has submitted their self-assessment for ${label}. Please ${link} to complete your reviewer evaluation.`,
-    reviewer_submitted: `The reviewer evaluation for ${name} – ${label} is complete. Please ${link} to submit your partner review.`,
-    partner_submitted:  `The appraisal ${label} for ${name} is now complete. Please ${link} to view the final review summary.`,
+    launch:             `Your appraisal ${label} has started. Please ${linkText('reviewee', 'open Appraisify')} to submit your self-assessment.`,
+    self_submitted:     `${name} has submitted their self-assessment for ${label}. Please ${linkText('reviewer', 'open Appraisify')} to complete your reviewer evaluation.`,
+    reviewer_submitted: `The reviewer evaluation for ${name} – ${label} is complete. Please ${linkText('partner', 'open Appraisify')} to submit your partner review.`,
+    partner_submitted:  `The appraisal ${label} for ${name} is now complete. Please ${linkText(null, 'open Appraisify')} to view the final review summary.`,
   };
 
   return MAP[type] || `Appraisal update for ${name} (${ref}). Please ${link} for details.`;
