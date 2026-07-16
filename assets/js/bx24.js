@@ -66,11 +66,14 @@ const BX24App = (() => {
 
     // Standalone mode: page opened outside Bitrix24 iframe (e.g. direct notification link in new tab).
     // The BX24 SDK loads from CDN and defines window.BX24, but BX24.init() callback never fires
-    // when there is no Bitrix24 parent frame to respond to postMessage. Detect this by checking
-    // whether we're in an iframe — if not, we're standalone regardless of BX24 being defined.
-    if (typeof BX24 === 'undefined' || window.self === window.top) {
+    // when there is no Bitrix24 parent frame to respond to postMessage.
+    // Primary trigger: URL has both 'domain' and 'userId' params — only present on direct notification links.
+    // Fallback: not in an iframe at all (window.self === window.top).
+    const _initParams = new URLSearchParams(window.location.search);
+    const _hasDirectParams = !!_initParams.get('domain') && !!_initParams.get('userId');
+    if (typeof BX24 === 'undefined' || window.self === window.top || _hasDirectParams) {
       _standaloneMode = true;
-      const p = new URLSearchParams(window.location.search);
+      const p = _initParams;
       _standaloneParams = {
         userId:        p.get('userId')        || '',
         mode:          p.get('mode')          || 'deal',
