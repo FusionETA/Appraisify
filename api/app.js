@@ -69,23 +69,27 @@ export default function handler(req, res) {
           var dest = (!setupDone && isAdmin) ? '/views/welcome.html' : '/views/dashboard.html';
 
           // Check for a pending deeplink stored when a notification was sent.
-          // If found, navigate directly to the target appraisal and clear the option.
+          // Uses explicit app.option.get to get a fresh value (not SDK-cached appOption).
           BX24.callMethod('user.current', {}, function (meResult) {
-            try {
-              var userId = !meResult.error() && meResult.data() && meResult.data().ID;
-              var PAGE = { reviewee: '/views/appraisal-reviewee.html', reviewer: '/views/appraisal-reviewer.html', partner: '/views/appraisal-partner.html' };
-              var raw = userId && BX24.appOption && BX24.appOption.get('deeplink_' + userId);
-              if (raw) {
-                var dl = JSON.parse(raw);
-                var page = dl && dl.appraisal && dl.view && PAGE[dl.view];
-                if (page) {
-                  BX24.appOption.set({ ['deeplink_' + userId]: '' });
-                  window.location.replace(page + '?appraisal=' + encodeURIComponent(dl.appraisal));
-                  return;
+            var userId = !meResult.error() && meResult.data() && meResult.data().ID;
+            if (!userId) { goTo(dest); return; }
+
+            BX24.callMethod('app.option.get', { option: 'deeplink_' + userId }, function (optResult) {
+              try {
+                var raw = !optResult.error() && optResult.data();
+                if (raw) {
+                  var dl = JSON.parse(raw);
+                  var PAGE = { reviewee: '/views/appraisal-reviewee.html', reviewer: '/views/appraisal-reviewer.html', partner: '/views/appraisal-partner.html' };
+                  var page = dl && dl.appraisal && dl.view && PAGE[dl.view];
+                  if (page) {
+                    BX24.callMethod('app.option.set', { options: { ['deeplink_' + userId]: '' } }, function () {});
+                    window.location.replace(page + '?appraisal=' + encodeURIComponent(dl.appraisal));
+                    return;
+                  }
                 }
-              }
-            } catch (_) {}
-            goTo(dest);
+              } catch (_) {}
+              goTo(dest);
+            });
           });
         });
       });
