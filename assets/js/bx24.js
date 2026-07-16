@@ -343,8 +343,9 @@ const BX24App = (() => {
    */
   async function getSpaCategoryId() {
     if (DEV_MODE) return null;
-    if (_standaloneMode) return _standaloneParams.spaCategoryId || null;
-    const fromOptions = BX24.appOption.get('spa_category_id');
+    if (_standaloneMode && _standaloneParams.spaCategoryId) return _standaloneParams.spaCategoryId;
+    // standalone mode without spaCategoryId in URL — fall through to crm.category.list below
+    const fromOptions = typeof BX24 !== 'undefined' && BX24.appOption.get('spa_category_id');
     if (fromOptions) {
       const id = String(fromOptions);
       try { localStorage.setItem('appraisify_spa_category_id', id); } catch (_) {}
