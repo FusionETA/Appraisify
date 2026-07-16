@@ -154,6 +154,15 @@
 </div>
 
 <script src="//api.bitrix24.com/api/v1/"></script>
+<script>
+  // Direct notification link: domain + userId in URL means we're in a standalone tab.
+  // BX24.init() never fires without a Bitrix24 parent frame, so undefine BX24 here
+  // to force the standalone mode branch in bx24.js.
+  (function () {
+    var p = new URLSearchParams(window.location.search);
+    if (p.get('domain') && p.get('userId')) { window.BX24 = undefined; }
+  })();
+</script>
 <script src="../assets/js/bx24.js"></script>
 <script src="../assets/js/templates-api.js"></script>
 <script src="../assets/js/appraisal.js"></script>
@@ -291,6 +300,7 @@
   }
 
   BX24App.init(async () => {
+    try {
     const user = await BX24App.getUser();
     const name = `${user.NAME} ${user.LAST_NAME || ''}`.trim();
     document.getElementById('hdr-name').textContent    = name;
@@ -350,6 +360,14 @@
     renderSectionTabs(APPRAISAL_DATA.sections);
     initAppraisalForm({ role: 'reviewee', appraisalId: APPRAISAL_DATA.id });
     loadDraft();
+    } catch (initErr) {
+      console.error('[Appraisify] Init failed:', initErr);
+      document.getElementById('hdr-name').textContent = 'Error';
+      document.getElementById('form-sections').innerHTML = `
+        <div class="bg-white rounded-2xl border border-red-200 p-6 text-sm text-red-700">
+          <strong>Failed to load appraisal:</strong> ${initErr.message || initErr}.<br>Please refresh the page or contact your admin.
+        </div>`;
+    }
   });
 
   function renderScopeItems() {

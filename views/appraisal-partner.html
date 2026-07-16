@@ -181,6 +181,12 @@
 </div>
 
 <script src="//api.bitrix24.com/api/v1/"></script>
+<script>
+  (function () {
+    var p = new URLSearchParams(window.location.search);
+    if (p.get('domain') && p.get('userId')) { window.BX24 = undefined; }
+  })();
+</script>
 <script src="../assets/js/bx24.js"></script>
 <script src="../assets/js/templates-api.js"></script>
 <script src="../assets/js/appraisal.js"></script>
