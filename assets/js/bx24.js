@@ -65,9 +65,10 @@ const BX24App = (() => {
     if (DEV_MODE) { console.info('[BX24App] Dev mode – BX24 SDK not present.'); callback(); return; }
 
     // Standalone mode: page opened outside Bitrix24 iframe (e.g. direct notification link in new tab).
-    // BX24 SDK loads from CDN but postMessage to parent never resolves, so BX24.init() never fires.
-    // Read all needed context from URL params and route all data through /api/bx-proxy instead.
-    if (typeof BX24 === 'undefined') {
+    // The BX24 SDK loads from CDN and defines window.BX24, but BX24.init() callback never fires
+    // when there is no Bitrix24 parent frame to respond to postMessage. Detect this by checking
+    // whether we're in an iframe — if not, we're standalone regardless of BX24 being defined.
+    if (typeof BX24 === 'undefined' || window.self === window.top) {
       _standaloneMode = true;
       const p = new URLSearchParams(window.location.search);
       _standaloneParams = {
