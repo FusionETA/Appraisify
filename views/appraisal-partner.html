@@ -339,6 +339,8 @@
       if (!template) throw new Error('Template not found for this appraisal.');
       APPRAISAL_DATA.sections = buildSectionsFromTemplate(template);
       APPRAISAL_DATA.scopeItems = Array.isArray(template.scopeItems) ? template.scopeItems : [];
+      document.getElementById('meta-team').textContent = template.team || '—';
+      document.getElementById('meta-role').textContent = template.role || '—';
     } catch (e) {
       if (BX24App.DEV_MODE) {
         APPRAISAL_DATA.sections = devFallbackSections();
@@ -410,23 +412,11 @@
     }
 
     try {
-      const [allUsers, departments] = await Promise.all([BX24App.getUsers(), BX24App.getDepartments()]);
-      const deptMap = {};
-      (departments || []).forEach(d => { deptMap[String(d.ID)] = d.NAME; });
+      const allUsers = await BX24App.getUsers();
 
       if (deal && deal.UF_CRM_REVIEWER) {
         const ru = (allUsers || []).find(u => String(u.ID) === String(deal.UF_CRM_REVIEWER));
         if (ru) document.getElementById('meta-reviewer').textContent = `${ru.NAME} ${ru.LAST_NAME || ''}`.trim();
-      }
-
-      if (deal && deal.ASSIGNED_BY_ID) {
-        const eu = (allUsers || []).find(u => String(u.ID) === String(deal.ASSIGNED_BY_ID));
-        if (eu) {
-          document.getElementById('meta-role').textContent = eu.WORK_POSITION || '—';
-          if (eu.UF_DEPARTMENT && eu.UF_DEPARTMENT[0]) {
-            document.getElementById('meta-team').textContent = deptMap[String(eu.UF_DEPARTMENT[0])] || '—';
-          }
-        }
       }
     } catch (e) {
       console.warn('[Appraisify] Could not load reviewer/team info:', e);

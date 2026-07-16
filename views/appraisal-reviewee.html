@@ -296,16 +296,6 @@
     document.getElementById('hdr-name').textContent    = name;
     document.getElementById('hdr-avatar').textContent  = name.charAt(0).toUpperCase();
     document.getElementById('meta-reviewee').textContent = name;
-    try {
-      const departments = await BX24App.getDepartments();
-      const deptMap = {};
-      (departments || []).forEach(d => { deptMap[String(d.ID)] = d.NAME; });
-      const deptId = (user.UF_DEPARTMENT || [])[0];
-      document.getElementById('meta-team').textContent = (deptId && deptMap[String(deptId)]) || '—';
-    } catch (_) {
-      document.getElementById('meta-team').textContent = '—';
-    }
-    document.getElementById('meta-role').textContent   = user.WORK_POSITION || '—';
     document.getElementById('meta-ref').textContent    = APPRAISAL_DATA.ref;
 
     // Read real deal ID from URL (set by dashboard link); fall back to mock for local dev
@@ -330,6 +320,8 @@
       if (!template) throw new Error('Template not found for this appraisal.');
       APPRAISAL_DATA.sections = buildSectionsFromTemplate(template);
       APPRAISAL_DATA.scopeItems = Array.isArray(template.scopeItems) ? template.scopeItems : [];
+      document.getElementById('meta-team').textContent = template.team || '—';
+      document.getElementById('meta-role').textContent = template.role || '—';
     } catch (e) {
       if (BX24App.DEV_MODE) {
         APPRAISAL_DATA.sections = devFallbackSections();
