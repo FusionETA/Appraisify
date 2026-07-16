@@ -10,7 +10,7 @@
  */
 
 import { callBitrix, fetchDeal } from './_lib/bitrix.js';
-import { blobFind, blobGet } from './_lib/kv.js';
+import { blobFind, blobGet, blobPut, blobDelete } from './_lib/kv.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
 
@@ -134,15 +134,12 @@ export default async function handler(req, res) {
         });
         results.push({ userId: uid, ok: true });
         const view = DEEPLINK_VIEW[type];
-        console.log(`[Appraisify] notify ok uid=${uid} type=${type} view=${view || 'none'}`);
         if (view) {
           try {
-            await callBitrix(domain, 'app.option.set', {
-              options: { [`deeplink_${uid}`]: JSON.stringify({ appraisal: dealId, view }) },
-            });
-            console.log(`[Appraisify] deeplink stored for user ${uid}: appraisal=${dealId} view=${view}`);
+            await blobPut(`deeplink:${domain}:${uid}`, { appraisal: dealId, view });
+            console.log(`[Appraisify] deeplink stored uid=${uid} appraisal=${dealId} view=${view}`);
           } catch (e) {
-            console.error(`[Appraisify] app.option.set failed for user ${uid}:`, e?.message || e);
+            console.error(`[Appraisify] deeplink store failed uid=${uid}:`, e?.message || e);
           }
         }
       } catch (e) {

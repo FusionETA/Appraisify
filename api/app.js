@@ -69,27 +69,26 @@ export default function handler(req, res) {
           var dest = (!setupDone && isAdmin) ? '/views/welcome.html' : '/views/dashboard.html';
 
           // Check for a pending deeplink stored when a notification was sent.
-          // Uses explicit app.option.get to get a fresh value (not SDK-cached appOption).
           BX24.callMethod('user.current', {}, function (meResult) {
             var userId = !meResult.error() && meResult.data() && meResult.data().ID;
             if (!userId) { goTo(dest); return; }
 
-            BX24.callMethod('app.option.get', { option: 'deeplink_' + userId }, function (optResult) {
-              try {
-                var raw = !optResult.error() && optResult.data();
-                if (raw) {
-                  var dl = JSON.parse(raw);
+            var domain = (BX24.getAuth() || {}).domain || '';
+            fetch('/api/deeplink?domain=' + encodeURIComponent(domain) + '&userId=' + encodeURIComponent(userId))
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                try {
+                  var dl = data.deeplink;
                   var PAGE = { reviewee: '/views/appraisal-reviewee.html', reviewer: '/views/appraisal-reviewer.html', partner: '/views/appraisal-partner.html' };
                   var page = dl && dl.appraisal && dl.view && PAGE[dl.view];
                   if (page) {
-                    BX24.callMethod('app.option.set', { options: { ['deeplink_' + userId]: '' } }, function () {});
                     window.location.replace(page + '?appraisal=' + encodeURIComponent(dl.appraisal));
                     return;
                   }
-                }
-              } catch (_) {}
-              goTo(dest);
-            });
+                } catch (_) {}
+                goTo(dest);
+              })
+              .catch(function () { goTo(dest); });
           });
         });
       });
