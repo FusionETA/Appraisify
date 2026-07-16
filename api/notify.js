@@ -10,7 +10,7 @@
  */
 
 import { callBitrix, fetchDeal } from './_lib/bitrix.js';
-import { blobFind, blobGet, blobPut, blobDelete } from './_lib/kv.js';
+import { blobFind, blobGet } from './_lib/kv.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
 
@@ -27,30 +27,50 @@ function parseCycleTitle(title) {
   return parts.length > 1 ? parts.slice(1).join(' – ').trim() : '';
 }
 
-const DEEPLINK_VIEW = {
-  launch:             'reviewee',
-  self_submitted:     'reviewer',
-  reviewer_submitted: 'partner',
-  partner_submitted:  null,
+const DIRECT_PAGE = {
+  launch:             'appraisal-reviewee.html',
+  self_submitted:     'appraisal-reviewer.html',
+  reviewer_submitted: 'appraisal-partner.html',
+  partner_submitted:  'appraisal-reviewee.html',
 };
 
-function buildNotificationMessage(type, deal, domain) {
-  const name   = parseEmployeeName(deal?.TITLE);
-  const cycle  = parseCycleTitle(deal?.TITLE);
-  const dealId = String(deal?.ID || '');
-  const ref    = dealId ? `#APR-${dealId}` : 'this appraisal';
-  const label  = cycle ? `"${cycle}"` : ref;
-  const appUrl = domain ? `https://${domain}/marketplace/app/fusion_eta.appraisify_v2/` : null;
-  const link   = appUrl ? `[URL=${appUrl}]open Appraisify[/URL]` : 'open Appraisify';
+const APP_BASE_URL = 'https://appraisify-plus.vercel.app/views/';
+
+function buildDirectLink(type, dealId, domain, uid, config) {
+  const page = DIRECT_PAGE[type];
+  if (!page) return null;
+  const params = new URLSearchParams({
+    appraisal: dealId,
+    domain,
+    userId: String(uid),
+    mode: config.crm_mode || 'deal',
+  });
+  if (config.entity_type_id)  params.set('entityTypeId',  String(config.entity_type_id));
+  if (config.spa_type_id)     params.set('spaTypeId',     String(config.spa_type_id));
+  if (config.spa_category_id) params.set('spaCategoryId', String(config.spa_category_id));
+  return `${APP_BASE_URL}${page}?${params.toString()}`;
+}
+
+function buildNotificationMessage(type, deal, domain, uid, config) {
+  const name    = parseEmployeeName(deal?.TITLE);
+  const cycle   = parseCycleTitle(deal?.TITLE);
+  const dealId  = String(deal?.ID || '');
+  const ref     = dealId ? `#APR-${dealId}` : 'this appraisal';
+  const label   = cycle ? `"${cycle}"` : ref;
+  const appUrl  = domain ? `https://${domain}/marketplace/app/fusion_eta.appraisify_v2/` : null;
+  const directUrl = buildDirectLink(type, dealId, domain, uid, config);
+
+  const appLink    = appUrl    ? `[URL=${appUrl}]open Appraisify[/URL]`  : 'open Appraisify';
+  const directLink = directUrl ? ` or [URL=${directUrl}]click here[/URL]` : '';
 
   const MAP = {
-    launch:             `Your appraisal ${label} has started. Please ${link} to submit your self-assessment.`,
-    self_submitted:     `${name} has submitted their self-assessment for ${label}. Please ${link} to complete your reviewer evaluation.`,
-    reviewer_submitted: `The reviewer evaluation for ${name} – ${label} is complete. Please ${link} to submit your partner review.`,
-    partner_submitted:  `The appraisal ${label} for ${name} is now complete. Please ${link} to view the final review summary.`,
+    launch:             `Your appraisal ${label} has started. Please ${appLink}${directLink} to submit your self-assessment.`,
+    self_submitted:     `${name} has submitted their self-assessment for ${label}. Please ${appLink}${directLink} to complete your reviewer evaluation.`,
+    reviewer_submitted: `The reviewer evaluation for ${name} – ${label} is complete. Please ${appLink}${directLink} to submit your partner review.`,
+    partner_submitted:  `The appraisal ${label} for ${name} is now complete. Please ${appLink}${directLink} to view the final review summary.`,
   };
 
-  return MAP[type] || `Appraisal update for ${name} (${ref}). Please ${link} for details.`;
+  return MAP[type] || `Appraisal update for ${name} (${ref}). Please ${appLink}${directLink} for details.`;
 }
 
 function recipientIdsForEvent(type, deal) {
@@ -122,26 +142,20 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, type, dealId, notified: 0, skipped: true, reason: 'no_recipients' });
     }
 
-    const message = buildNotificationMessage(type, deal, domain);
+    // Portal config needed to build direct URL params (CRM mode, SPA IDs)
+    const config = await blobGet(`portals/${domain}/config.json`).catch(() => null) || {};
+
     const results = [];
 
     for (const uid of recipients) {
       try {
+        const message = buildNotificationMessage(type, deal, domain, uid, config);
         await callBitrix(domain, 'im.notify.system.add', {
           USER_ID: uid,
           MESSAGE: message,
           TAG: `appraisify|${type}|${dealId}|${uid}`,
         });
         results.push({ userId: uid, ok: true });
-        const view = DEEPLINK_VIEW[type];
-        if (view) {
-          try {
-            await blobPut(`deeplink:${domain}:${uid}`, { appraisal: dealId, view });
-            console.log(`[Appraisify] deeplink stored uid=${uid} appraisal=${dealId} view=${view}`);
-          } catch (e) {
-            console.error(`[Appraisify] deeplink store failed uid=${uid}:`, e?.message || e);
-          }
-        }
       } catch (e) {
         const errCode = e.code || 'notify_failed';
         results.push({ userId: uid, ok: false, error: errCode });

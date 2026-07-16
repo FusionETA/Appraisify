@@ -485,17 +485,6 @@
   </div>
 </footer>
 
-<script>
-  (function () {
-    var p = new URLSearchParams(window.location.search);
-    var appraisal = p.get('appraisal');
-    var view = p.get('view');
-    var PAGE = { reviewee: 'appraisal-reviewee.html', reviewer: 'appraisal-reviewer.html', partner: 'appraisal-partner.html' };
-    if (appraisal && view && PAGE[view]) {
-      window.location.replace(PAGE[view] + '?appraisal=' + encodeURIComponent(appraisal));
-    }
-  })();
-</script>
 <script src="../assets/js/dashboard.js"></script>
 
 <!-- ── Dev Role Switcher (dev mode only) ──────────────────────────── -->

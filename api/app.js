@@ -67,29 +67,7 @@ export default function handler(req, res) {
           }
 
           var dest = (!setupDone && isAdmin) ? '/views/welcome.html' : '/views/dashboard.html';
-
-          // Check for a pending deeplink stored when a notification was sent.
-          BX24.callMethod('user.current', {}, function (meResult) {
-            var userId = !meResult.error() && meResult.data() && meResult.data().ID;
-            if (!userId) { goTo(dest); return; }
-
-            var domain = (BX24.getAuth() || {}).domain || '';
-            fetch('/api/deeplink?domain=' + encodeURIComponent(domain) + '&userId=' + encodeURIComponent(userId))
-              .then(function (r) { return r.json(); })
-              .then(function (data) {
-                try {
-                  var dl = data.deeplink;
-                  var PAGE = { reviewee: '/views/appraisal-reviewee.html', reviewer: '/views/appraisal-reviewer.html', partner: '/views/appraisal-partner.html' };
-                  var page = dl && dl.appraisal && dl.view && PAGE[dl.view];
-                  if (page) {
-                    window.location.replace(page + '?appraisal=' + encodeURIComponent(dl.appraisal));
-                    return;
-                  }
-                } catch (_) {}
-                goTo(dest);
-              })
-              .catch(function () { goTo(dest); });
-          });
+          goTo(dest);
         });
       });
     } else {

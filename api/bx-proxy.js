@@ -40,6 +40,8 @@ const ALLOWED_METHODS = new Set([
   'userfieldconfig.add',
   'userfieldconfig.list',
   'userfieldconfig.update',
+  // User lookups (used by standalone-mode appraisal pages opened outside Bitrix24 frame)
+  'user.get',
 ]);
 
 async function callBitrixWithToken(domain, tokens, method, params) {

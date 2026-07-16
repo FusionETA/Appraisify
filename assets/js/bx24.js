@@ -58,9 +58,30 @@ const BX24App = (() => {
 
   // ── Core helpers ──────────────────────────────────────────────────────
   let _resolvedDomain = '';
+  let _standaloneMode = false;
+  let _standaloneParams = {};
 
   function init(callback) {
     if (DEV_MODE) { console.info('[BX24App] Dev mode – BX24 SDK not present.'); callback(); return; }
+
+    // Standalone mode: page opened outside Bitrix24 iframe (e.g. direct notification link in new tab).
+    // BX24 SDK loads from CDN but postMessage to parent never resolves, so BX24.init() never fires.
+    // Read all needed context from URL params and route all data through /api/bx-proxy instead.
+    if (typeof BX24 === 'undefined') {
+      _standaloneMode = true;
+      const p = new URLSearchParams(window.location.search);
+      _standaloneParams = {
+        userId:        p.get('userId')        || '',
+        mode:          p.get('mode')          || 'deal',
+        entityTypeId:  p.get('entityTypeId')  || '',
+        spaTypeId:     p.get('spaTypeId')     || '',
+        spaCategoryId: p.get('spaCategoryId') || '',
+      };
+      _resolvedDomain = (p.get('domain') || '').split('/')[0].toLowerCase().trim();
+      callback();
+      return;
+    }
+
     BX24.init(() => {
       try {
         const a = BX24.getAuth();
@@ -213,6 +234,12 @@ const BX24App = (() => {
 
   async function getUser() {
     if (DEV_MODE) return MOCK_USER;
+    if (_standaloneMode) {
+      const result = await callAsSystem('user.get', { ID: [_standaloneParams.userId] });
+      const user = (Array.isArray(result) ? result[0] : result) || {};
+      user.APP_ROLE = 'employee';
+      return user;
+    }
     const [data, isAdmin] = await Promise.all([
       call('user.current'),
       call('user.admin'),
@@ -223,6 +250,22 @@ const BX24App = (() => {
 
   async function getUsers() {
     if (DEV_MODE) return MOCK_USERS;
+    if (_standaloneMode) {
+      const all = [];
+      let start = 0;
+      for (;;) {
+        const json = await callAsSystem('user.get', {
+          ACTIVE: true,
+          USER_TYPE: 'employee',
+          select: ['ID', 'NAME', 'LAST_NAME', 'WORK_POSITION', 'UF_DEPARTMENT', 'PERSONAL_PHOTO'],
+          start,
+        }, { rawResponse: true });
+        if (Array.isArray(json.result)) all.push(...json.result);
+        if (!json.next) break;
+        start = json.next;
+      }
+      return all;
+    }
     return callAll('user.get', {
       ACTIVE: true,
       USER_TYPE: 'employee',
@@ -243,6 +286,7 @@ const BX24App = (() => {
    */
   function getMode() {
     if (DEV_MODE) return 'deal';
+    if (_standaloneMode) return _standaloneParams.mode || 'deal';
     return BX24.appOption.get('crm_mode') || 'deal';
   }
 
@@ -252,6 +296,7 @@ const BX24App = (() => {
    */
   async function getEntityTypeId() {
     if (DEV_MODE) return null;
+    if (_standaloneMode) return _standaloneParams.entityTypeId || null;
     const fromOptions = BX24.appOption.get('entity_type_id');
     if (fromOptions) {
       const id = String(fromOptions);
@@ -275,11 +320,11 @@ const BX24App = (() => {
       const typeId = match ? String(match.id || match.ID || '') : '';
       if (entityTypeId) {
         try { localStorage.setItem('appraisify_entity_type_id', entityTypeId); } catch (_) {}
-        try { BX24.appOption.set('entity_type_id', entityTypeId); } catch (_) {}
+        try { if (typeof BX24 !== 'undefined') BX24.appOption.set('entity_type_id', entityTypeId); } catch (_) {}
       }
       if (typeId) {
         try { localStorage.setItem('appraisify_spa_type_id', typeId); } catch (_) {}
-        try { BX24.appOption.set('spa_type_id', typeId); } catch (_) {}
+        try { if (typeof BX24 !== 'undefined') BX24.appOption.set('spa_type_id', typeId); } catch (_) {}
       }
       if (entityTypeId) return entityTypeId;
     } catch (e) {
@@ -294,6 +339,7 @@ const BX24App = (() => {
    */
   async function getSpaCategoryId() {
     if (DEV_MODE) return null;
+    if (_standaloneMode) return _standaloneParams.spaCategoryId || null;
     const fromOptions = BX24.appOption.get('spa_category_id');
     if (fromOptions) {
       const id = String(fromOptions);
@@ -315,7 +361,7 @@ const BX24App = (() => {
       const categoryId = first ? String(first.id || first.ID || '') : '';
       if (categoryId) {
         try { localStorage.setItem('appraisify_spa_category_id', categoryId); } catch (_) {}
-        try { BX24.appOption.set('spa_category_id', categoryId); } catch (_) {}
+        try { if (typeof BX24 !== 'undefined') BX24.appOption.set('spa_category_id', categoryId); } catch (_) {}
         return categoryId;
       }
     } catch (e) {
@@ -332,6 +378,7 @@ const BX24App = (() => {
    */
   async function getSpaTypeId() {
     if (DEV_MODE) return null;
+    if (_standaloneMode) return _standaloneParams.spaTypeId || null;
     const fromOptions = BX24.appOption.get('spa_type_id');
     if (fromOptions) {
       const id = String(fromOptions);
@@ -353,7 +400,7 @@ const BX24App = (() => {
       const typeId = match ? String(match.id || match.ID || '') : '';
       if (typeId) {
         try { localStorage.setItem('appraisify_spa_type_id', typeId); } catch (_) {}
-        try { BX24.appOption.set('spa_type_id', typeId); } catch (_) {}
+        try { if (typeof BX24 !== 'undefined') BX24.appOption.set('spa_type_id', typeId); } catch (_) {}
         return typeId;
       }
     } catch (e) {
@@ -516,8 +563,9 @@ const BX24App = (() => {
     // in callers without needing changes there.
     if (getMode() === 'spa') return 'spa';
 
+    // In standalone mode, fall through to localStorage / proxy fallback.
     // 1. BX24 app options — shared across ALL users, updated by every install.
-    const fromOptions = BX24.appOption.get('category_id');
+    const fromOptions = typeof BX24 !== 'undefined' && BX24.appOption.get('category_id');
     if (fromOptions) {
       const id = String(fromOptions);
       console.log('[BX24App] getCategoryId: from appOption →', id);
@@ -936,7 +984,7 @@ const BX24App = (() => {
   }
 
   function resizeFrame(height) {
-    if (!DEV_MODE && BX24.resizeWindow) BX24.resizeWindow(800, height || 900);
+    if (!DEV_MODE && !_standaloneMode && typeof BX24 !== 'undefined' && BX24.resizeWindow) BX24.resizeWindow(800, height || 900);
   }
 
   function openPath(path) {
