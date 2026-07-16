@@ -68,12 +68,12 @@
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 text-sm">
       <div><p class="profile-label">Reviewee</p><p id="meta-reviewee" class="profile-value">—</p></div>
-      <div><p class="profile-label">Reviewer</p><p class="profile-value">—</p></div>
+      <div><p class="profile-label">Reviewer</p><p id="meta-reviewer" class="profile-value">—</p></div>
       <div><p class="profile-label">Partner</p><p id="meta-partner" class="profile-value">—</p></div>
-      <div><p class="profile-label">Year</p><p class="profile-value">2024</p></div>
-      <div><p class="profile-label">Team</p><p class="profile-value">Marketing</p></div>
-      <div><p class="profile-label">Role</p><p class="profile-value">Marketing Manager</p></div>
-      <div><p class="profile-label">Ref#</p><p class="profile-value font-mono text-xs">#APR-2024-0893</p></div>
+      <div><p class="profile-label">Year</p><p id="meta-year" class="profile-value">—</p></div>
+      <div><p class="profile-label">Team</p><p id="meta-team" class="profile-value">—</p></div>
+      <div><p class="profile-label">Role</p><p id="meta-role" class="profile-value">—</p></div>
+      <div><p class="profile-label">Ref#</p><p id="meta-ref" class="profile-value font-mono text-xs">—</p></div>
     </div>
   </div>
 
@@ -225,6 +225,7 @@
       groupMap[sectionTitle].questions.push({
         id: `q${qNo}`,
         text: String(q.text || '').trim(),
+        desc: String(q.desc || '').trim(),
       });
     });
     return grouped.filter(s => s.questions.length);
@@ -401,6 +402,35 @@
     document.getElementById('hdr-avatar').textContent    = APPRAISAL_DATA.revieweeName.charAt(0);
     document.getElementById('meta-reviewee').textContent = APPRAISAL_DATA.revieweeName;
     document.getElementById('meta-partner').textContent  = name;
+    document.getElementById('meta-ref').textContent      = `#APR-${APPRAISAL_DATA.id}`;
+
+    if (deal) {
+      const year = deal.CLOSEDATE ? deal.CLOSEDATE.split('-')[0] : (deal.TITLE || '').match(/\d{4}/)?.[0];
+      if (year) document.getElementById('meta-year').textContent = year;
+    }
+
+    try {
+      const [allUsers, departments] = await Promise.all([BX24App.getUsers(), BX24App.getDepartments()]);
+      const deptMap = {};
+      (departments || []).forEach(d => { deptMap[String(d.ID)] = d.NAME; });
+
+      if (deal && deal.UF_CRM_REVIEWER) {
+        const ru = (allUsers || []).find(u => String(u.ID) === String(deal.UF_CRM_REVIEWER));
+        if (ru) document.getElementById('meta-reviewer').textContent = `${ru.NAME} ${ru.LAST_NAME || ''}`.trim();
+      }
+
+      if (deal && deal.ASSIGNED_BY_ID) {
+        const eu = (allUsers || []).find(u => String(u.ID) === String(deal.ASSIGNED_BY_ID));
+        if (eu) {
+          document.getElementById('meta-role').textContent = eu.WORK_POSITION || '—';
+          if (eu.UF_DEPARTMENT && eu.UF_DEPARTMENT[0]) {
+            document.getElementById('meta-team').textContent = deptMap[String(eu.UF_DEPARTMENT[0])] || '—';
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Appraisify] Could not load reviewer/team info:', e);
+    }
 
     renderScopeItems();
     renderForm(APPRAISAL_DATA.sections);
@@ -473,7 +503,10 @@
                 const reviewer = reviewerScores[q.id] || {};
                 return `
                 <tr class="question-row" data-qid="${q.id}" data-section="${section.id}">
-                  <td class="px-6 py-4 font-medium text-slate-700 align-top">${q.text}</td>
+                  <td class="px-6 py-4 align-top">
+                    <p class="font-medium text-slate-700">${q.text}</p>
+                    ${q.desc ? `<p class="text-xs text-slate-400 mt-0.5">${q.desc}</p>` : ''}
+                  </td>
                   <td class="px-4 py-4 text-center bg-slate-50/30 align-top">
                     <div class="rating-readonly text-slate-600 font-bold">${self.score ?? '—'}</div>
                   </td>
@@ -514,7 +547,7 @@
             const reviewer = reviewerScores[q.id] || {};
             return `
             <div class="mobile-q-card" data-qid="${q.id}" data-section="${section.id}">
-              <div class="mobile-q-card-header">${q.text}</div>
+              <div class="mobile-q-card-header">${q.text}${q.desc ? `<p class="text-xs text-slate-400 font-normal mt-0.5">${q.desc}</p>` : ''}</div>
               <div class="mobile-q-scores">
                 <div class="mobile-q-score-cell">
                   <span class="mobile-q-score-label">Self</span>

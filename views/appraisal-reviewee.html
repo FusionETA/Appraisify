@@ -196,6 +196,7 @@
       groupMap[sectionTitle].questions.push({
         id: `q${qNo}`,
         text: String(q.text || '').trim(),
+        desc: String(q.desc || '').trim(),
       });
     });
     return grouped.filter(s => s.questions.length);
@@ -295,7 +296,15 @@
     document.getElementById('hdr-name').textContent    = name;
     document.getElementById('hdr-avatar').textContent  = name.charAt(0).toUpperCase();
     document.getElementById('meta-reviewee').textContent = name;
-    document.getElementById('meta-team').textContent   = (user.UF_DEPARTMENT || ['—'])[0] || '—';
+    try {
+      const departments = await BX24App.getDepartments();
+      const deptMap = {};
+      (departments || []).forEach(d => { deptMap[String(d.ID)] = d.NAME; });
+      const deptId = (user.UF_DEPARTMENT || [])[0];
+      document.getElementById('meta-team').textContent = (deptId && deptMap[String(deptId)]) || '—';
+    } catch (_) {
+      document.getElementById('meta-team').textContent = '—';
+    }
     document.getElementById('meta-role').textContent   = user.WORK_POSITION || '—';
     document.getElementById('meta-ref').textContent    = APPRAISAL_DATA.ref;
 
@@ -307,6 +316,10 @@
     let deal = null;
     try {
       deal = await BX24App.getDeal(dealId);
+      if (deal) {
+        const year = deal.CLOSEDATE ? deal.CLOSEDATE.split('-')[0] : (deal.TITLE || '').match(/\d{4}/)?.[0];
+        if (year) document.getElementById('meta-year').textContent = year;
+      }
     } catch (e) {
       console.warn('[Appraisify] Could not load deal data:', e);
     }
@@ -403,7 +416,10 @@
             <tbody class="divide-y divide-slate-100">
               ${section.questions.map(q => `
                 <tr class="question-row" data-qid="${q.id}" data-section="${section.id}">
-                  <td class="px-6 py-4 font-medium text-slate-700 align-top">${q.text}</td>
+                  <td class="px-6 py-4 align-top">
+                    <p class="font-medium text-slate-700">${q.text}</p>
+                    ${q.desc ? `<p class="text-xs text-slate-400 mt-0.5">${q.desc}</p>` : ''}
+                  </td>
                   <td class="px-4 py-4 text-center bg-amber-50/20 align-top">
                     <input type="number" min="1" max="5" step="0.01" placeholder="1–5"
                       data-field="self-score" data-qid="${q.id}"
@@ -432,7 +448,7 @@
         <div class="md:hidden space-y-3 p-4">
           ${section.questions.map(q => `
             <div class="mobile-q-card" data-qid="${q.id}" data-section="${section.id}">
-              <div class="mobile-q-card-header">${q.text}</div>
+              <div class="mobile-q-card-header">${q.text}${q.desc ? `<p class="text-xs text-slate-400 font-normal mt-0.5">${q.desc}</p>` : ''}</div>
               <div class="mobile-q-scores">
                 <div class="mobile-q-score-cell" style="background:rgba(255,251,235,0.4)">
                   <span class="mobile-q-score-label" style="color:#92400e">✏ Self</span>
