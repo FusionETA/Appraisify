@@ -134,6 +134,7 @@ export default async function handler(req, res) {
         });
         results.push({ userId: uid, ok: true });
         const view = DEEPLINK_VIEW[type];
+        console.log(`[Appraisify] notify ok uid=${uid} type=${type} view=${view || 'none'}`);
         if (view) {
           try {
             await callBitrix(domain, 'app.option.set', {
