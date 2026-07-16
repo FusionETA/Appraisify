@@ -407,7 +407,7 @@
     document.getElementById('meta-ref').textContent      = `#APR-${APPRAISAL_DATA.id}`;
 
     if (deal) {
-      const year = deal.CLOSEDATE ? deal.CLOSEDATE.split('-')[0] : (deal.TITLE || '').match(/\d{4}/)?.[0];
+      const year = (deal.TITLE || '').match(/\d{4}/)?.[0] || (deal.CLOSEDATE ? deal.CLOSEDATE.split('-')[0] : '');
       if (year) document.getElementById('meta-year').textContent = year;
     }
 
