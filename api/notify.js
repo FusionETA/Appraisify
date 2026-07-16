@@ -20,18 +20,27 @@ function parseEmployeeName(title) {
   return t.split(/\s*[–\-]\s*/)[0].trim() || 'employee';
 }
 
+function parseCycleTitle(title) {
+  const t = String(title || '').trim();
+  if (!t) return '';
+  const parts = t.split(/\s*[–\-]\s*/);
+  return parts.length > 1 ? parts.slice(1).join(' – ').trim() : '';
+}
+
 function buildNotificationMessage(type, deal, domain) {
   const name   = parseEmployeeName(deal?.TITLE);
+  const cycle  = parseCycleTitle(deal?.TITLE);
   const dealId = String(deal?.ID || '');
   const ref    = dealId ? `#APR-${dealId}` : 'this appraisal';
+  const label  = cycle ? `"${cycle}"` : ref;
   const appUrl = domain ? `https://${domain}/marketplace/app/fusion_eta.appraisify_v2/` : null;
   const link   = appUrl ? `[URL=${appUrl}]Open Appraisify[/URL]` : 'Appraisify';
 
   const MAP = {
-    launch:             `Your appraisal cycle has started for ${name} (${ref}). Please ${link} to submit your self-assessment.`,
-    self_submitted:     `${name} has submitted their self-assessment (${ref}). Please ${link} to complete your reviewer evaluation.`,
-    reviewer_submitted: `The reviewer evaluation for ${name} is complete (${ref}). Please ${link} to submit your partner review.`,
-    partner_submitted:  `The appraisal cycle for ${name} is now complete (${ref}). Please ${link} to view the final review summary.`,
+    launch:             `Your appraisal ${label} has started. Please ${link} to submit your self-assessment.`,
+    self_submitted:     `${name} has submitted their self-assessment for ${label}. Please ${link} to complete your reviewer evaluation.`,
+    reviewer_submitted: `The reviewer evaluation for ${name} – ${label} is complete. Please ${link} to submit your partner review.`,
+    partner_submitted:  `The appraisal ${label} for ${name} is now complete. Please ${link} to view the final review summary.`,
   };
 
   return MAP[type] || `Appraisal update for ${name} (${ref}). Please ${link} for details.`;
