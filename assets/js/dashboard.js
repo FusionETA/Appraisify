@@ -96,7 +96,6 @@ async function loadMyAppraisal(name) {
 
   const badge = document.getElementById('phase-badge');
   const cycleBadge = document.getElementById('cycle-badge');
-  const btn = document.getElementById('btn-submit-appraisal');
   const btnDownload = document.getElementById('btn-download-report');
 
   try {
@@ -111,7 +110,6 @@ async function loadMyAppraisal(name) {
       badge.textContent = 'No active appraisal';
       badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500';
       cycleBadge.textContent = '—';
-      if (btn) { btn.disabled = true; btn.classList.add('opacity-40', 'cursor-not-allowed'); }
       if (btnDownload) { btnDownload.disabled = true; btnDownload.classList.add('opacity-40', 'cursor-not-allowed'); }
       return;
     }
@@ -130,11 +128,6 @@ async function loadMyAppraisal(name) {
     badge.className = `px-2.5 py-0.5 rounded-full text-xs font-bold ${stageInfo.cls}`;
     cycleBadge.textContent = deal.TITLE;
 
-    if (stageInfo.phase !== 'self') {
-      if (btn) { btn.disabled = true; btn.classList.add('opacity-40', 'cursor-not-allowed'); }
-    } else {
-      if (btn) btn.onclick = () => { window.location.href = `appraisal-reviewee.html?appraisal=${deal.ID}`; };
-    }
     if (btnDownload) {
       if (submittedDeal) {
         btnDownload.disabled = false;
