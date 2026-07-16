@@ -135,13 +135,14 @@ export default async function handler(req, res) {
         results.push({ userId: uid, ok: true });
         const view = DEEPLINK_VIEW[type];
         if (view) {
-          callBitrix(domain, 'app.option.set', {
-            options: { [`deeplink_${uid}`]: JSON.stringify({ appraisal: dealId, view }) },
-          }).then(() => {
+          try {
+            await callBitrix(domain, 'app.option.set', {
+              options: { [`deeplink_${uid}`]: JSON.stringify({ appraisal: dealId, view }) },
+            });
             console.log(`[Appraisify] deeplink stored for user ${uid}: appraisal=${dealId} view=${view}`);
-          }).catch(e => {
+          } catch (e) {
             console.error(`[Appraisify] app.option.set failed for user ${uid}:`, e?.message || e);
-          });
+          }
         }
       } catch (e) {
         const errCode = e.code || 'notify_failed';
