@@ -132,6 +132,11 @@ export default async function handler(req, res) {
       });
     }
 
+    if (method === 'crm.item.update') {
+      console.log('[bx-proxy] crm.item.update sent stageId:', (params?.fields || {}).stageId,
+        '| result stageId:', data?.result?.item?.stageId,
+        '| entityTypeId:', params?.entityTypeId, '| id:', params?.id);
+    }
     console.log('[bx-proxy] OK:', method, 'for', domain);
     // Forward pagination cursor so callers can fetch subsequent pages.
     const responseBody = { result: data.result };
