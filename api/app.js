@@ -41,10 +41,9 @@ export default function handler(req, res) {
           (BX24.appOption && BX24.appOption.get('setup_done')) ||
           localStorage.getItem('appraisify_setup_done');
 
-        // Batch admin check + current user in one round-trip.
-        BX24.batch({ admin: ['user.admin'], me: ['user.current'] }, function (result) {
-          var isAdmin = !result.admin.error() && result.admin.data() === true;
-          var userId  = result.me && !result.me.error() && result.me.data() && result.me.data().ID;
+        // Check admin status — needed for routing and for deciding whether to refresh the OAuth token.
+        BX24.callMethod('user.admin', {}, function (result) {
+          var isAdmin = !result.error() && result.data() === true;
 
           // Only re-store the OAuth token when the current user is an admin.
           // The system token is used by /api/bx-proxy for all privileged CRM calls
@@ -71,21 +70,23 @@ export default function handler(req, res) {
 
           // Check for a pending deeplink stored when a notification was sent.
           // If found, navigate directly to the target appraisal and clear the option.
-          try {
-            var PAGE = { reviewee: '/views/appraisal-reviewee.html', reviewer: '/views/appraisal-reviewer.html', partner: '/views/appraisal-partner.html' };
-            var raw = userId && BX24.appOption && BX24.appOption.get('deeplink_' + userId);
-            if (raw) {
-              var dl = JSON.parse(raw);
-              var page = dl && dl.appraisal && dl.view && PAGE[dl.view];
-              if (page) {
-                BX24.appOption.set({ ['deeplink_' + userId]: '' });
-                window.location.replace(page + '?appraisal=' + encodeURIComponent(dl.appraisal));
-                return;
+          BX24.callMethod('user.current', {}, function (meResult) {
+            try {
+              var userId = !meResult.error() && meResult.data() && meResult.data().ID;
+              var PAGE = { reviewee: '/views/appraisal-reviewee.html', reviewer: '/views/appraisal-reviewer.html', partner: '/views/appraisal-partner.html' };
+              var raw = userId && BX24.appOption && BX24.appOption.get('deeplink_' + userId);
+              if (raw) {
+                var dl = JSON.parse(raw);
+                var page = dl && dl.appraisal && dl.view && PAGE[dl.view];
+                if (page) {
+                  BX24.appOption.set({ ['deeplink_' + userId]: '' });
+                  window.location.replace(page + '?appraisal=' + encodeURIComponent(dl.appraisal));
+                  return;
+                }
               }
-            }
-          } catch (_) {}
-
-          goTo(dest);
+            } catch (_) {}
+            goTo(dest);
+          });
         });
       });
     } else {
