@@ -483,20 +483,22 @@ async function handleSubmit(opts) {
       `[${opts.phase.toUpperCase()} ASSESSMENT] ${submittedAt}\n` +
       (lines.length ? lines.join('\n') : '(no scores recorded)');
 
-    if (BX24App.getMode() === 'spa') {
-      BX24App.getEntityTypeId().then(entityTypeId => {
-        BX24.callMethod('crm.timeline.comment.add', {
-          fields: { ENTITY_TYPE_ID: Number(entityTypeId), ENTITY_ID: Number(dealId), COMMENT: commentText }
-        }, r => {
-          if (r.error()) console.warn('[Appraisify] Timeline comment failed (SPA):', r.error());
+    if (typeof BX24 !== 'undefined') {
+      if (BX24App.getMode() === 'spa') {
+        BX24App.getEntityTypeId().then(entityTypeId => {
+          BX24.callMethod('crm.timeline.comment.add', {
+            fields: { ENTITY_TYPE_ID: Number(entityTypeId), ENTITY_ID: Number(dealId), COMMENT: commentText }
+          }, r => {
+            if (r.error()) console.warn('[Appraisify] Timeline comment failed (SPA):', r.error());
+          });
         });
-      });
-    } else {
-      BX24.callMethod('crm.timeline.comment.add', {
-        fields: { ENTITY_TYPE: 'deal', ENTITY_ID: Number(dealId), COMMENT: commentText }
-      }, r => {
-        if (r.error()) console.warn('[Appraisify] Timeline comment failed:', r.error());
-      });
+      } else {
+        BX24.callMethod('crm.timeline.comment.add', {
+          fields: { ENTITY_TYPE: 'deal', ENTITY_ID: Number(dealId), COMMENT: commentText }
+        }, r => {
+          if (r.error()) console.warn('[Appraisify] Timeline comment failed:', r.error());
+        });
+      }
     }
 
     const notifyTypeMap = {

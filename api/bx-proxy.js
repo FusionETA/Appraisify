@@ -132,12 +132,22 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log('[bx-proxy] OK:', method, 'for', domain);
-    if (method === 'crm.item.update') {
-      console.log('[bx-proxy] STAGE stageId_sent:', (params?.fields || {}).stageId,
-        'stageId_result:', data?.result?.item?.stageId,
-        'entityTypeId:', params?.entityTypeId, 'id:', params?.id);
+    // After a stage-change update, verify the actual stored stage via crm.item.get.
+    if (method === 'crm.item.update' && (params?.fields || {}).stageId) {
+      try {
+        const verify = await callBitrixWithToken(domain, tokens, 'crm.item.get', {
+          entityTypeId: params.entityTypeId,
+          id: params.id,
+        });
+        const actualStage = verify?.result?.item?.stageId ?? 'not_returned';
+        const sentStage = (params?.fields || {}).stageId;
+        const matched = actualStage === sentStage;
+        console.log('[bx-proxy] STAGE-VERIFY sent:', sentStage, '| actual:', actualStage, '| match:', matched, '| entityTypeId:', params?.entityTypeId, '| id:', params?.id);
+      } catch (e) {
+        console.warn('[bx-proxy] STAGE-VERIFY get failed:', e.message);
+      }
     }
+
     // Forward pagination cursor so callers can fetch subsequent pages.
     const responseBody = { result: data.result };
     if (data.next  != null) responseBody.next  = data.next;

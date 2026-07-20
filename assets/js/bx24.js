@@ -880,13 +880,11 @@ const BX24App = (() => {
     const ctx = await _getEntityContext();
 
     if (ctx.mode === 'spa') {
-      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId, ctx.typeId, ctx.categoryId, true);
-      console.log('[BX24App] updateDeal (SPA) id:', id, 'entityTypeId:', ctx.entityTypeId, 'typeId:', ctx.typeId, 'fields:', spaFields);
+      const spaFields = _dealToSpaFields(fields, ctx.entityTypeId, ctx.typeId, ctx.categoryId);
       return callAsSystem('crm.item.update', {
         entityTypeId: Number(ctx.entityTypeId),
         id: Number(id),
         fields: spaFields,
-        useOriginalUfNames: 'Y',
       });
     }
 
