@@ -60,8 +60,8 @@
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 text-sm">
       <div><p class="profile-label">Reviewee</p><p id="meta-reviewee" class="profile-value">—</p></div>
-      <div><p class="profile-label">Reviewer</p><p class="profile-value text-slate-400 italic">TBD</p></div>
-      <div><p class="profile-label">Partner</p><p class="profile-value text-slate-400 italic">TBD</p></div>
+      <div><p class="profile-label">Reviewer</p><p id="meta-reviewer" class="profile-value">—</p></div>
+      <div><p class="profile-label">Partner</p><p id="meta-partner" class="profile-value">—</p></div>
       <div><p class="profile-label">Year</p><p id="meta-year" class="profile-value">2024</p></div>
       <div><p class="profile-label">Team</p><p id="meta-team" class="profile-value">—</p></div>
       <div><p class="profile-label">Role</p><p id="meta-role" class="profile-value">—</p></div>
@@ -319,6 +319,19 @@
       if (deal) {
         const year = (deal.TITLE || '').match(/\d{4}/)?.[0] || (deal.CLOSEDATE ? deal.CLOSEDATE.split('-')[0] : '');
         if (year) document.getElementById('meta-year').textContent = year;
+
+        const reviewerId = deal.UF_CRM_REVIEWER;
+        const partnerId  = deal.UF_CRM_PARTNER;
+        const ids = [reviewerId, partnerId].filter(Boolean).map(String);
+        if (ids.length) {
+          BX24App.callAsSystem('user.get', { ID: ids }).then(users => {
+            if (!Array.isArray(users)) return;
+            const byId = {};
+            users.forEach(u => { byId[String(u.ID)] = `${u.NAME} ${u.LAST_NAME || ''}`.trim(); });
+            if (reviewerId) document.getElementById('meta-reviewer').textContent = byId[String(reviewerId)] || '—';
+            if (partnerId)  document.getElementById('meta-partner').textContent  = byId[String(partnerId)]  || '—';
+          }).catch(() => {});
+        }
       }
     } catch (e) {
       console.warn('[Appraisify] Could not load deal data:', e);
