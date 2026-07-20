@@ -75,7 +75,7 @@ const BX24App = (() => {
       _standaloneMode = true;
       const p = _initParams;
       _standaloneParams = {
-        userId:        p.get('userId')        || '',
+        userId:        (p.get('userId') || '').replace(/^user_/i, ''),
         mode:          p.get('mode')          || 'deal',
         categoryId:    p.get('categoryId')    || '',   // deal mode pipeline category
         entityTypeId:  p.get('entityTypeId')  || '',
