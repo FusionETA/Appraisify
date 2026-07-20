@@ -8,6 +8,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
   <link href="../assets/css/main.css" rel="stylesheet"/>
+  <style>
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    .skel { display:inline-block; height:14px; border-radius:4px; background:linear-gradient(90deg,#e2e8f0 25%,#f8fafc 50%,#e2e8f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; vertical-align:middle; }
+    .skel-sm { height:10px; }
+    .skel-avatar { display:block; width:20px; height:20px; border-radius:50%; background:linear-gradient(90deg,#e2e8f0 25%,#f8fafc 50%,#e2e8f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; margin:auto; }
+  </style>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -38,9 +44,9 @@
       </a>
       <div class="w-px h-4 bg-slate-200 hidden sm:block"></div>
       <div class="hidden sm:flex items-center gap-3">
-        <div id="hdr-avatar" class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">…</div>
+        <div id="hdr-avatar" class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm"><span class="skel-avatar"></span></div>
         <div>
-          <p id="hdr-name" class="text-sm font-bold text-slate-900 leading-none">Loading…</p>
+          <p id="hdr-name" class="text-sm font-bold text-slate-900 leading-none"><span class="skel skel-sm" style="width:120px"></span></p>
           <p class="text-xs text-slate-400 leading-none mt-0.5">Partner Review</p>
         </div>
       </div>
@@ -67,13 +73,13 @@
   <!-- Metadata card -->
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 text-sm">
-      <div><p class="profile-label">Reviewee</p><p id="meta-reviewee" class="profile-value">—</p></div>
-      <div><p class="profile-label">Reviewer</p><p id="meta-reviewer" class="profile-value">—</p></div>
-      <div><p class="profile-label">Partner</p><p id="meta-partner" class="profile-value">—</p></div>
-      <div><p class="profile-label">Year</p><p id="meta-year" class="profile-value">—</p></div>
-      <div><p class="profile-label">Team</p><p id="meta-team" class="profile-value">—</p></div>
-      <div><p class="profile-label">Role</p><p id="meta-role" class="profile-value">—</p></div>
-      <div><p class="profile-label">Ref#</p><p id="meta-ref" class="profile-value font-mono text-xs">—</p></div>
+      <div><p class="profile-label">Reviewee</p><p id="meta-reviewee" class="profile-value"><span class="skel" style="width:90px"></span></p></div>
+      <div><p class="profile-label">Reviewer</p><p id="meta-reviewer" class="profile-value"><span class="skel" style="width:90px"></span></p></div>
+      <div><p class="profile-label">Partner</p><p id="meta-partner" class="profile-value"><span class="skel" style="width:90px"></span></p></div>
+      <div><p class="profile-label">Year</p><p id="meta-year" class="profile-value"><span class="skel" style="width:40px"></span></p></div>
+      <div><p class="profile-label">Team</p><p id="meta-team" class="profile-value"><span class="skel" style="width:72px"></span></p></div>
+      <div><p class="profile-label">Role</p><p id="meta-role" class="profile-value"><span class="skel" style="width:72px"></span></p></div>
+      <div><p class="profile-label">Ref#</p><p id="meta-ref" class="profile-value font-mono text-xs"><span class="skel" style="width:80px"></span></p></div>
     </div>
   </div>
 
