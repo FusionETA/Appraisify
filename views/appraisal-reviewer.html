@@ -358,6 +358,16 @@
     let deal = null;
     try {
       deal = await BX24App.getDeal(dealId);
+      if (deal) {
+        const bareStage = (deal.STAGE_ID || '').split(':').pop();
+        if (bareStage === 'PARTNERPENDING' || bareStage === 'SUBMITTED') {
+          const p = new URLSearchParams({ phase: 'reviewer', ref: dealId });
+          const d = BX24App.getDomain();
+          if (d) p.set('domain', d);
+          window.location.href = `confirm.html?${p.toString()}`;
+          return;
+        }
+      }
     } catch (e) {
       console.warn('[Appraisify] Could not load deal data:', e);
     }
@@ -425,21 +435,13 @@
       if (year) document.getElementById('meta-year').textContent = year;
     }
 
-    try {
-      const allUsers = await BX24App.getUsers();
+    document.getElementById('meta-ref').textContent = `#APR-${APPRAISAL_DATA.id}`;
 
-      if (deal && deal.UF_CRM_PARTNER) {
-        const pu = (allUsers || []).find(u => String(u.ID) === String(deal.UF_CRM_PARTNER));
-        if (pu) {
-          const el = document.getElementById('meta-partner');
-          el.textContent = `${pu.NAME} ${pu.LAST_NAME || ''}`.trim();
-          el.classList.remove('text-slate-400', 'italic');
-        }
-      }
-
-      document.getElementById('meta-ref').textContent = `#APR-${APPRAISAL_DATA.id}`;
-    } catch (e) {
-      console.warn('[Appraisify] Could not load partner/team info:', e);
+    if (deal && deal.UF_CRM_PARTNER) {
+      BX24App.callAsSystem('user.get', { ID: [String(deal.UF_CRM_PARTNER)] }).then(users => {
+        const pu = Array.isArray(users) ? users[0] : null;
+        if (pu) document.getElementById('meta-partner').textContent = `${pu.NAME} ${pu.LAST_NAME || ''}`.trim();
+      }).catch(() => {});
     }
 
     renderScopeItems();
