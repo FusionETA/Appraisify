@@ -317,6 +317,16 @@
     try {
       deal = await BX24App.getDeal(dealId);
       if (deal) {
+        // Guard: if self-assessment already submitted, redirect to confirmation page
+        const bareStage = (deal.STAGE_ID || '').split(':').pop();
+        if (bareStage && bareStage !== 'INITIALIZED') {
+          const confirmP = new URLSearchParams({ phase: 'self', ref: dealId });
+          const d = BX24App.getDomain();
+          if (d) confirmP.set('domain', d);
+          window.location.href = `confirm.html?${confirmP.toString()}`;
+          return;
+        }
+
         const year = (deal.TITLE || '').match(/\d{4}/)?.[0] || (deal.CLOSEDATE ? deal.CLOSEDATE.split('-')[0] : '');
         if (year) document.getElementById('meta-year').textContent = year;
 
