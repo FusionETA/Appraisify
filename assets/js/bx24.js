@@ -488,11 +488,14 @@ const BX24App = (() => {
           // For crm.item.update: use original uppercase name with typeId inserted.
           // Bitrix24 accepts 'UF_CRM_174_APR_S_S01' when useOriginalUfNames:'Y' is set.
           out[`UF_CRM_${typeId}_${suffix}`] = val;
+        } else if (/\d/.test(suffix)) {
+          // Suffix contains digits (e.g. QUESTION_1_REVIEWEE_RATING) — Bitrix24 uses ufCrm_{typeId}_{SUFFIX} format.
+          out[`ufCrm_${typeId}_${suffix}`] = val;
         } else {
-          // For crm.item.add / crm.item.list filter: camelCase format.
+          // Pure alphabetic suffix — camelCase format (e.g. ufCrm53Reviewer).
           const camel = suffix
             .toLowerCase()
-            .replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase()); // 'aprReviewer'
+            .replace(/_([a-z])/g, (_, c) => c.toUpperCase());
           out[`ufCrm${typeId}${camel.charAt(0).toUpperCase()}${camel.slice(1)}`] = val;
         }
         continue;
