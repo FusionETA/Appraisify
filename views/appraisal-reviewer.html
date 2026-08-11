@@ -227,7 +227,8 @@
     id: null,
     revieweeName: '…',
     sections: [],
-    scopeItems: []
+    scopeItems: [],
+    skipPartner: false,
   };
 
   function slugifySection(text) {
@@ -462,6 +463,19 @@
     renderForm(APPRAISAL_DATA.sections);
     renderSectionTabs(APPRAISAL_DATA.sections);
     initAppraisalForm({ role: 'reviewer', appraisalId: APPRAISAL_DATA.id, progressColor: 'bg-emerald-500' });
+
+    if (deal && deal.UF_CRM_REVIEWER && deal.UF_CRM_PARTNER &&
+        String(deal.UF_CRM_REVIEWER) === String(deal.UF_CRM_PARTNER)) {
+      APPRAISAL_DATA.skipPartner = true;
+      const banner = document.createElement('div');
+      banner.className = 'bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-800 flex items-start gap-3 mb-4';
+      banner.innerHTML = `
+        <span class="material-symbols-outlined text-blue-500 text-xl shrink-0 mt-0.5">info</span>
+        <div>You are also assigned as the <strong>partner</strong> for this appraisal. Submitting your evaluation will complete the full appraisal cycle — no separate partner review is needed.</div>`;
+      const formSections = document.getElementById('form-sections');
+      if (formSections) formSections.prepend(banner);
+    }
+
     loadDraft();
   });
 
@@ -628,7 +642,7 @@
       <h3 class="text-xl font-extrabold text-slate-900 mb-2">Submitting...</h3>
       <p class="text-slate-500 text-sm">Please wait while your appraisal is being saved.<br>Do not close this window.</p>
     `;
-    await handleSubmit({ phase: 'reviewer', appraisalId: APPRAISAL_DATA.id });
+    await handleSubmit({ phase: 'reviewer', appraisalId: APPRAISAL_DATA.id, skipPartner: APPRAISAL_DATA.skipPartner });
     modal.classList.add('hidden');
   }
 </script>

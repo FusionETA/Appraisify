@@ -427,7 +427,7 @@ async function handleSubmit(opts) {
   const prefix = categoryId && categoryId !== 'dev' ? `C${categoryId}:` : '';
   const NEXT_STAGE = {
     'self':     `${prefix}REVIEWERPENDING`,            // after self-assessment → awaiting reviewer
-    'reviewer': `${prefix}PARTNERPENDING`,             // after reviewer → awaiting partner
+    'reviewer': opts.skipPartner ? `${prefix}SUBMITTED` : `${prefix}PARTNERPENDING`,
     'partner':  `${prefix}SUBMITTED`,                  // after partner → submitted/complete
   };
 
@@ -468,10 +468,14 @@ async function handleSubmit(opts) {
       reviewer: 'UF_CRM_REVIEWER_SUBMITTED_AT',
       partner:  'UF_CRM_PARTNER_SUBMITTED_AT',
     }[opts.phase];
+    const extraFields = (opts.phase === 'reviewer' && opts.skipPartner)
+      ? { UF_CRM_PARTNER_SUBMITTED_AT: submittedAt }
+      : {};
     await BX24App.updateDeal(dealId, {
       STAGE_ID: nextStage,
       ...responseFields,
       ...(submittedAtField ? { [submittedAtField]: submittedAt } : {}),
+      ...extraFields,
     });
 
     // Keep timeline comment as secondary audit log.
@@ -503,7 +507,7 @@ async function handleSubmit(opts) {
 
     const notifyTypeMap = {
       self: 'self_submitted',
-      reviewer: 'reviewer_submitted',
+      reviewer: opts.skipPartner ? 'partner_submitted' : 'reviewer_submitted',
       partner: 'partner_submitted',
     };
     const notifyType = notifyTypeMap[opts.phase];
@@ -531,7 +535,7 @@ async function handleSubmit(opts) {
     headers: { 'Content-Type': 'application/json' },
     keepalive: true,
     body: JSON.stringify({
-      event:   opts.phase === 'partner' ? 'appraisal_completed' : 'appraisal_submitted',
+      event:   (opts.phase === 'partner' || (opts.phase === 'reviewer' && opts.skipPartner)) ? 'appraisal_completed' : 'appraisal_submitted',
       domain:  BX24App.getDomain(),
       dealId,
       phase:   opts.phase,
@@ -541,7 +545,8 @@ async function handleSubmit(opts) {
 
   const ref = new URLSearchParams(window.location.search).get('appraisal') || '';
   const confirmDomain = BX24App.getDomain() || '';
-  const confirmParams = new URLSearchParams({ phase: opts.phase, ref });
+  const confirmPhase = (opts.phase === 'reviewer' && opts.skipPartner) ? 'partner' : opts.phase;
+  const confirmParams = new URLSearchParams({ phase: confirmPhase, ref });
   if (confirmDomain) confirmParams.set('domain', confirmDomain);
   window.location.href = `confirm.html?${confirmParams.toString()}`;
 }

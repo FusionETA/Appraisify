@@ -12,11 +12,13 @@
     .meta-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
     .avg-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
     .phase-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .phase-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .avg-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
 
     @media (max-width: 1024px) {
       .meta-grid { grid-template-columns: 1fr; }
-      .avg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .phase-grid { grid-template-columns: 1fr; }
+      .avg-grid, .avg-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .phase-grid, .phase-grid-2 { grid-template-columns: 1fr; }
     }
 
     @media print {
@@ -28,7 +30,9 @@
       article { break-inside: avoid; page-break-inside: avoid; }
       .meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
       .avg-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+      .avg-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
       .phase-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+      .phase-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     }
   </style>
 </head>
@@ -211,6 +215,9 @@
         const deal = await getDealViaProxy(dealId, domain);
         if (!deal) throw new Error('deal_not_found');
 
+        const mergedRole = !!(deal.UF_CRM_REVIEWER && deal.UF_CRM_PARTNER &&
+          String(deal.UF_CRM_REVIEWER) === String(deal.UF_CRM_PARTNER));
+
         const templateId = await resolveTemplateId(dealId, deal);
         const template = await TemplatesAPI.getTemplate(templateId);
         if (!template) throw new Error('template_not_found');
@@ -226,26 +233,20 @@
           const partnerRaw = getField(deal, 'PARTNER_RATING', q.index);
           if (selfRaw !== null && selfRaw !== undefined && selfRaw !== '') selfScores.push(selfRaw);
           if (reviewerRaw !== null && reviewerRaw !== undefined && reviewerRaw !== '') reviewerScores.push(reviewerRaw);
-          if (partnerRaw !== null && partnerRaw !== undefined && partnerRaw !== '') partnerScores.push(partnerRaw);
+          if (!mergedRole && partnerRaw !== null && partnerRaw !== undefined && partnerRaw !== '') partnerScores.push(partnerRaw);
           const selfScore = scoreOrDash(selfRaw);
           const selfComment = textOrDash(getField(deal, 'REVIEWEE_COMMENT', q.index));
           const reviewerScore = scoreOrDash(reviewerRaw);
           const reviewerComment = textOrDash(getField(deal, 'REVIEWER_COMMENT', q.index));
           const partnerScore = scoreOrDash(partnerRaw);
           const partnerComment = textOrDash(getField(deal, 'PARTNER_COMMENT', q.index));
-          return `
-            <article class="border border-slate-200 rounded-xl overflow-hidden">
-              <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Question ${q.index} · ${q.section}</p>
-                <p class="text-sm font-semibold text-slate-900 mt-1">${textOrDash(q.text)}</p>
-              </div>
-              <div class="phase-grid divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
+          const reviewerPartnerCols = mergedRole ? `
                 <section class="p-4">
-                  <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Self</p>
-                  <p class="text-sm font-semibold text-slate-900 mt-1">Score: ${selfScore}</p>
+                  <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Reviewer / Partner</p>
+                  <p class="text-sm font-semibold text-slate-900 mt-1">Score: ${reviewerScore}</p>
                   <p class="mt-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Comment</p>
-                  <div class="mt-1 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-3 whitespace-pre-wrap break-words">${selfComment}</div>
-                </section>
+                  <div class="mt-1 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-3 whitespace-pre-wrap break-words">${reviewerComment}</div>
+                </section>` : `
                 <section class="p-4">
                   <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Reviewer</p>
                   <p class="text-sm font-semibold text-slate-900 mt-1">Score: ${reviewerScore}</p>
@@ -257,7 +258,21 @@
                   <p class="text-sm font-semibold text-slate-900 mt-1">Score: ${partnerScore}</p>
                   <p class="mt-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Comment</p>
                   <div class="mt-1 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-3 whitespace-pre-wrap break-words">${partnerComment}</div>
+                </section>`;
+          return `
+            <article class="border border-slate-200 rounded-xl overflow-hidden">
+              <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Question ${q.index} · ${q.section}</p>
+                <p class="text-sm font-semibold text-slate-900 mt-1">${textOrDash(q.text)}</p>
+              </div>
+              <div class="${mergedRole ? 'phase-grid-2' : 'phase-grid'} divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
+                <section class="p-4">
+                  <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Self</p>
+                  <p class="text-sm font-semibold text-slate-900 mt-1">Score: ${selfScore}</p>
+                  <p class="mt-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Comment</p>
+                  <div class="mt-1 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-3 whitespace-pre-wrap break-words">${selfComment}</div>
                 </section>
+                ${reviewerPartnerCols}
               </div>
             </article>`;
         }).join('');
@@ -275,15 +290,26 @@
         }
         document.getElementById('meta-self-submitted').textContent     = fmtSubmitted(deal.UF_CRM_REVIEWEE_SUBMITTED_AT);
         document.getElementById('meta-reviewer-submitted').textContent = fmtSubmitted(deal.UF_CRM_REVIEWER_SUBMITTED_AT);
-        document.getElementById('meta-partner-submitted').textContent  = fmtSubmitted(deal.UF_CRM_PARTNER_SUBMITTED_AT);
+        if (mergedRole) {
+          document.getElementById('meta-reviewer-submitted').previousElementSibling.textContent = 'Reviewer / Partner Submitted';
+          document.getElementById('meta-partner-submitted').closest('div').remove();
+        } else {
+          document.getElementById('meta-partner-submitted').textContent = fmtSubmitted(deal.UF_CRM_PARTNER_SUBMITTED_AT);
+        }
         const selfAvg = avgOrDash(selfScores);
         const reviewerAvg = avgOrDash(reviewerScores);
-        const partnerAvg = avgOrDash(partnerScores);
-        const phaseAverages = [selfAvg, reviewerAvg, partnerAvg].filter(function(v) { return v !== '—'; });
+        const partnerAvg = mergedRole ? null : avgOrDash(partnerScores);
+        const phaseAverages = [selfAvg, reviewerAvg, partnerAvg].filter(function(v) { return v && v !== '—'; });
         const totalAvg = phaseAverages.length ? avgOrDash(phaseAverages) : '—';
         document.getElementById('avg-self').textContent = selfAvg;
         document.getElementById('avg-reviewer').textContent = reviewerAvg;
-        document.getElementById('avg-partner').textContent = partnerAvg;
+        if (mergedRole) {
+          document.querySelector('.avg-grid').className = 'avg-grid-3';
+          document.getElementById('avg-reviewer').previousElementSibling.textContent = 'Reviewer / Partner Avg';
+          document.getElementById('avg-partner').closest('.rounded-lg').remove();
+        } else {
+          document.getElementById('avg-partner').textContent = partnerAvg;
+        }
         document.getElementById('avg-total').textContent = totalAvg;
 
         document.getElementById('loading').classList.add('hidden');
