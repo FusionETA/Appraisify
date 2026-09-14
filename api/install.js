@@ -295,6 +295,7 @@ export default async function handler(req, res) {
       { FIELD_NAME: 'REFERENCE_NO',   LABEL: 'Reference No',   USER_TYPE_ID: 'string'  },
       // ── Cycle metadata ────────────────────────────────────────────────────
       { FIELD_NAME: 'YEAR',           LABEL: 'Year',           USER_TYPE_ID: 'string'  },
+      { FIELD_NAME: 'PERIOD',         LABEL: 'Period',         USER_TYPE_ID: 'string'  },
       { FIELD_NAME: 'APPRAISAL_TYPE', LABEL: 'Appraisal Type', USER_TYPE_ID: 'string'  },
       { FIELD_NAME: 'TEAM',           LABEL: 'Team',           USER_TYPE_ID: 'string'  },
       { FIELD_NAME: 'ROLE',           LABEL: 'Role',           USER_TYPE_ID: 'string'  },
@@ -449,7 +450,7 @@ export default async function handler(req, res) {
           elements: [
             { name: 'TITLE' }, { name: 'STAGE_ID' }, { name: 'ASSIGNED_BY_ID' },
             { name: 'UF_CRM_REVIEWEE' }, { name: 'UF_CRM_REVIEWER' }, { name: 'UF_CRM_PARTNER' },
-            { name: 'UF_CRM_YEAR' }, { name: 'UF_CRM_APPRAISAL_TYPE' },
+            { name: 'UF_CRM_YEAR' }, { name: 'UF_CRM_PERIOD' }, { name: 'UF_CRM_APPRAISAL_TYPE' },
             { name: 'UF_CRM_TEAM' }, { name: 'UF_CRM_ROLE' },
             { name: 'CLOSEDATE' }, { name: 'COMMENTS' },
           ].concat(responseElements)

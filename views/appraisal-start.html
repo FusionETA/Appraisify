@@ -842,6 +842,7 @@
 
     const typeEl    = document.getElementById('cycle-type');
     const typeLabel = typeEl.options[typeEl.selectedIndex].text.replace(' Review', '');
+    const selectedTemplate = templateMap[selectedTemplateId] || {};
     const year      = document.getElementById('cycle-year').value;
     const period    = document.getElementById('cycle-quarter').value;
     const deadline  = document.getElementById('cycle-deadline').value;
@@ -885,6 +886,15 @@
       }
     }
 
+    // Portals installed before PERIOD existed would otherwise be written a field
+    // they do not have. This is the same lazy-provisioning path appraisal.js uses
+    // on the forms; it is cached per session and covers both storage backends.
+    try {
+      await BX24App.ensureAppraisalResponseFields();
+    } catch (e) {
+      console.warn('[Appraisify] ensureAppraisalResponseFields failed (non-fatal):', e);
+    }
+
     let created = 0;
     for (const emp of employees) {
       const reviewer = empPickerRegistry[`${emp.ID}-reviewer`]?.getValue() || '';
@@ -903,6 +913,18 @@
       if (deadline)  fields.CLOSEDATE       = deadline;
       if (reviewer)  fields.UF_CRM_REVIEWER = parseInt(reviewer, 10);
       if (partner)   fields.UF_CRM_PARTNER  = parseInt(partner,  10);
+
+      // Cycle metadata. These fields are provisioned at install but were never
+      // written — the type/period/year survived only inside TITLE. createDeal()
+      // translates UF_CRM_* into SPA field names, so assigning them here covers
+      // both storage backends. REFERENCE_NO stays unset: it would be the record
+      // ID, which does not exist until after the record is created.
+      fields.UF_CRM_REVIEWEE       = parseInt(emp.ID, 10);
+      fields.UF_CRM_APPRAISAL_TYPE = typeLabel;
+      fields.UF_CRM_PERIOD         = period;
+      fields.UF_CRM_YEAR           = String(year);
+      if (selectedTemplate.team) fields.UF_CRM_TEAM = String(selectedTemplate.team);
+      if (selectedTemplate.role) fields.UF_CRM_ROLE = String(selectedTemplate.role);
 
       const fields_log = JSON.stringify(fields);
       console.log('[Appraisify] createDeal fields:', fields_log);

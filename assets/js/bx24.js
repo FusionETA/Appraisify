@@ -21,7 +21,7 @@ const BX24App = (() => {
   const DEV_MODE = !!window.__DEV_ROLE__ || !!localStorage.getItem('__appraisify_dev_role__');
   const MAX_Q_PER_PHASE = 20;
   const PHASE_CODES = ['S', 'R', 'P'];
-  const RESPONSE_FIELDS_CACHE_KEY = 'appraisify_response_fields_ready_v3'; // bumped: adds submission timestamp fields
+  const RESPONSE_FIELDS_CACHE_KEY = 'appraisify_response_fields_ready_v4'; // bumped: adds PERIOD meta field
   const DEAL_CARD_CONFIG_CACHE_KEY = 'appraisify_deal_card_configured_v1';
 
   // ── Mock data for local development ──────────────────────────────────
@@ -106,6 +106,7 @@ const BX24App = (() => {
       // Meta field included here so ensureAppraisalResponseFields creates it on
       // existing installs (new installs get it via META_FIELDS in install.js).
       { FIELD_NAME: 'SOURCE_APP',            USER_TYPE_ID: 'string', LABEL: 'Source App' },
+      { FIELD_NAME: 'PERIOD',                USER_TYPE_ID: 'string', LABEL: 'Period' },
       // Submission timestamps — lazily created on first submit for existing portals
       { FIELD_NAME: 'REVIEWEE_SUBMITTED_AT', USER_TYPE_ID: 'string', LABEL: 'Self-Assessment Submitted' },
       { FIELD_NAME: 'REVIEWER_SUBMITTED_AT', USER_TYPE_ID: 'string', LABEL: 'Reviewer Submitted' },
@@ -816,6 +817,7 @@ const BX24App = (() => {
           { name: 'UF_CRM_REVIEWER' },
           { name: 'UF_CRM_PARTNER' },
           { name: 'UF_CRM_YEAR' },
+          { name: 'UF_CRM_PERIOD' },
           { name: 'UF_CRM_APPRAISAL_TYPE' },
           { name: 'UF_CRM_TEAM' },
           { name: 'UF_CRM_ROLE' },
