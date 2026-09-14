@@ -170,7 +170,10 @@
     if (domain && p.get('userId')) {
       window.BX24 = undefined;
       var el = document.getElementById('btn-dashboard');
-      if (el) el.href = 'https://' + domain + '/marketplace/app/fusion_eta.appraisify_v2/';
+      if (el) {
+        el.href   = 'https://' + domain + '/marketplace/app/fusion_eta.appraisify_v2/';
+        el.target = '_top';  // never load a portal page inside our own frame
+      }
     }
   })();
 </script>
@@ -334,6 +337,8 @@
           const confirmP = new URLSearchParams({ phase: 'self', ref: dealId });
           const d = BX24App.getDomain();
           if (d) confirmP.set('domain', d);
+          const u = new URLSearchParams(window.location.search).get('userId');
+          if (u) confirmP.set('userId', u);
           window.location.href = `confirm.html?${confirmP.toString()}`;
           return;
         }

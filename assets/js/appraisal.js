@@ -548,5 +548,9 @@ async function handleSubmit(opts) {
   const confirmPhase = (opts.phase === 'reviewer' && opts.skipPartner) ? 'partner' : opts.phase;
   const confirmParams = new URLSearchParams({ phase: confirmPhase, ref });
   if (confirmDomain) confirmParams.set('domain', confirmDomain);
+  // Carry userId through so confirm.html can tell a standalone tab from an
+  // embedded frame; without it the Return to Dashboard link stays relative.
+  const confirmUserId = new URLSearchParams(window.location.search).get('userId');
+  if (confirmUserId) confirmParams.set('userId', confirmUserId);
   window.location.href = `confirm.html?${confirmParams.toString()}`;
 }
