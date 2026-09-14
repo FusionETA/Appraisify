@@ -126,9 +126,18 @@
   function init() {
     const params = new URLSearchParams(window.location.search);
     const domain = params.get('domain');
-    if (domain) {
+    // Standalone tab (direct notification link) is domain + userId, matching
+    // bx24.js. Embedded in Bitrix24 the domain alone is always present, and
+    // pointing the button at the portal would navigate our own iframe
+    // cross-site — the session cookie is withheld and Bitrix24 serves its
+    // login page inside the frame. target=_top keeps that from happening if
+    // this page is ever framed in standalone mode too.
+    if (domain && params.get('userId')) {
       const el = document.getElementById('btn-dashboard');
-      if (el) el.href = `https://${domain}/marketplace/app/fusion_eta.appraisify_v2/`;
+      if (el) {
+        el.href   = `https://${domain}/marketplace/app/fusion_eta.appraisify_v2/`;
+        el.target = '_top';
+      }
     }
     const phase  = params.get('phase') || 'self';
     const ref    = params.get('ref')   || '';
