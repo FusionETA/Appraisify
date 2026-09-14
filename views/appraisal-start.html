@@ -905,7 +905,10 @@
       const fields = {
         TITLE:             `${fullName} – ${typeLabel} ${period} ${year}`,
         CATEGORY_ID:       catId,
-        STAGE_ID:          `C${catId}:INITIALIZED`,
+        // INITIALIZED exists only in the SPA stage list; deal pipelines are
+        // created with REVIEWEEPENDING. Hardcoding the SPA name here pointed
+        // every deal-mode record at a stage its pipeline does not contain.
+        STAGE_ID:          `C${catId}:${BX24App.getInitialStageId()}`,
         ASSIGNED_BY_ID:    parseInt(emp.ID, 10),
         COMMENTS:          `[APPRAISIFY_TEMPLATE_ID:${selectedTemplateId}]`,
         UF_CRM_SOURCE_APP: 'APPRAISIFY',
@@ -950,6 +953,20 @@
         btn.innerHTML = `<span class="material-symbols-outlined text-lg" style="animation:spin .8s linear infinite">progress_activity</span> Creating… ${created}/${employees.length}`;
       } catch (e) {
         console.error('[Appraisify] Failed to create deal for', fullName, '| error:', e, '| fields:', fields_log);
+        // Record it server-side too. This path was console-only, which is why a
+        // deal-mode launch failing on every attempt left no trace in /api/logs.
+        fetch('/api/logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          keepalive: true,
+          body: JSON.stringify({
+            event:      'appraisal_launch_failed',
+            domain,
+            employeeId: String(emp.ID),
+            stageId:    fields.STAGE_ID,
+            error:      (e && (e.error_description || e.error || e.message)) || String(e),
+          }),
+        }).catch(() => {});
         alert(`Failed to create deal for ${fullName}.\nError: ${JSON.stringify(e)}\n\nCheck the browser console for details.`);
       }
     }

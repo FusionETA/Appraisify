@@ -107,7 +107,8 @@
     function stageLabel(stageId) {
       const short = String(stageId || '').includes(':') ? String(stageId).split(':')[1] : String(stageId || '');
       const map = {
-        INITIALIZED: 'Self-Assessment',
+        INITIALIZED:     'Self-Assessment',
+        REVIEWEEPENDING: 'Self-Assessment',   // deal-mode spelling of the same phase
         REVIEWERPENDING:            'Awaiting Reviewer',
         PARTNERPENDING:             'Awaiting Partner',
         SUBMITTED:                  'Completed',

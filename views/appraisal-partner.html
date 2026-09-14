@@ -360,7 +360,7 @@
           window.location.href = `confirm.html?${p.toString()}`;
           return;
         }
-        if (bareStage === 'INITIALIZED' || bareStage === 'REVIEWERPENDING') {
+        if (BX24App.isSelfPhaseStage(bareStage) || bareStage === 'REVIEWERPENDING') {
           document.getElementById('form-sections').innerHTML = `
             <div class="bg-white rounded-2xl border border-amber-200 p-6 text-sm text-amber-800 flex items-start gap-3">
               <span class="material-symbols-outlined text-amber-500 text-xl shrink-0 mt-0.5">hourglass_top</span>

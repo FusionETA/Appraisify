@@ -290,6 +290,23 @@ const BX24App = (() => {
    * Returns the current CRM storage mode: 'deal' or 'spa'.
    * Reads from BX24 appOption (set during install). Defaults to 'deal'.
    */
+  // The first pipeline stage has a different STATUS_ID per backend: deal mode
+  // uses REVIEWEEPENDING, SPA uses INITIALIZED. They mean the same phase — the
+  // split exists only because Bitrix24 caps STATUS_IDs at 18 characters and
+  // SPA's 'Initialized-Reviewee Pending' label did not fit deal mode
+  // (commit 9515825). Every stage after this one is named identically in both.
+  const SELF_PHASE_STAGES = ['INITIALIZED', 'REVIEWEEPENDING'];
+
+  /** Bare STATUS_ID for a newly launched appraisal, correct for the active backend. */
+  function getInitialStageId() {
+    return getMode() === 'spa' ? 'INITIALIZED' : 'REVIEWEEPENDING';
+  }
+
+  /** True when a bare stage name is the self-assessment phase, in either backend. */
+  function isSelfPhaseStage(bareStage) {
+    return SELF_PHASE_STAGES.includes(String(bareStage || '').toUpperCase());
+  }
+
   function getMode() {
     if (DEV_MODE) return 'deal';
     if (_standaloneMode) return _standaloneParams.mode || 'deal';
@@ -1011,5 +1028,6 @@ const BX24App = (() => {
     getCategoryId, createDeal, updateDeal, listDeals, getDeal,
     listDealUserFields, addDealUserField, ensureAppraisalResponseFields, ensureDealCardConfig,
     resizeFrame, openPath, getDomain, DEV_MODE,
+    getInitialStageId, isSelfPhaseStage,
   };
 })();
