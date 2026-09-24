@@ -34,6 +34,11 @@
  *   --apply          actually write; omit for a dry run
  *   --limit <n>      stop after n records (useful for a cautious first pass)
  *   --base-url <u>   deployed app base URL (default: $APP_URL or production)
+ *
+ * Env:
+ *   APPRAISIFY_SERVICE_TOKEN  shared secret identifying this as a trusted
+ *                             server-side caller. Required once the app
+ *                             enforces authentication (ENFORCE_AUTH=1).
  */
 
 import { argv, env, exit } from 'node:process';
@@ -93,7 +98,12 @@ async function bx(cfg, method, params = {}) {
   CALLS += 1;
   const resp = await fetch(`${cfg.baseUrl}/api/bx-proxy`, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      // A script has no Bitrix24 session, so it presents the shared service
+      // secret instead. Required once ENFORCE_AUTH is on; ignored before that.
+      ...(env.APPRAISIFY_SERVICE_TOKEN ? { 'x-appraisify-service-token': env.APPRAISIFY_SERVICE_TOKEN } : {}),
+    },
     body:    JSON.stringify({ method, params, domain: cfg.domain }),
   });
 

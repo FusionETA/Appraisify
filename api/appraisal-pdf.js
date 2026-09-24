@@ -14,6 +14,7 @@ import { blobGet, blobFind } from './_lib/kv.js';
 import { fetchDeal } from './_lib/bitrix.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
+import { verifyCaller, canAccessRecord, enforce } from './_lib/verify-caller.js';
 
 function extractTemplateIdFromDeal(deal) {
   const comments = String(deal?.COMMENTS || '');
@@ -91,8 +92,43 @@ function wrapText(text, maxChars) {
   return lines;
 }
 
+/**
+ * Base-14 Helvetica with /WinAnsiEncoding addresses one byte per glyph, but the
+ * document is assembled as a JS string and was emitted as UTF-8 — so an en dash
+ * (U+2013) reached the viewer as its three UTF-8 bytes E2 80 93 and rendered as
+ * three separate glyphs. Every appraisal title contains an en dash, and comments
+ * routinely contain curly apostrophes, so every report was affected.
+ *
+ * Map the punctuation that actually occurs onto its WinAnsi code point, fall
+ * back to a plain-ASCII approximation for anything else, and write the file as
+ * latin1 so each code unit becomes the single byte the font expects.
+ */
+const WIN_ANSI = {
+  '\u20ac': 0x80, '\u201a': 0x82, '\u0192': 0x83, '\u201e': 0x84,
+  '\u2026': 0x85, '\u2020': 0x86, '\u2021': 0x87, '\u02c6': 0x88,
+  '\u2030': 0x89, '\u0160': 0x8a, '\u2039': 0x8b, '\u0152': 0x8c,
+  '\u017d': 0x8e, '\u2018': 0x91, '\u2019': 0x92, '\u201c': 0x93,
+  '\u201d': 0x94, '\u2022': 0x95, '\u2013': 0x96, '\u2014': 0x97,
+  '\u02dc': 0x98, '\u2122': 0x99, '\u0161': 0x9a, '\u203a': 0x9b,
+  '\u0153': 0x9c, '\u017e': 0x9e, '\u0178': 0x9f, '\u00a0': 0x20,
+};
+
+function toWinAnsi(text) {
+  let out = '';
+  for (const ch of String(text ?? '')) {
+    const mapped = WIN_ANSI[ch];
+    if (mapped !== undefined) { out += String.fromCharCode(mapped); continue; }
+    if (ch.charCodeAt(0) <= 0xff) { out += ch; continue; }
+    // Outside WinAnsi: strip diacritics if that lands in range, else mark it
+    // rather than emitting bytes the font will render as noise.
+    const stripped = ch.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+    out += [...stripped].every(c => c.charCodeAt(0) <= 0xff) ? stripped : '?';
+  }
+  return out;
+}
+
 function escapePdfText(text) {
-  return String(text)
+  return toWinAnsi(text)
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
     .replace(/\)/g, '\\)');
@@ -124,7 +160,7 @@ function buildSimplePdf(lines) {
   const objects = [];
   const addObj = (src) => { objects.push(src); return objects.length; };
 
-  const fontObj = addObj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  const fontObj = addObj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
 
   const pageObjIds = [];
   pages.forEach((pageLines) => {
@@ -137,7 +173,7 @@ function buildSimplePdf(lines) {
     });
     contentParts.push('ET');
     const contentStream = contentParts.join('\n');
-    const contentObj = addObj(`<< /Length ${Buffer.byteLength(contentStream, 'utf8')} >>\nstream\n${contentStream}\nendstream`);
+    const contentObj = addObj(`<< /Length ${Buffer.byteLength(contentStream, 'latin1')} >>\nstream\n${contentStream}\nendstream`);
     const pageObj = addObj(`<< /Type /Page /Parent PAGES_REF /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontObj} 0 R >> >> /Contents ${contentObj} 0 R >>`);
     pageObjIds.push(pageObj);
   });
@@ -153,11 +189,11 @@ function buildSimplePdf(lines) {
   let pdf = '%PDF-1.4\n';
   const offsets = [0];
   objects.forEach((obj, idx) => {
-    offsets.push(Buffer.byteLength(pdf, 'utf8'));
+    offsets.push(Buffer.byteLength(pdf, 'latin1'));
     pdf += `${idx + 1} 0 obj\n${obj}\nendobj\n`;
   });
 
-  const xrefPos = Buffer.byteLength(pdf, 'utf8');
+  const xrefPos = Buffer.byteLength(pdf, 'latin1');
   pdf += `xref\n0 ${objects.length + 1}\n`;
   pdf += '0000000000 65535 f \n';
   for (let i = 1; i <= objects.length; i += 1) {
@@ -165,7 +201,7 @@ function buildSimplePdf(lines) {
   }
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogObj} 0 R >>\nstartxref\n${xrefPos}\n%%EOF`;
 
-  return Buffer.from(pdf, 'utf8');
+  return Buffer.from(pdf, 'latin1');
 }
 
 async function loadTemplateForDeal(domain, deal) {
@@ -297,6 +333,15 @@ export default async function handler(req, res) {
     if (!deal) {
       return res.status(404).json({ error: 'deal_not_found' });
     }
+
+    const caller = await verifyCaller(domain, req, body);
+    const allowed = await enforce(res, domain, caller, {
+      source:   'appraisal-pdf',
+      action:   'download_pdf',
+      recordId: dealId,
+      allowed:  canAccessRecord(caller, deal),
+    });
+    if (!allowed) return;
 
     const template = await loadTemplateForDeal(domain, deal);
     const lines = buildReportLines(deal, domain, template);
