@@ -343,11 +343,11 @@ const BX24App = (() => {
       const typeId = match ? String(match.id || match.ID || '') : '';
       if (entityTypeId) {
         try { localStorage.setItem('appraisify_entity_type_id', entityTypeId); } catch (_) {}
-        try { if (typeof BX24 !== 'undefined') BX24.appOption.set('entity_type_id', entityTypeId); } catch (_) {}
+        try { if (typeof BX24 !== 'undefined' && BX24) BX24.appOption.set('entity_type_id', entityTypeId); } catch (_) {}
       }
       if (typeId) {
         try { localStorage.setItem('appraisify_spa_type_id', typeId); } catch (_) {}
-        try { if (typeof BX24 !== 'undefined') BX24.appOption.set('spa_type_id', typeId); } catch (_) {}
+        try { if (typeof BX24 !== 'undefined' && BX24) BX24.appOption.set('spa_type_id', typeId); } catch (_) {}
       }
       if (entityTypeId) return entityTypeId;
     } catch (e) {
@@ -364,7 +364,7 @@ const BX24App = (() => {
     if (DEV_MODE) return null;
     if (_standaloneMode && _standaloneParams.spaCategoryId) return _standaloneParams.spaCategoryId;
     // standalone mode without spaCategoryId in URL — fall through to crm.category.list below
-    const fromOptions = typeof BX24 !== 'undefined' && BX24.appOption.get('spa_category_id');
+    const fromOptions = typeof BX24 !== 'undefined' && BX24 && BX24.appOption.get('spa_category_id');
     if (fromOptions) {
       const id = String(fromOptions);
       try { localStorage.setItem('appraisify_spa_category_id', id); } catch (_) {}
@@ -385,7 +385,7 @@ const BX24App = (() => {
       const categoryId = first ? String(first.id || first.ID || '') : '';
       if (categoryId) {
         try { localStorage.setItem('appraisify_spa_category_id', categoryId); } catch (_) {}
-        try { if (typeof BX24 !== 'undefined') BX24.appOption.set('spa_category_id', categoryId); } catch (_) {}
+        try { if (typeof BX24 !== 'undefined' && BX24) BX24.appOption.set('spa_category_id', categoryId); } catch (_) {}
         return categoryId;
       }
     } catch (e) {
@@ -404,7 +404,7 @@ const BX24App = (() => {
     if (DEV_MODE) return null;
     if (_standaloneMode && _standaloneParams.spaTypeId) return _standaloneParams.spaTypeId;
     // standalone without spaTypeId in URL — fall through to crm.type.list below
-    const fromOptions = typeof BX24 !== 'undefined' && BX24.appOption.get('spa_type_id');
+    const fromOptions = typeof BX24 !== 'undefined' && BX24 && BX24.appOption.get('spa_type_id');
     if (fromOptions) {
       const id = String(fromOptions);
       try { localStorage.setItem('appraisify_spa_type_id', id); } catch (_) {}
@@ -425,7 +425,7 @@ const BX24App = (() => {
       const typeId = match ? String(match.id || match.ID || '') : '';
       if (typeId) {
         try { localStorage.setItem('appraisify_spa_type_id', typeId); } catch (_) {}
-        try { if (typeof BX24 !== 'undefined') BX24.appOption.set('spa_type_id', typeId); } catch (_) {}
+        try { if (typeof BX24 !== 'undefined' && BX24) BX24.appOption.set('spa_type_id', typeId); } catch (_) {}
         return typeId;
       }
     } catch (e) {
@@ -595,7 +595,7 @@ const BX24App = (() => {
     if (_standaloneMode && _standaloneParams.categoryId) return _standaloneParams.categoryId;
 
     // 1. BX24 app options — shared across ALL users, updated by every install.
-    const fromOptions = typeof BX24 !== 'undefined' && BX24.appOption.get('category_id');
+    const fromOptions = typeof BX24 !== 'undefined' && BX24 && BX24.appOption.get('category_id');
     if (fromOptions) {
       const id = String(fromOptions);
       console.log('[BX24App] getCategoryId: from appOption →', id);
@@ -638,7 +638,7 @@ const BX24App = (() => {
     let domain = (urlParams.get('DOMAIN') || urlParams.get('domain') || '').split('/')[0].toLowerCase().trim();
     let member_id = '';
 
-    if (typeof BX24 !== 'undefined' && BX24.getAuth) {
+    if (typeof BX24 !== 'undefined' && BX24 && BX24.getAuth) {
       try {
         const auth = BX24.getAuth();
         if (!domain && auth && auth.domain) domain = String(auth.domain).split('/')[0].toLowerCase().trim();
@@ -1021,7 +1021,7 @@ const BX24App = (() => {
   function getDomain() {
     const urlParams = new URLSearchParams(window.location.search);
     let domain = (urlParams.get('DOMAIN') || urlParams.get('domain') || '').split('/')[0].toLowerCase().trim();
-    if (!domain && typeof BX24 !== 'undefined' && BX24.getAuth) {
+    if (!domain && typeof BX24 !== 'undefined' && BX24 && BX24.getAuth) {
       try {
         const auth = BX24.getAuth();
         if (auth && auth.domain) domain = String(auth.domain).split('/')[0].toLowerCase().trim();
@@ -1032,7 +1032,7 @@ const BX24App = (() => {
   }
 
   function resizeFrame(height) {
-    if (!DEV_MODE && !_standaloneMode && typeof BX24 !== 'undefined' && BX24.resizeWindow) BX24.resizeWindow(800, height || 900);
+    if (!DEV_MODE && !_standaloneMode && typeof BX24 !== 'undefined' && BX24 && BX24.resizeWindow) BX24.resizeWindow(800, height || 900);
   }
 
   function openPath(path) {
