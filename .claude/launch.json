@@ -4,20 +4,44 @@
     {
       "name": "vercel-dev",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vercel", "dev", "--listen", "3000", "--yes"],
+      "runtimeArgs": [
+        "vercel",
+        "dev",
+        "--listen",
+        "3000",
+        "--yes"
+      ],
       "port": 3000
     },
     {
       "name": "frontend",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", ".", "--no-clipboard", "-p", "3000"],
+      "runtimeArgs": [
+        "serve",
+        ".",
+        "--no-clipboard",
+        "-p",
+        "3000"
+      ],
       "port": 3000
     },
     {
       "name": "python-http",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8000"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8000"
+      ],
       "port": 8000
+    },
+    {
+      "name": "static",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        ".claude/static-server.mjs"
+      ],
+      "port": 8765
     }
   ]
 }
