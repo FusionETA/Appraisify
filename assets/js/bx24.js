@@ -650,7 +650,7 @@ const BX24App = (() => {
     const resp = await fetch('/api/bx-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method, params, domain, member_id }),
+      body: JSON.stringify({ method, params, domain, member_id, auth: getAuthToken() }),
     });
     const json = await resp.json();
     if (json.error) {
@@ -1000,6 +1000,24 @@ const BX24App = (() => {
     return all;
   }
 
+  /**
+   * The access token Bitrix24 issued to this user's session.
+   * Sent to our own endpoints so they can establish the caller's identity —
+   * only Bitrix24 can validate it, so unlike a userId parameter it cannot be
+   * forged. Absent outside the Bitrix24 frame (standalone/external links),
+   * which is why those links need signing of their own.
+   */
+  function getAuthToken() {
+    if (DEV_MODE) return '';
+    try {
+      if (typeof BX24 !== 'undefined' && BX24 && BX24.getAuth) {
+        const auth = BX24.getAuth();
+        return (auth && (auth.access_token || auth.AUTH_ID)) || '';
+      }
+    } catch (_) {}
+    return '';
+  }
+
   function getDomain() {
     const urlParams = new URLSearchParams(window.location.search);
     let domain = (urlParams.get('DOMAIN') || urlParams.get('domain') || '').split('/')[0].toLowerCase().trim();
@@ -1027,7 +1045,7 @@ const BX24App = (() => {
     getMode, getEntityTypeId, getSpaTypeId, getSpaCategoryId,
     getCategoryId, createDeal, updateDeal, listDeals, getDeal,
     listDealUserFields, addDealUserField, ensureAppraisalResponseFields, ensureDealCardConfig,
-    resizeFrame, openPath, getDomain, DEV_MODE,
+    resizeFrame, openPath, getDomain, getAuthToken, DEV_MODE,
     getInitialStageId, isSelfPhaseStage,
   };
 })();

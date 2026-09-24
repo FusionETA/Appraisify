@@ -14,6 +14,7 @@ import { blobGet, blobFind } from './_lib/kv.js';
 import { fetchDeal } from './_lib/bitrix.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
+import { verifyCaller, canAccessRecord, enforce } from './_lib/verify-caller.js';
 
 function extractTemplateIdFromDeal(deal) {
   const comments = String(deal?.COMMENTS || '');
@@ -297,6 +298,15 @@ export default async function handler(req, res) {
     if (!deal) {
       return res.status(404).json({ error: 'deal_not_found' });
     }
+
+    const caller = await verifyCaller(domain, req, body);
+    const allowed = await enforce(res, domain, caller, {
+      source:   'appraisal-pdf',
+      action:   'download_pdf',
+      recordId: dealId,
+      allowed:  canAccessRecord(caller, deal),
+    });
+    if (!allowed) return;
 
     const template = await loadTemplateForDeal(domain, deal);
     const lines = buildReportLines(deal, domain, template);

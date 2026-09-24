@@ -9,6 +9,7 @@
 import { fetchDeal } from './_lib/bitrix.js';
 import { parseBody, resolveDomain } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
+import { verifyCaller, canAccessRecord, enforce } from './_lib/verify-caller.js';
 
 export default async function handler(req, res) {
   res.setHeader('X-Frame-Options', 'ALLOWALL');
@@ -28,6 +29,19 @@ export default async function handler(req, res) {
   try {
     const deal = await fetchDeal(domain, dealId);
     if (!deal) return res.status(404).json({ error: 'deal_not_found' });
+
+    // The record has to be fetched before access can be judged — the decision
+    // depends on who is named on it. Admins pass; everyone else must be the
+    // reviewee, reviewer or partner.
+    const caller = await verifyCaller(domain, req, body);
+    const ok = await enforce(res, domain, caller, {
+      source:   'appraisal-record',
+      action:   'read_record',
+      recordId: dealId,
+      allowed:  canAccessRecord(caller, deal),
+    });
+    if (!ok) return;
+
     return res.status(200).json({ result: deal });
   } catch (e) {
     logError(domain, { event: 'error', source: 'appraisal-record', error: e.code || 'fetch_error', message: e.message }).catch(() => {});

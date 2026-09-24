@@ -14,6 +14,7 @@
 import { loadTokens, refreshTokens } from './_lib/auth.js';
 import { flattenParams } from './_lib/utils.js';
 import { logError } from './_lib/logger.js';
+import { verifyCaller, enforce } from './_lib/verify-caller.js';
 
 // Methods permitted via the system proxy.
 const ALLOWED_METHODS = new Set([
@@ -103,7 +104,17 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log('[bx-proxy] →', method, 'for', domain);
+    // Establish who is asking. Until now the proxy executed anything on the
+    // allowlist for anyone who knew the portal domain, using the admin token.
+    const caller = await verifyCaller(domain, req, req.body || {});
+    const ok = await enforce(res, domain, caller, {
+      source:  'bx-proxy',
+      action:  method,
+      allowed: caller.verified,
+    });
+    if (!ok) return;
+
+    console.log('[bx-proxy] →', method, 'for', domain, caller.userId ? `as user ${caller.userId}` : '(service)');
     let data = await callBitrixWithToken(domain, tokens, method, params || {});
 
     // Bitrix24 returns { error: 'expired_token' } (HTTP 200) when access_token expires

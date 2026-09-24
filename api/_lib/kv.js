@@ -48,6 +48,12 @@ export async function blobPut(key, value) {
   return { url: key, pathname: key };
 }
 
+/** Write a JSON-serialisable value that expires after ttlSeconds. */
+export async function blobPutEx(key, value, ttlSeconds) {
+  await cmd('SET', key, JSON.stringify(value), 'EX', String(ttlSeconds));
+  return { url: key, pathname: key };
+}
+
 /**
  * Fetch and JSON-parse a value by key.
  * Falls back to a direct https:// fetch for legacy Blob CDN URLs.
