@@ -118,7 +118,8 @@ function fmtHistoryDate(iso) {
 
 /** Download control, shown only once an appraisal is complete. */
 function pdfDownloadBtn(dealId, handler) {
-  return `<button onclick="${handler}('${dealId}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
+  // `this` lets the handler show progress on the button that was clicked.
+  return `<button onclick="${handler}('${dealId}', this)" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
            <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
          </button>`;
 }
@@ -320,13 +321,7 @@ async function loadMyAppraisal(name) {
       if (submittedDeal) {
         btnDownload.disabled = false;
         btnDownload.classList.remove('opacity-40', 'cursor-not-allowed');
-        btnDownload.onclick = () => {
-          const params = new URLSearchParams({ appraisal: String(submittedDeal.ID) });
-          const current = new URLSearchParams(window.location.search);
-          const domain = current.get('DOMAIN') || current.get('domain');
-          if (domain) params.set('domain', domain);
-          window.open(`appraisal-report-preview.html?${params.toString()}`, '_blank');
-        };
+        btnDownload.onclick = () => downloadAppraisalPdf(submittedDeal.ID, btnDownload);
       } else {
         btnDownload.disabled = true;
         btnDownload.classList.add('opacity-40', 'cursor-not-allowed');
@@ -524,12 +519,8 @@ function filterEmployeeHistory() {
   }).join('');
 }
 
-function empDownloadPdf(dealId) {
-  const params = new URLSearchParams({ appraisal: String(dealId) });
-  const current = new URLSearchParams(window.location.search);
-  const domain = current.get('DOMAIN') || current.get('domain') || BX24App.getDomain() || '';
-  if (domain) params.set('domain', domain);
-  window.open(`appraisal-report-preview.html?${params.toString()}`, '_blank');
+function empDownloadPdf(dealId, btn) {
+  return downloadAppraisalPdf(dealId, btn);
 }
 
 function normalizeTask(deal, taskType) {
@@ -959,12 +950,8 @@ function filterAdminHistory() {
   renderHistoryRows('history-table', filtered, { groupByCycle: true });
 }
 
-function adminDownloadPdf(dealId) {
-  const params = new URLSearchParams({ appraisal: String(dealId) });
-  const current = new URLSearchParams(window.location.search);
-  const domain = current.get('DOMAIN') || current.get('domain') || BX24App.getDomain() || '';
-  if (domain) params.set('domain', domain);
-  window.open(`appraisal-report-preview.html?${params.toString()}`, '_blank');
+function adminDownloadPdf(dealId, btn) {
+  return downloadAppraisalPdf(dealId, btn);
 }
 
 function onRowCheck(cb) {
@@ -1042,6 +1029,62 @@ async function applyDealCardConfig() {
 }
 
 // ── Toast helper ──────────────────────────────────────────────────────
+/**
+ * Download an appraisal report as a real PDF.
+ *
+ * Fetched rather than linked so the caller's Bitrix session token travels in a
+ * header: a plain link or window.open could only carry it in the URL, where it
+ * would end up in browser history, referrers and server logs. The response is
+ * handed to the browser as a blob, so nothing about the request is visible in
+ * the address bar.
+ *
+ * Replaces opening appraisal-report-preview.html in a new tab, which produced
+ * a page to print rather than a file, and which could not authenticate at all —
+ * it runs outside the Bitrix24 frame with no session to draw on.
+ */
+async function downloadAppraisalPdf(dealId, btn) {
+  const id = String(dealId);
+  const restore = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined text-sm" style="animation:spin .8s linear infinite">progress_activity</span> Preparing…'; }
+
+  try {
+    const current = new URLSearchParams(window.location.search);
+    const domain = current.get('DOMAIN') || current.get('domain') || BX24App.getDomain() || '';
+    if (!domain) { showToast('Could not determine your Bitrix24 portal.'); return; }
+
+    const resp = await fetch(`/api/appraisal-pdf?dealId=${encodeURIComponent(id)}&domain=${encodeURIComponent(domain)}`, {
+      headers: { 'x-appraisify-auth': BX24App.getAuthToken() },
+    });
+
+    if (!resp.ok) {
+      // The endpoint reports failures as JSON even though it normally sends a PDF.
+      let reason = `HTTP ${resp.status}`;
+      try { const j = await resp.json(); reason = j.error_description || j.error || reason; } catch (_) {}
+      console.error('[Appraisify] PDF download failed:', id, reason);
+      showToast(resp.status === 403 || resp.status === 401
+        ? 'You do not have access to this appraisal.'
+        : `Could not generate the PDF (${reason}).`);
+      return;
+    }
+
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `appraisal-${id}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Revoke on the next tick — Safari aborts the download if the URL dies first.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    console.error('[Appraisify] PDF download error:', id, e);
+    showToast('Could not download the PDF. Please try again.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = restore; }
+  }
+}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   document.getElementById('toast-msg').textContent = msg;
