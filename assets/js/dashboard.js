@@ -5,6 +5,8 @@
 let currentUser = null;
 let selectedEmployees = new Set();
 let _adminHistoryRows = [];      // raw rows for admin history filtering
+let _adminDealsByEmployee = {};  // employeeId -> that employee's appraisals, newest first
+let _adminUserMap = {};          // employeeId -> Bitrix user record
 let _employeeHistoryRows = [];   // raw rows for employee history filtering
 let pendingTasksCache = [];
 
@@ -21,6 +23,192 @@ const STAGE_MAP = {
   'PARTNERPENDING':             { phase: 'partner',  label: 'Awaiting Partner',  cls: 'bg-purple-100 text-purple-700' },
   'SUBMITTED':                  { phase: 'complete', label: 'Completed',         cls: 'bg-emerald-100 text-emerald-700' },
 };
+
+// Cycle groups the admin collapses stay collapsed across re-renders.
+let _collapsedCycles = new Set();
+
+// ── Shared history helpers ───────────────────────────────────────────
+// Used by both history tables (admin overview and employee self-view) and by
+// any per-employee view built on the same rows.
+
+/**
+ * Status-filter predicate.
+ * The self-assessment phase has two STATUS_IDs — INITIALIZED (SPA) and
+ * REVIEWEEPENDING (deal mode) — for the same phase, and the dropdown only
+ * offers one of them, so either satisfies a filter naming either.
+ */
+function matchesStatusFilter(stage, status) {
+  if (!status) return true;
+  if (stage === status) return true;
+  return BX24App.isSelfPhaseStage(status) && BX24App.isSelfPhaseStage(stage);
+}
+
+const escHtml = v => String(v ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+// Safe to drop inside a single-quoted onclick attribute. encodeURIComponent
+// leaves apostrophes alone, which would break out of the attribute.
+const attrSafe = v => encodeURIComponent(String(v ?? '')).replace(/'/g, '%27');
+
+/**
+ * A cycle is the type + period + year written onto the record at launch.
+ * Records from before that was wired, on a portal that has not been
+ * backfilled, have none of it — those group together rather than vanish.
+ */
+function cycleLabelOf(deal) {
+  const type   = String(deal.UF_CRM_APPRAISAL_TYPE || '').trim();
+  const period = String(deal.UF_CRM_PERIOD || '').trim();
+  const year   = String(deal.UF_CRM_YEAR || '').trim();
+  const when   = [period, year].filter(Boolean).join(' ');
+  return [type, when].filter(Boolean).join(' \u00b7 ') || 'Unspecified cycle';
+}
+
+const teamOf = deal => String(deal.UF_CRM_TEAM || '').trim();
+const roleOf  = deal => String(deal.UF_CRM_ROLE || '').trim();
+
+/** Distinct values for a filter dropdown, in display order. */
+function distinctValues(rows, pick) {
+  const seen = new Map();
+  rows.forEach(({ deal }) => {
+    const v = pick(deal);
+    if (v) seen.set(v, true);
+  });
+  return [...seen.keys()].sort((a, b) => a.localeCompare(b));
+}
+
+function fillFilterSelect(id, values, allLabel) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const previous = el.value;
+  el.innerHTML = `<option value="">${allLabel}</option>`
+    + values.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
+  if (previous && values.includes(previous)) el.value = previous;
+}
+
+function populateAdminHistoryFilters() {
+  fillFilterSelect('admin-hist-cycle', distinctValues(_adminHistoryRows, cycleLabelOf), 'All Cycles');
+  fillFilterSelect('admin-hist-team',  distinctValues(_adminHistoryRows, teamOf),       'All Teams');
+  fillFilterSelect('admin-hist-role',  distinctValues(_adminHistoryRows, roleOf),       'All Roles');
+}
+
+function resetAdminHistoryFilters() {
+  ['admin-hist-search', 'admin-hist-status', 'admin-hist-cycle', 'admin-hist-team', 'admin-hist-role']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  filterAdminHistory();
+}
+
+function toggleCycleGroup(encodedKey) {
+  const key = decodeURIComponent(encodedKey);
+  if (_collapsedCycles.has(key)) _collapsedCycles.delete(key);
+  else _collapsedCycles.add(key);
+  filterAdminHistory();
+}
+
+function stageBadge(stage, rawStageId) {
+  const si = STAGE_MAP[stage] || { label: rawStageId || stage, cls: 'bg-slate-100 text-slate-500' };
+  return `<span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls}">${si.label}</span>`;
+}
+
+function fmtHistoryDate(iso) {
+  if (!iso) return '\u2014';
+  const d = new Date(iso);
+  return isNaN(d) ? '\u2014' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+/** Download control, shown only once an appraisal is complete. */
+function pdfDownloadBtn(dealId, handler) {
+  return `<button onclick="${handler}('${dealId}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
+           <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
+         </button>`;
+}
+
+function avatarFor(user, fullName) {
+  const initial = (fullName || '?').charAt(0).toUpperCase();
+  return user?.PERSONAL_PHOTO
+    ? `<img src="${user.PERSONAL_PHOTO}" alt="${fullName}" class="w-7 h-7 rounded-full object-cover shrink-0"/>`
+    : `<div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">${initial}</div>`;
+}
+
+/** Normalise deals into the row shape both the overview and a per-employee view render. */
+function buildHistoryRows(deals, userMap) {
+  return [...(deals || [])]
+    .sort((a, b) => Number(b.ID) - Number(a.ID))
+    .map(d => {
+      const u = userMap[String(d.ASSIGNED_BY_ID)];
+      const fullName = u ? `${u.NAME || ''} ${u.LAST_NAME || ''}`.trim() || 'Unknown' : `User #${d.ASSIGNED_BY_ID}`;
+      return { deal: d, user: u, fullName, stage: shortStageId(d.STAGE_ID) };
+    });
+}
+
+/**
+ * Render history rows into a tbody.
+ * `showEmployee` is dropped for a per-employee view, where the name is already
+ * in the header above the table.
+ */
+function renderHistoryRows(tbodyId, rows, {
+  showEmployee = true,
+  groupByCycle = false,
+  emptyLabel = 'No appraisals match the current filters.',
+} = {}) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+  const cols = showEmployee ? 5 : 4;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="${cols}" class="px-6 py-10 text-center text-slate-400 text-sm">${emptyLabel}</td></tr>`;
+    return;
+  }
+
+  const rowHtml = ({ deal: d, user: u, fullName, stage }) => {
+    const title = d.TITLE || `Appraisal #${d.ID}`;
+    // Most recent submission; records predating the timestamps fall back to the due date.
+    const latestIso = d.UF_CRM_PARTNER_SUBMITTED_AT || d.UF_CRM_REVIEWER_SUBMITTED_AT || d.UF_CRM_REVIEWEE_SUBMITTED_AT || d.CLOSEDATE;
+    const empCell = showEmployee
+      ? `<td class="px-4 py-3"><div class="flex items-center gap-2">${avatarFor(u, fullName)}<span class="font-medium text-slate-800 text-sm">${escHtml(fullName)}</span></div></td>`
+      : '';
+    return `
+      <tr class="hover:bg-slate-50/50 transition-colors">
+        ${empCell}
+        <td class="px-4 py-3 text-slate-700 text-sm">${escHtml(title)}</td>
+        <td class="px-4 py-3">${stageBadge(stage, d.STAGE_ID)}</td>
+        <td class="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">${fmtHistoryDate(latestIso)}</td>
+        <td class="px-4 py-3">${stage === 'SUBMITTED' ? pdfDownloadBtn(d.ID, 'adminDownloadPdf') : ''}</td>
+      </tr>`;
+  };
+
+  if (!groupByCycle) {
+    tbody.innerHTML = rows.map(rowHtml).join('');
+    return;
+  }
+
+  // Group in first-seen order — rows arrive newest first, so the most recent
+  // cycle heads the list.
+  const groups = new Map();
+  rows.forEach(r => {
+    const key = cycleLabelOf(r.deal);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  });
+
+  tbody.innerHTML = [...groups.entries()].map(([key, groupRows]) => {
+    const done = groupRows.filter(r => r.stage === 'SUBMITTED').length;
+    const collapsed = _collapsedCycles.has(key);
+    const header = `
+      <tr class="bg-slate-50/80 border-y border-slate-100 cursor-pointer hover:bg-slate-100/80 transition-colors"
+          onclick="toggleCycleGroup('${attrSafe(key)}')">
+        <td colspan="${cols}" class="px-4 py-2.5">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-slate-400 text-base">${collapsed ? 'chevron_right' : 'expand_more'}</span>
+            <span class="font-bold text-slate-700 text-sm">${escHtml(key)}</span>
+            <span class="text-xs text-slate-400">${groupRows.length} record${groupRows.length !== 1 ? 's' : ''} \u00b7 ${done} complete</span>
+          </div>
+        </td>
+      </tr>`;
+    return header + (collapsed ? '' : groupRows.map(rowHtml).join(''));
+  }).join('');
+}
+
 
 // ── Init ─────────────────────────────────────────────────────────────
 BX24App.init(async () => {
@@ -307,7 +495,7 @@ function filterEmployeeHistory() {
     const title = (deal.TITLE || '').toLowerCase();
     const stage = shortStageId(deal.STAGE_ID);
     if (search && !title.includes(search)) return false;
-    if (status && stage !== status && !(status === 'REVIEWEEPENDING' && stage === 'INITIALIZED')) return false;
+    if (!matchesStatusFilter(stage, status)) return false;
     if (role && r !== role) return false;
     return true;
   });
@@ -318,21 +506,18 @@ function filterEmployeeHistory() {
   }
 
   tbody.innerHTML = filtered.map(({ deal, role: r }) => {
-    const si = STAGE_MAP[shortStageId(deal.STAGE_ID)] || { label: deal.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
     const rm = ROLE_META[r];
     const title = deal.TITLE || `Appraisal #${deal.ID}`;
     const submittedAtIso = { self: deal.UF_CRM_REVIEWEE_SUBMITTED_AT, reviewer: deal.UF_CRM_REVIEWER_SUBMITTED_AT, partner: deal.UF_CRM_PARTNER_SUBMITTED_AT }[r];
-    const submittedAt = submittedAtIso ? new Date(submittedAtIso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+    const submittedAt = fmtHistoryDate(submittedAtIso);
     const dlBtn = shortStageId(deal.STAGE_ID) === 'SUBMITTED'
-      ? `<button onclick="empDownloadPdf('${deal.ID}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
-           <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
-         </button>`
+      ? pdfDownloadBtn(deal.ID, 'empDownloadPdf')
       : '';
     return `
       <tr class="hover:bg-slate-50/50 transition-colors">
         <td class="px-4 py-3 text-slate-700 font-medium text-sm">${title}</td>
         <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${rm.cls}">${rm.label}</span></td>
-        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls}">${si.label}</span></td>
+        <td class="px-4 py-3">${stageBadge(shortStageId(deal.STAGE_ID), deal.STAGE_ID)}</td>
         <td class="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">${submittedAt}</td>
         <td class="px-4 py-3">${dlBtn}</td>
       </tr>`;
@@ -608,7 +793,13 @@ async function loadEmployeeTable() {
       BX24App.getUsers(),
       BX24App.getDepartments(),
       categoryId
-        ? BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, ['ID', 'TITLE', 'STAGE_ID', 'ASSIGNED_BY_ID', 'CLOSEDATE', 'UF_CRM_REVIEWEE_SUBMITTED_AT', 'UF_CRM_REVIEWER_SUBMITTED_AT', 'UF_CRM_PARTNER_SUBMITTED_AT'])
+        ? BX24App.listDeals({ CATEGORY_ID: categoryId, UF_CRM_SOURCE_APP: 'APPRAISIFY' }, [
+            'ID', 'TITLE', 'STAGE_ID', 'ASSIGNED_BY_ID', 'CLOSEDATE',
+            'UF_CRM_REVIEWEE_SUBMITTED_AT', 'UF_CRM_REVIEWER_SUBMITTED_AT', 'UF_CRM_PARTNER_SUBMITTED_AT',
+            // Cycle metadata — written at launch since the metadata fix, and
+            // backfilled onto older records. Drives the cycle/team/role filters.
+            'UF_CRM_APPRAISAL_TYPE', 'UF_CRM_PERIOD', 'UF_CRM_YEAR', 'UF_CRM_TEAM', 'UF_CRM_ROLE',
+          ])
         : Promise.resolve([]),
     ]);
 
@@ -624,6 +815,8 @@ async function loadEmployeeTable() {
       if (!allDealsMap[empId]) allDealsMap[empId] = [];
       allDealsMap[empId].push(d);
     });
+    // Retained at module scope so a per-employee view can render without refetching.
+    _adminDealsByEmployee = allDealsMap;
     const dealMap = {};
     Object.entries(allDealsMap).forEach(([empId, empDeals]) => {
       dealMap[empId] = empDeals.find(d => shortStageId(d.STAGE_ID) !== 'SUBMITTED') ?? empDeals[0];
@@ -658,8 +851,7 @@ async function loadEmployeeTable() {
       const deal = dealMap[String(u.ID)];
       let statusBadge;
       if (deal) {
-        const si = STAGE_MAP[shortStageId(deal.STAGE_ID)] || { label: deal.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
-        statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls}">${si.label}</span>`;
+        statusBadge = stageBadge(shortStageId(deal.STAGE_ID), deal.STAGE_ID);
       } else {
         statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-400">No appraisal</span>`;
       }
@@ -700,78 +892,6 @@ async function loadEmployeeTable() {
   }
 }
 
-function renderHistoryTable(allDealsMap, users, deptMap) {
-  const userMap = {};
-  (users || []).forEach(u => { userMap[String(u.ID)] = u; });
-
-  // Store enriched rows for filtering
-  _adminHistoryRows = Object.values(allDealsMap).flat()
-    .sort((a, b) => Number(b.ID) - Number(a.ID))
-    .map(d => {
-      const u = userMap[String(d.ASSIGNED_BY_ID)];
-      const fullName = u ? `${u.NAME || ''} ${u.LAST_NAME || ''}`.trim() || 'Unknown' : `User #${d.ASSIGNED_BY_ID}`;
-      return { deal: d, user: u, fullName, stage: shortStageId(d.STAGE_ID) };
-    });
-
-  filterAdminHistory();
-}
-
-function filterAdminHistory() {
-  const tbody = document.getElementById('history-table');
-  if (!tbody) return;
-  const search = (document.getElementById('admin-hist-search')?.value || '').toLowerCase();
-  const status = document.getElementById('admin-hist-status')?.value || '';
-
-  const filtered = _adminHistoryRows.filter(({ fullName, stage }) => {
-    if (search && !fullName.toLowerCase().includes(search)) return false;
-    if (status && stage !== status && !(status === 'REVIEWEEPENDING' && stage === 'INITIALIZED')) return false;
-    return true;
-  });
-
-  if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-slate-400 text-sm">No appraisals match the current filters.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(({ deal: d, user: u, fullName, stage }) => {
-    const initial = fullName.charAt(0).toUpperCase();
-    const avatarHtml = u?.PERSONAL_PHOTO
-      ? `<img src="${u.PERSONAL_PHOTO}" alt="${fullName}" class="w-7 h-7 rounded-full object-cover shrink-0"/>`
-      : `<div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">${initial}</div>`;
-    const si = STAGE_MAP[stage] || { label: d.STAGE_ID, cls: 'bg-slate-100 text-slate-500' };
-    const title = d.TITLE || `Appraisal #${d.ID}`;
-    // Show most recent submission timestamp; fall back to due date for older deals
-    const latestSubmittedIso = d.UF_CRM_PARTNER_SUBMITTED_AT || d.UF_CRM_REVIEWER_SUBMITTED_AT || d.UF_CRM_REVIEWEE_SUBMITTED_AT || d.CLOSEDATE;
-    const dueDate = latestSubmittedIso ? new Date(latestSubmittedIso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-    const dlBtn = stage === 'SUBMITTED'
-      ? `<button onclick="adminDownloadPdf('${d.ID}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
-           <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Download
-         </button>`
-      : '';
-    return `
-      <tr class="hover:bg-slate-50/50 transition-colors">
-        <td class="px-4 py-3"><div class="flex items-center gap-2">${avatarHtml}<span class="font-medium text-slate-800 text-sm">${fullName}</span></div></td>
-        <td class="px-4 py-3 text-slate-700 text-sm">${title}</td>
-        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${si.cls}">${si.label}</span></td>
-        <td class="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">${dueDate}</td>
-        <td class="px-4 py-3">${dlBtn}</td>
-      </tr>`;
-  }).join('');
-}
-
-function switchEmployeeTab(tab) {
-  const isOverview = tab === 'overview';
-  document.getElementById('emp-tab-overview').classList.toggle('hidden', !isOverview);
-  document.getElementById('emp-tab-history').classList.toggle('hidden', isOverview);
-
-  const btnOv   = document.getElementById('emp-tab-btn-overview');
-  const btnHist = document.getElementById('emp-tab-btn-history');
-  const active   = 'px-4 py-2 text-sm font-semibold rounded-lg bg-primary/10 text-primary transition-colors';
-  const inactive = 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-500 hover:bg-slate-100 transition-colors';
-  btnOv.className   = isOverview ? active : inactive;
-  btnHist.className = isOverview ? inactive : active;
-}
-
 function switchAdminTab(tab) {
   const isEmployees = tab === 'employees';
   document.getElementById('tab-employees').classList.toggle('hidden', !isEmployees);
@@ -787,6 +907,56 @@ function switchAdminTab(tab) {
   btnHist.className = isEmployees
     ? 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-500 hover:bg-slate-100 transition-colors'
     : 'px-4 py-2 text-sm font-semibold rounded-lg bg-primary/10 text-primary transition-colors';
+}
+
+function switchEmployeeTab(tab) {
+  const isOverview = tab === 'overview';
+  document.getElementById('emp-tab-overview').classList.toggle('hidden', !isOverview);
+  document.getElementById('emp-tab-history').classList.toggle('hidden', isOverview);
+
+  const btnOv   = document.getElementById('emp-tab-btn-overview');
+  const btnHist = document.getElementById('emp-tab-btn-history');
+  const active   = 'px-4 py-2 text-sm font-semibold rounded-lg bg-primary/10 text-primary transition-colors';
+  const inactive = 'px-4 py-2 text-sm font-semibold rounded-lg text-slate-500 hover:bg-slate-100 transition-colors';
+  btnOv.className   = isOverview ? active : inactive;
+  btnHist.className = isOverview ? inactive : active;
+}
+
+function renderHistoryTable(allDealsMap, users, deptMap) {
+  _adminUserMap = {};
+  (users || []).forEach(u => { _adminUserMap[String(u.ID)] = u; });
+
+  _adminHistoryRows = buildHistoryRows(Object.values(allDealsMap).flat(), _adminUserMap);
+  populateAdminHistoryFilters();
+  filterAdminHistory();
+}
+
+function filterAdminHistory() {
+  const val    = id => document.getElementById(id)?.value || '';
+  const search = val('admin-hist-search').toLowerCase();
+  const status = val('admin-hist-status');
+  const cycle  = val('admin-hist-cycle');
+  const team   = val('admin-hist-team');
+  const role   = val('admin-hist-role');
+
+  const filtered = _adminHistoryRows.filter(({ deal, fullName, stage }) => {
+    if (search && !fullName.toLowerCase().includes(search)) return false;
+    if (!matchesStatusFilter(stage, status)) return false;
+    if (cycle && cycleLabelOf(deal) !== cycle) return false;
+    if (team  && teamOf(deal)       !== team)  return false;
+    if (role  && roleOf(deal)       !== role)  return false;
+    return true;
+  });
+
+  const countEl = document.getElementById('admin-hist-count');
+  if (countEl) {
+    const done = filtered.filter(r => r.stage === 'SUBMITTED').length;
+    countEl.textContent = filtered.length === _adminHistoryRows.length
+      ? `${filtered.length} appraisals \u00b7 ${done} complete`
+      : `${filtered.length} of ${_adminHistoryRows.length} \u00b7 ${done} complete`;
+  }
+
+  renderHistoryRows('history-table', filtered, { groupByCycle: true });
 }
 
 function adminDownloadPdf(dealId) {
